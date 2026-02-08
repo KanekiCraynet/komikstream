@@ -28,7 +28,15 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "api.sansekai.my.id",
+      },
+      {
+        protocol: "https",
+        hostname: "*.sansekai.my.id",
+      },
+      {
+        protocol: "https",
+        hostname: "img.clerk.com",
       },
     ],
     // Enable modern formats for 60-80% size reduction

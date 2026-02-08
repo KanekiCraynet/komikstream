@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -70,6 +71,7 @@
     "prettier-plugin-tailwindcss": "^0.7.2",
     "prisma": "^7.3.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5"
