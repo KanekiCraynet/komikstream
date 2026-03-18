@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.9] - 2026-03-18
+
+### Bug Fixes
+- fix(api-client): remove cache-config dependency and update fetch options for Cloudflare Workers compatibility (18952e9)
+
+### Chores
+- chore(deps): bump next in the npm_and_yarn group across 1 directory (3761c16)
+
+
 ## [0.19.8] - 2026-03-18
 
 ### Bug Fixes
