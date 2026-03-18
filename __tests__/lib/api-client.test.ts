@@ -5,7 +5,8 @@
  * all public API functions, and all transformers.
  */
 
-import { CACHE_TIMES } from "@/lib/cache-config";
+// cache-config is no longer needed in this test — fetchWithCache uses
+// plain fetch() without next:{revalidate} to work in Cloudflare Workers.
 
 // ---- helpers ----
 const BASE_URL = "https://api.sansekai.my.id/api";
@@ -73,10 +74,13 @@ describe("api-client", () => {
 
       const result = await api.getAnimeLatest();
 
+      // fetchWithCache now uses plain fetch() without next:{revalidate}
+      // — the option was removed because it caused failures in CF Workers.
+      // Verify only that the correct URL was called.
       expect(fetchMock).toHaveBeenCalledWith(
         `${BASE_URL}/anime/latest`,
         expect.objectContaining({
-          next: { revalidate: CACHE_TIMES.LATEST },
+          headers: { Accept: "application/json" },
         })
       );
       expect(result).toHaveLength(1);
