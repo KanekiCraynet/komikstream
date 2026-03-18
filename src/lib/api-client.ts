@@ -110,34 +110,29 @@ interface KomikImageResponse {
 
 // ==================== HELPER FUNCTIONS ====================
 
-/** Per-request timeout in milliseconds. Prevents server-side fetches from
- *  hanging indefinitely when the external API is unreachable. */
-const FETCH_TIMEOUT_MS = 8_000;
-
 /**
- * Fetch with Next.js ISR revalidation.
+ * Fetch JSON from an external API with basic retry logic.
  *
- * Does NOT pass `tags` to fetch() — tag-based revalidation requires a KV
- * binding in Cloudflare Workers that is not configured. Route-level ISR
- * (export const revalidate = N in pages) is used instead.
+ * Intentionally uses plain fetch() without `next: { revalidate }` or
+ * AbortController — both caused silent failures in Cloudflare Workers runtime
+ * when OpenNext's fetch interceptor tried to access Workers Cache infrastructure
+ * that is not configured.
+ *
+ * ISR is handled at the ROUTE level via `export const revalidate = N` in each
+ * page, which causes OpenNext to cache the full rendered HTML response.
+ * Individual fetch calls do not need their own revalidate directive.
+ *
+ * The `revalidate` parameter is kept in the signature so callers don't need
+ * to change, but it is no longer forwarded to fetch().
  */
-async function fetchWithCache<T>(url: string, revalidate: number, retries = 1): Promise<T> {
+async function fetchWithCache<T>(url: string, _revalidate: number, retries = 1): Promise<T> {
   for (let i = 0; i <= retries; i++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
     try {
       const res = await fetch(url, {
-        signal: controller.signal,
-        next: {
-          revalidate: revalidate,
-        },
         headers: {
           Accept: "application/json",
         },
-      } as RequestInit);
-
-      clearTimeout(timeoutId);
+      });
 
       if (res.status === 429) {
         const waitTime = Math.min(500 * Math.pow(2, i), 3000);
@@ -154,7 +149,6 @@ async function fetchWithCache<T>(url: string, revalidate: number, retries = 1): 
 
       return res.json();
     } catch (error) {
-      clearTimeout(timeoutId);
       if (i === retries) {
         throw error;
       }

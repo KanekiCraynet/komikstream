@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.8] - 2026-03-18
+
+### Bug Fixes
+- fix(api-client): remove next:{revalidate} and AbortController from fetch (fecf674)
+
+
 ## [0.19.7] - 2026-03-18
 
 ### Bug Fixes
