@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.1] - 2026-03-19
+
+### Bug Fixes
+- fix(layout): add polyfill for esbuild's __name() to prevent hydration errors (0982621)
+
+
 ## [0.20.0] - 2026-03-19
 
 ### Features
