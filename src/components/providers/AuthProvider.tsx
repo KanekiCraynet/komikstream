@@ -58,8 +58,17 @@ function ClerkProviderWithTheme({ children }: { children: ReactNode }) {
 
   // Always wrap in ClerkProvider, but only apply theme after mount
   // This ensures SignedIn/SignedOut components always have a ClerkProvider parent
+  //
+  // NOTE: publishableKey must be passed explicitly here.
+  // In @clerk/nextjs@6 (App Router), ClerkProvider used inside a "use client"
+  // component does NOT automatically read NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY from
+  // process.env. Without an explicit prop, Clerk enters "keyless mode" and calls
+  // the createOrReadKeylessAction Server Action, which fails in the Cloudflare
+  // Workers runtime, throwing "Missing publishableKey". Passing the prop uses
+  // Next.js's static NEXT_PUBLIC_* build-time replacement, bypassing keyless mode.
   return (
     <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       appearance={{
         baseTheme: mounted && resolvedTheme === "dark" ? dark : undefined,
         variables: {

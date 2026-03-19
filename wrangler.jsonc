@@ -8,6 +8,17 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  // Public runtime variables available to server-side code in the CF Worker.
+  // NEXT_PUBLIC_* vars are baked into client bundles at build time by Next.js,
+  // but server-side code (e.g. isClerkConfigured() in layout.tsx) reads them
+  // from process.env at runtime — these bindings provide that value in the CF
+  // Worker runtime without needing them in secrets or the bundled .env file.
+  "vars": {
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsua3Vyb21hbmdhLm1lJA",
+    "NEXT_PUBLIC_API_URL": "https://api.sansekai.my.id/api",
+    "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
+    "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
+  },
   // Stub out @vercel/og to eliminate resvg.wasm (1.4MB) + yoga.wasm (87KB)
   // We don't use OG image generation in this project
   "alias": {

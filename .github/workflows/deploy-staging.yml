@@ -25,10 +25,6 @@ concurrency:
   group: staging
   cancel-in-progress: false
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   # ==================== CI CHECKS ====================
   ci:
@@ -37,16 +33,16 @@ jobs:
 
   # ==================== DEPLOY STAGING ====================
   deploy-staging:
-    name: Deploy Staging
+    name: Deploy Staging to Cloudflare Workers
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: [ci]
     if: needs.ci.result == 'success'
     environment:
       name: staging
-      url: ${{ steps.deploy.outputs.url }}
+      url: "https://kuromanga.osanugroho03.workers.dev"
     outputs:
-      url: ${{ steps.deploy.outputs.url }}
+      url: "https://kuromanga.osanugroho03.workers.dev"
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -57,47 +53,76 @@ jobs:
           node-version-file: ".node-version"
           cache: "npm"
 
-      - name: Cache Vercel CLI
-        id: vercel-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            /usr/local/lib/node_modules/vercel
-            /usr/local/bin/vercel
-          key: vercel-cli-${{ runner.os }}-v50
+      - name: Install dependencies
+        run: npm clean-install --ignore-scripts
 
-      - name: Install Vercel CLI
-        if: steps.vercel-cache.outputs.cache-hit != 'true'
-        run: npm install --global vercel@50
-
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Project Artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to Vercel (Staging)
-        id: deploy
-        run: |
-          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$url" >> $GITHUB_OUTPUT
-
-      - name: Alias to staging subdomain
-        run: |
-          vercel alias set ${{ steps.deploy.outputs.url }} staging-kuromanga.vercel.app --token=${{ secrets.VERCEL_TOKEN }} || true
-
-      - name: Create Deployment Status
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - name: Build for Cloudflare Workers (Staging)
         env:
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        with:
-          script: |
-            const url = process.env.DEPLOY_URL;
-            console.log(`Deployed to staging: ${url}`);
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_API_URL: "https://api.sansekai.my.id/api"
+          NODE_ENV: production
+        run: npm run build:cf
+
+      - name: Deploy to Cloudflare Workers (Staging)
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --name kuromanga-staging
+
+      - name: Set Staging Worker Secrets
+        # Push server-side secrets to the staging worker via Cloudflare API.
+        # NEXT_PUBLIC_* vars are baked into the bundle at build time and do not
+        # need to be set here. Secrets persist across deployments — re-applied
+        # here so the workflow is fully self-contained.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+        run: |
+          set_secret() {
+            local name="$1" value="$2" worker="$3"
+            local status
+            status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${worker}/secrets" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${name}\",\"text\":\"${value}\",\"type\":\"secret_text\"}")
+            if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
+              echo "✅ Secret ${name} set (HTTP ${status})"
+            else
+              echo "⚠️  Secret ${name} returned HTTP ${status} — check CF dashboard"
+            fi
+          }
+          set_secret "DATABASE_URL"     "$DATABASE_URL"     "kuromanga-staging"
+          set_secret "CLERK_SECRET_KEY" "$CLERK_SECRET_KEY" "kuromanga-staging"
+          if [ -n "$CLERK_WEBHOOK_SECRET" ]; then
+            set_secret "CLERK_WEBHOOK_SECRET" "$CLERK_WEBHOOK_SECRET" "kuromanga-staging"
+          fi
+
+      - name: Deployment Summary
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "## Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| -------- | ----- |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | https://kuromanga.osanugroho03.workers.dev |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${COMMIT_SHA}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${BRANCH_NAME}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | ${ACTOR} |" >> $GITHUB_STEP_SUMMARY
 
   # ==================== POST-STAGING TESTS ====================
   post-staging-tests:
-    name: Post-Staging Tests
+    name: Post-Staging E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [deploy-staging]
@@ -109,7 +134,7 @@ jobs:
       - name: Health Check
         uses: ./.github/actions/health-check
         with:
-          url: "${{ needs.deploy-staging.outputs.url }}/api/health"
+          url: "https://kuromanga.osanugroho03.workers.dev/api/health"
           max-retries: "5"
           retry-delay: "10"
           initial-delay: "20"
@@ -118,12 +143,10 @@ jobs:
         run: |
           echo "Warming up key pages before E2E tests..."
           for path in "/" "/komik" "/anime"; do
-            url="${STAGING_URL}${path}"
+            url="https://kuromanga.osanugroho03.workers.dev${path}"
             status=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 30 "$url" || echo "000")
             echo "  ${path} -> HTTP ${status}"
           done
-        env:
-          STAGING_URL: ${{ needs.deploy-staging.outputs.url }}
 
       - name: Setup project
         uses: ./.github/actions/setup
@@ -133,20 +156,19 @@ jobs:
       - name: Run E2E tests against staging
         run: npx playwright test --project=chromium
         env:
-          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-staging.outputs.url }}
+          PLAYWRIGHT_BASE_URL: "https://kuromanga.osanugroho03.workers.dev"
 
       - name: Staging Summary
         if: always()
         env:
-          DEPLOY_URL: ${{ needs.deploy-staging.outputs.url }}
           COMMIT_SHA: ${{ github.sha }}
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          echo "## Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Staging Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "| -------- | ----- |" >> $GITHUB_STEP_SUMMARY
-          echo "| URL | ${DEPLOY_URL} |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | https://kuromanga.osanugroho03.workers.dev |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${COMMIT_SHA}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | \`${BRANCH_NAME}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Status | Ready for testing |" >> $GITHUB_STEP_SUMMARY

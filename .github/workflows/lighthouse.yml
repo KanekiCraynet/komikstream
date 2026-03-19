@@ -17,10 +17,6 @@ concurrency:
   group: lighthouse-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   lighthouse:
     name: Lighthouse Performance Audit

@@ -23,12 +23,14 @@ if (process.env.NODE_ENV === "production" && !process.env.CI) {
 // - frame-src: allows video embeds from any HTTPS source (dynamic third-party player URLs)
 // - img-src: allows HTTPS images from any source (external manga/anime cover CDNs)
 // - script-src: 'unsafe-eval'/'unsafe-inline' needed for Next.js dev mode and Clerk;
-//   clerk.kuromanga.me is the production Clerk Frontend API (loads clerk-js SDK)
+//   clerk.kuromanga.me is the production Clerk Frontend API (loads clerk-js SDK);
+//   static.cloudflareinsights.com is the Cloudflare Web Analytics beacon script
+//   automatically injected by CF Workers — must be allowed to avoid CSP violations
 // - connect-src: allows API calls to the external data source and Clerk auth endpoints
 // - worker-src: Clerk uses web workers for session token refresh
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.kuromanga.me https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.kuromanga.me https://*.clerk.accounts.dev https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' https: data: blob:",
   "font-src 'self' data:",
