@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2026-03-19
+
+### Features
+- feat(deploy): update staging deployment to Cloudflare Workers and enhance workflow steps refactor(lighthouse): remove unused environment variables fix(csp): add Cloudflare Web Analytics script to CSP directives chore(auth): explicitly pass publishableKey to ClerkProvider to avoid keyless mode refactor(provider): remove unused ClerkProviderWrapper component chore(wrangler): add public runtime variables for Clerk and API URLs (96760d2)
+
+
 ## [0.19.9] - 2026-03-18
 
 ### Bug Fixes
