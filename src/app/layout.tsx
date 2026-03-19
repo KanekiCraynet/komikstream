@@ -79,6 +79,23 @@ export const metadata: Metadata = {
   },
 };
 
+// Polyfill for esbuild's __name() keepNames helper.
+//
+// OpenNext's Cloudflare build uses esbuild with keepNames:true to preserve
+// function names in the worker bundle. This causes __name() calls to be
+// injected into SSR-rendered inline scripts (e.g. the next-themes theme
+// detection script that runs in <body> before any JS chunk loads).
+// Since __name is only defined inside the worker bundle — not globally —
+// the inline script crashes with "ReferenceError: __name is not defined"
+// at (index):10, which kills React hydration and causes cascading failures
+// including the Clerk "Missing publishableKey" error.
+//
+// This polyfill defines __name globally in <head> before any other script
+// runs, matching the exact signature esbuild expects:
+//   __name(fn, name) -> sets fn.name and returns fn
+const esbuildNamePolyfill =
+  'var __name=(fn,name)=>(Object.defineProperty(fn,"name",{value:name,configurable:true}),fn);';
+
 // Static structured data for SEO - safe to inline as it contains no user input
 const structuredData = JSON.stringify({
   "@context": "https://schema.org",
@@ -135,6 +152,10 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        {/* Must be the very first script in <head> — defines __name() before
+            the next-themes inline script (injected by Next.js SSR into <body>)
+            has a chance to call it. See esbuildNamePolyfill constant above. */}
+        <script dangerouslySetInnerHTML={{ __html: esbuildNamePolyfill }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       </head>
       <body
