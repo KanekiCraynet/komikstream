@@ -1,116 +1,96 @@
+/**
+ * Prisma Client for Cloudflare Workers (via OpenNext)
+ *
+ * Follows the official OpenNext pattern for Prisma + PostgreSQL:
+ * https://opennext.js.org/cloudflare/howtos/db#postgresql-1
+ *
+ * Key design decisions:
+ * 1. NO direct `import { Pool } from "pg"` — the adapter manages it internally.
+ *    This avoids the OpenNext/esbuild externalization bug where `pg` gets
+ *    split into a `pg-<hash>` external module that Workers can't resolve.
+ *    (See: opennextjs/opennextjs-cloudflare #1091, #1153)
+ *
+ * 2. Per-request PrismaClient via React `cache()` — required by CF Workers
+ *    which forbids I/O reuse across requests ("Cannot perform I/O on behalf
+ *    of a different request").
+ *
+ * 3. Uses `@prisma/client` (not `/edge`) — the `serverExternalPackages`
+ *    config in next.config.ts lets OpenNext resolve the correct `workerd`
+ *    variant at bundle time.
+ */
+
 import "server-only";
 
-import { Pool, type PoolConfig } from "pg";
+import { cache } from "react";
+import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-// Use the edge import to get static WASM imports instead of base64 decoding.
-// CF Workers blocks dynamic `new WebAssembly.Module()` but supports static
-// `import('./xxx.wasm')` which the edge build uses.
-import { PrismaClient } from "@prisma/client/edge";
-
-// Module-level singleton — optimized for Cloudflare Workers.
-// Each Worker isolate may have its own instance, but within
-// a single request lifecycle the same instance is reused.
-let _prisma: PrismaClient | undefined;
-let _pool: Pool | undefined;
-
-const connectionString = process.env.DATABASE_URL;
-const isProduction = process.env.NODE_ENV === "production";
 
 /**
  * Check if database is configured (DATABASE_URL exists).
- * Used by getSafePrisma() to gracefully degrade when DB is unavailable.
+ * Used to gracefully degrade when DB is unavailable.
  */
 export function isDatabaseConfigured(): boolean {
   return !!process.env.DATABASE_URL;
 }
 
 /**
- * Normalize DATABASE_URL for the pg library:
- *  - Replace `sslmode=require` with `sslmode=verify-full` to suppress
- *    the pg v8.x SECURITY WARNING about deprecated SSL mode aliases.
- *  - Remove `channel_binding=require` as it's a libpq-specific param
- *    that pg handles via the PoolConfig instead.
+ * Get a PrismaClient scoped to the current request via React `cache()`.
+ *
+ * - Each incoming request gets its own PrismaClient + pg Pool.
+ * - `maxUses: 1` ensures the connection is not reused across requests.
+ * - Returns `null` if DATABASE_URL is not set.
+ *
+ * Usage in server components / route handlers:
+ *   const prisma = getDb();
+ *   if (!prisma) return fallback;
+ *   const data = await prisma.komik.findUnique({ ... });
  */
-function normalizeConnectionString(url: string): { url: string; channelBinding?: string } {
-  const parsed = new URL(url);
-  const channelBinding = parsed.searchParams.get("channel_binding") ?? undefined;
+export const getDb = cache((): PrismaClient | null => {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return null;
 
-  // Fix SSL mode: 'require' triggers a deprecation warning in pg 8.x
-  const sslMode = parsed.searchParams.get("sslmode");
-  if (sslMode === "require" || sslMode === "prefer" || sslMode === "verify-ca") {
-    parsed.searchParams.set("sslmode", "verify-full");
+  try {
+    // PrismaPg accepts pg.PoolConfig — no need to create a Pool manually.
+    // This lets @prisma/adapter-pg manage the pg dependency internally,
+    // avoiding the externalization issue with direct pg imports.
+    const adapter = new PrismaPg(
+      {
+        connectionString,
+        // Don't reuse connections across requests (CF Workers requirement)
+        max: 1,
+        // Supabase/Neon cold starts can take 3-7s
+        connectionTimeoutMillis: 10_000,
+        idleTimeoutMillis: 5_000,
+        ssl: { rejectUnauthorized: false },
+      },
+      {
+        // Log pool errors instead of crashing
+        onPoolError: (err) => {
+          console.error("[prisma:pool] Pool error:", err.message);
+        },
+      }
+    );
+
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === "production" ? ["error"] : ["error", "warn"],
+    });
+  } catch (err) {
+    console.error("[prisma] Failed to create PrismaClient:", err);
+    return null;
   }
-
-  // Remove channel_binding from URL — handled via PoolConfig
-  parsed.searchParams.delete("channel_binding");
-
-  return { url: parsed.toString(), channelBinding };
-}
-
-// Only initialize pool/prisma if DATABASE_URL is present.
-// This prevents build errors when DB is not configured (e.g. CI without DB).
-function createPrismaClient(): PrismaClient {
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is not defined. Please set it in your environment variables.");
-  }
-
-  // Reuse existing instance within the same isolate
-  if (_prisma) return _prisma;
-
-  const { url: normalizedUrl } = normalizeConnectionString(connectionString);
-
-  const poolConfig: PoolConfig = {
-    connectionString: normalizedUrl,
-    // Cloudflare Workers handles SSL at the connect() level via pg-cloudflare.
-    // rejectUnauthorized: false avoids cert issues in Workers runtime.
-    ssl: { rejectUnauthorized: false },
-    // Workers/serverless: always minimal connections.
-    // Each Worker isolate is ephemeral — keep pool tiny.
-    max: 1,
-    min: 0,
-    idleTimeoutMillis: 5_000,
-    // Connection timeout: Neon/Supabase cold starts can take 3-7s
-    connectionTimeoutMillis: 10_000,
-  };
-
-  const pool = _pool ?? new Pool(poolConfig);
-
-  // Log pool errors instead of crashing the process
-  pool.on("error", (err) => {
-    console.error("[pg:pool] Unexpected pool error:", err.message);
-  });
-
-  // Cast needed: pg's Pool type and @prisma/adapter-pg's expected Pool
-  // type can drift between versions; the runtime API is identical.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const adapter = new PrismaPg(pool as any);
-
-  const client = new PrismaClient({
-    adapter,
-    log: isProduction ? ["error"] : ["error", "warn"],
-  });
-
-  // Cache at module level for reuse within the same isolate
-  _prisma = client;
-  _pool = pool;
-
-  return client;
-}
+});
 
 /**
  * Safe Prisma accessor — returns PrismaClient or null.
  *
- * Always use this (never import `createPrismaClient` directly) so that:
- *  - Module load is safe even when DATABASE_URL is not set (e.g. at build time)
- *  - Routes that don't use the DB degrade gracefully without crashing
- *  - Only one PrismaClient instance is created per Worker isolate
+ * Wrapper around getDb() for backward compatibility with existing code
+ * that uses `await getSafePrisma()`.
  */
 export async function getSafePrisma(): Promise<PrismaClient | null> {
-  if (!isDatabaseConfigured()) {
-    return null;
-  }
+  if (!isDatabaseConfigured()) return null;
   try {
-    return _prisma ?? createPrismaClient();
+    return getDb();
   } catch {
     return null;
   }

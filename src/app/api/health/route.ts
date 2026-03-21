@@ -49,10 +49,9 @@ export async function GET() {
     logger.warn("Health check: database connection failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-    // Don't fail health check for DB issues in development
-    if (process.env.NODE_ENV === "production") {
-      health.status = "unhealthy";
-    }
+    // DB is optional (used only for caching + user features).
+    // Don't fail the health check for DB issues — the site works
+    // via external API fallback even without a database connection.
   }
 
   const responseTime = Date.now() - startTime;
