@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.2] - 2026-03-21
+
+### Refactoring
+- refactor(prisma): update Prisma client configuration for Cloudflare Workers compatibility (d24e283)
+
+### Chores
+- chore(deps): bump undici in the npm_and_yarn group across 1 directory (157b77d)
+
+
 ## [0.20.1] - 2026-03-19
 
 ### Bug Fixes
