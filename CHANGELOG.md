@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.3] - 2026-03-24
+
+### Bug Fixes
+- fix(prisma): restore edge client and break toxic import chain for CF Workers (eba2063)
+
+### Chores
+- chore(deps): bump the npm_and_yarn group across 1 directory with 2 updates (dc5ce96)
+
+
 ## [0.20.2] - 2026-03-21
 
 ### Refactoring
