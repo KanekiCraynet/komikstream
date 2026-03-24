@@ -3,13 +3,11 @@
  *
  * Covers: fetchWithCache (retry, 429, errors), ensureArray,
  * all public API functions, and all transformers.
+ *
+ * API provider: sankavollerei.com
  */
 
-// cache-config is no longer needed in this test — fetchWithCache uses
-// plain fetch() without next:{revalidate} to work in Cloudflare Workers.
-
-// ---- helpers ----
-const BASE_URL = "https://api.sansekai.my.id/api";
+const BASE_URL = "https://www.sankavollerei.com";
 
 let fetchMock: jest.Mock;
 
@@ -40,71 +38,62 @@ function errorResponse(status: number) {
   });
 }
 
-// We re-import the module for each test file run, but since module-level
-// `BASE_URL` reads env at import time, we import after setting env if needed.
-// For default env, just import normally.
-
-// ==================== fetchWithCache via public functions ====================
+// ==================== Tests ====================
 
 describe("api-client", () => {
   let api: typeof import("@/lib/api-client");
 
   beforeEach(async () => {
-    // Dynamic import so fetch mock is available
     api = await import("@/lib/api-client");
   });
 
   // ---- getAnimeLatest ----
   describe("getAnimeLatest", () => {
     it("returns transformed anime list on success", async () => {
-      const raw = [
-        {
-          urlId: "anime-1",
-          title: "Test Anime",
-          thumbnail: "thumb.jpg",
-          synopsis: "Synopsis here",
-          rating: "8.5",
-          type: "TV",
-          status: "Ongoing",
-          genres: ["Action"],
-          episodes: [{ title: "Ep 1", url: "/ep1", date: "2025-01-01" }],
+      const raw = {
+        status: "success",
+        ok: true,
+        data: {
+          animeList: [
+            {
+              title: "Test Anime",
+              poster: "thumb.jpg",
+              animeId: "test-anime-sub-indo",
+              status: "Ongoing",
+              genreList: [{ title: "Action", genreId: "action" }],
+            },
+          ],
         },
-      ];
+      };
       fetchMock.mockReturnValueOnce(okJson(raw));
 
       const result = await api.getAnimeLatest();
 
-      // fetchWithCache now uses plain fetch() without next:{revalidate}
-      // — the option was removed because it caused failures in CF Workers.
-      // Verify only that the correct URL was called.
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/anime/latest`,
+        `${BASE_URL}/anime/ongoing-anime`,
         expect.objectContaining({
-          headers: { Accept: "application/json" },
+          headers: expect.objectContaining({
+            "User-Agent": expect.any(String),
+            Referer: expect.stringContaining("sankavollerei.com"),
+          }),
         })
       );
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        urlId: "anime-1",
-        title: "Test Anime",
-        thumbnail: "thumb.jpg",
-        synopsis: "Synopsis here",
-        rating: "8.5",
-        type: "TV",
-        status: "Ongoing",
-        genres: ["Action"],
-        episodes: [{ title: "Ep 1", url: "/ep1", date: "2025-01-01" }],
-      });
+      expect(result[0].urlId).toBe("test-anime-sub-indo");
+      expect(result[0].title).toBe("Test Anime");
+      expect(result[0].thumbnail).toBe("thumb.jpg");
+      expect(result[0].status).toBe("Ongoing");
+      expect(result[0].genres).toEqual(["Action"]);
     });
 
-    it("returns empty array when API returns null", async () => {
-      fetchMock.mockReturnValueOnce(okJson(null));
+    it("returns empty array when data.animeList is missing", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success", data: {} }));
       const result = await api.getAnimeLatest();
       expect(result).toEqual([]);
     });
 
-    it("returns empty array when API returns non-array", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ something: true }));
+    it("returns empty array when data is null", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success", data: null }));
       const result = await api.getAnimeLatest();
       expect(result).toEqual([]);
     });
@@ -112,31 +101,39 @@ describe("api-client", () => {
 
   // ---- getAnimeRecommended ----
   describe("getAnimeRecommended", () => {
-    it("calls correct URL with page param", async () => {
-      fetchMock.mockReturnValueOnce(okJson([]));
-      await api.getAnimeRecommended(3);
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/anime/recommended?page=3`,
-        expect.anything()
-      );
-    });
+    it("calls /anime/home and merges ongoing+completed", async () => {
+      const raw = {
+        status: "success",
+        data: {
+          ongoing: {
+            animeList: [{ animeId: "a1", title: "Ongoing 1" }],
+          },
+          completed: {
+            animeList: [{ animeId: "a2", title: "Completed 1" }],
+          },
+        },
+      };
+      fetchMock.mockReturnValueOnce(okJson(raw));
 
-    it("defaults to page 1", async () => {
-      fetchMock.mockReturnValueOnce(okJson([]));
-      await api.getAnimeRecommended();
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/anime/recommended?page=1`,
-        expect.anything()
-      );
+      const result = await api.getAnimeRecommended(1);
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/anime/home`, expect.anything());
+      expect(result).toHaveLength(2);
+      expect(result[0].urlId).toBe("a1");
+      expect(result[1].urlId).toBe("a2");
     });
   });
 
   // ---- getAnimeMovie ----
   describe("getAnimeMovie", () => {
-    it("calls correct URL and transforms response", async () => {
-      fetchMock.mockReturnValueOnce(okJson([{ url_id: "movie-1", judul: "Movie Title" }]));
+    it("calls /anime/complete-anime as fallback", async () => {
+      fetchMock.mockReturnValueOnce(
+        okJson({
+          status: "success",
+          data: { animeList: [{ animeId: "movie-1", title: "Movie Title" }] },
+        })
+      );
       const result = await api.getAnimeMovie();
-      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/anime/movie`, expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/anime/complete-anime`, expect.anything());
       expect(result[0].urlId).toBe("movie-1");
       expect(result[0].title).toBe("Movie Title");
     });
@@ -146,40 +143,51 @@ describe("api-client", () => {
   describe("getAnimeDetail", () => {
     it("returns transformed detail when data exists", async () => {
       const raw = {
-        data: [
-          {
-            urlId: "detail-1",
-            title: "Detail Anime",
-            thumbnail: "detail.jpg",
-            cover: "cover.jpg",
-            synopsis: "Long synopsis",
-            rating: 9,
-            type: "TV",
-            status: "Completed",
-            genres: ["Drama"],
-            episodes: [],
-            total_episodes: 24,
-          },
-        ],
+        status: "success",
+        data: {
+          title: "Detail Anime",
+          poster: "detail.jpg",
+          score: "9.0",
+          type: "TV",
+          status: "Completed",
+          episodes: 24,
+          duration: "23 Min",
+          studios: "Studio A",
+          synopsis: { paragraphs: ["Line 1", "Line 2"] },
+          genreList: [{ title: "Drama", genreId: "drama" }],
+          episodeList: [
+            { title: "Episode 1", eps: 1, date: "1 Jan", episodeId: "ep-1" },
+            { title: "Episode 2", eps: 2, date: "8 Jan", episodeId: "ep-2" },
+          ],
+        },
       };
       fetchMock.mockReturnValueOnce(okJson(raw));
 
       const result = await api.getAnimeDetail("detail-1");
 
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/anime/anime/detail-1`, expect.anything());
       expect(result).not.toBeNull();
       expect(result!.urlId).toBe("detail-1");
-      expect(result!.cover).toBe("cover.jpg");
+      expect(result!.title).toBe("Detail Anime");
+      expect(result!.cover).toBe("detail.jpg");
+      expect(result!.synopsis).toBe("Line 1\n\nLine 2");
       expect(result!.totalEpisodes).toBe(24);
+      expect(result!.duration).toBe("23 Min");
+      expect(result!.studio).toBe("Studio A");
+      expect(result!.genres).toEqual(["Drama"]);
+      expect(result!.episodes).toHaveLength(2);
+      expect(result!.episodes![0].episodeId).toBe("ep-1");
+      expect(result!.episodes![1].episodeId).toBe("ep-2");
     });
 
-    it("returns null when data is empty", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [] }));
+    it("returns null when data has no title", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success", data: {} }));
       const result = await api.getAnimeDetail("nonexistent");
       expect(result).toBeNull();
     });
 
-    it("returns null when data field is undefined", async () => {
-      fetchMock.mockReturnValueOnce(okJson({}));
+    it("returns null when data is undefined", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success" }));
       const result = await api.getAnimeDetail("nonexistent");
       expect(result).toBeNull();
     });
@@ -187,13 +195,39 @@ describe("api-client", () => {
 
   // ---- searchAnime ----
   describe("searchAnime", () => {
-    it("encodes query parameter", async () => {
-      fetchMock.mockReturnValueOnce(okJson([]));
+    it("uses path-based search URL and encodes query", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success", data: { animeList: [] } }));
       await api.searchAnime("test query&special=chars");
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/anime/search?query=test%20query%26special%3Dchars`,
+        `${BASE_URL}/anime/search/test%20query%26special%3Dchars`,
         expect.anything()
       );
+    });
+
+    it("transforms search results with score and genreList", async () => {
+      fetchMock.mockReturnValueOnce(
+        okJson({
+          status: "success",
+          data: {
+            animeList: [
+              {
+                title: "Naruto",
+                poster: "naruto.jpg",
+                status: "Ongoing",
+                score: "8.5",
+                animeId: "naruto-sub-indo",
+                genreList: [{ title: "Action", genreId: "action" }],
+              },
+            ],
+          },
+        })
+      );
+
+      const result = await api.searchAnime("naruto");
+      expect(result).toHaveLength(1);
+      expect(result[0].urlId).toBe("naruto-sub-indo");
+      expect(result[0].rating).toBe("8.5");
+      expect(result[0].genres).toEqual(["Action"]);
     });
   });
 
@@ -205,30 +239,19 @@ describe("api-client", () => {
           ok: true,
           json: () =>
             Promise.resolve({
-              url: "https://video.url/stream.mp4",
-              type: "direct",
+              url: "https://embed.url/player",
+              type: "embed",
               availableResolutions: ["360p", "480p", "720p"],
             }),
         })
       );
       const result = await api.getAnimeVideo("ep-1", "720p");
-      expect(fetchMock).toHaveBeenCalledWith("/api/anime/video?chapterUrlId=ep-1&reso=720p");
+      expect(fetchMock).toHaveBeenCalledWith("/api/anime/video?episodeId=ep-1&quality=720p");
       expect(result).toEqual({
-        url: "https://video.url/stream.mp4",
-        type: "direct",
+        url: "https://embed.url/player",
+        type: "embed",
         availableResolutions: ["360p", "480p", "720p"],
       });
-    });
-
-    it("returns null url when url field is missing", async () => {
-      fetchMock.mockReturnValueOnce(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        })
-      );
-      const result = await api.getAnimeVideo("ep-1");
-      expect(result.url).toBeNull();
     });
 
     it("returns null url on fetch error", async () => {
@@ -243,47 +266,36 @@ describe("api-client", () => {
       expect(result.url).toBeNull();
     });
 
-    it("defaults resolution to 480p", async () => {
+    it("defaults quality to 480p", async () => {
       fetchMock.mockReturnValueOnce(
         Promise.resolve({
           ok: true,
           json: () =>
-            Promise.resolve({ url: "url", type: "direct", availableResolutions: ["480p"] }),
+            Promise.resolve({ url: "url", type: "embed", availableResolutions: ["480p"] }),
         })
       );
       await api.getAnimeVideo("ep-1");
-      expect(fetchMock).toHaveBeenCalledWith("/api/anime/video?chapterUrlId=ep-1&reso=480p");
+      expect(fetchMock).toHaveBeenCalledWith("/api/anime/video?episodeId=ep-1&quality=480p");
     });
   });
 
   // ---- getKomikLatest ----
   describe("getKomikLatest", () => {
-    it("calls correct URL with type param", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [] }));
+    it("calls /comic/terbaru (ignores type param)", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ comics: [] }));
       await api.getKomikLatest("project");
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/komik/latest?type=project`,
-        expect.anything()
-      );
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/comic/terbaru`, expect.anything());
     });
 
-    it("transforms komik data correctly", async () => {
+    it("transforms comic list items correctly", async () => {
       const raw = {
-        data: [
+        comics: [
           {
-            manga_id: "komik-1",
             title: "Test Komik",
-            thumbnail: "thumb.jpg",
-            type: "manhwa",
-            status: 1,
-            rating: "8.0",
-            description: "Desc",
-            author: "Author",
-            artist: "Artist",
-            genres: ["Action", "Fantasy"],
-            chapters: [{ chapter_id: "ch-1", title: "Chapter 1", chapter: 1, date: "2025-01-01" }],
-            latest_chapter: "Ch 10",
-            updated_at: "2025-01-15",
+            link: "/manga/test-komik/",
+            image: "thumb.jpg",
+            chapter: "Chapter 10",
+            time_ago: "5 menit lalu",
           },
         ],
       };
@@ -291,99 +303,46 @@ describe("api-client", () => {
 
       const result = await api.getKomikLatest("mirror");
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        manga_id: "komik-1",
-        title: "Test Komik",
-        thumbnail: "thumb.jpg",
-        cover: "thumb.jpg",
-        type: "manhwa",
-        status: "Ongoing",
-        rating: "8.0",
-        description: "Desc",
-        author: "Author",
-        artist: "Artist",
-        genres: ["Action", "Fantasy"],
-        chapters: [{ chapter_id: "ch-1", title: "Chapter 1", chapter: 1, date: "2025-01-01" }],
-        latestChapter: "Ch 10",
-        updatedAt: "2025-01-15",
-      });
-    });
-  });
-
-  // ---- Komik status transformation ----
-  describe("komik status transformation", () => {
-    it("maps numeric status 1 to Ongoing", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [{ manga_id: "k1", status: 1 }] }));
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].status).toBe("Ongoing");
+      expect(result[0].manga_id).toBe("test-komik");
+      expect(result[0].title).toBe("Test Komik");
+      expect(result[0].thumbnail).toBe("thumb.jpg");
+      expect(result[0].latestChapter).toBe("Chapter 10");
+      expect(result[0].updatedAt).toBe("5 menit lalu");
     });
 
-    it("maps numeric status 0 to Completed", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [{ manga_id: "k1", status: 0 }] }));
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].status).toBe("Completed");
-    });
-
-    it("passes through string status unchanged", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [{ manga_id: "k1", status: "Hiatus" }] }));
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].status).toBe("Hiatus");
-    });
-  });
-
-  // ---- Komik taxonomy fallback ----
-  describe("komik taxonomy fallback", () => {
-    it("extracts genres from taxonomy when genres array is missing", async () => {
+    it("extracts slug from link correctly", async () => {
       fetchMock.mockReturnValueOnce(
         okJson({
-          data: [
-            {
-              manga_id: "k-tax",
-              taxonomy: { Genre: [{ name: "Romance" }, { name: "Comedy" }] },
-            },
-          ],
+          comics: [{ title: "K", link: "/manga/my-manga-slug/" }],
         })
       );
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].genres).toEqual(["Romance", "Comedy"]);
-    });
-
-    it("extracts author/artist from taxonomy", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson({
-          data: [
-            {
-              manga_id: "k-tax2",
-              taxonomy: {
-                Author: [{ name: "Tax Author" }],
-                Artist: [{ name: "Tax Artist" }],
-              },
-            },
-          ],
-        })
-      );
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].author).toBe("Tax Author");
-      expect(result[0].artist).toBe("Tax Artist");
+      const result = await api.getKomikLatest();
+      expect(result[0].manga_id).toBe("my-manga-slug");
     });
   });
 
   // ---- getKomikPopular ----
   describe("getKomikPopular", () => {
-    it("calls correct URL", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [] }));
+    it("calls correct URL with page param", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ comics: [] }));
       await api.getKomikPopular(2);
-      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/komik/popular?page=2`, expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/comic/populer?page=2`, expect.anything());
+    });
+
+    it("omits page param for page 1", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ comics: [] }));
+      await api.getKomikPopular(1);
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/comic/populer`, expect.anything());
     });
   });
 
   // ---- getKomikRecommended ----
   describe("getKomikRecommended", () => {
-    it("calls correct URL with type", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [] }));
+    it("calls /comic/recommendations (ignores type param)", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ comics: [] }));
       await api.getKomikRecommended("manhua");
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/komik/recommended?type=manhua`,
+        `${BASE_URL}/comic/recommendations`,
         expect.anything()
       );
     });
@@ -392,50 +351,84 @@ describe("api-client", () => {
   // ---- getKomikDetail ----
   describe("getKomikDetail", () => {
     it("returns transformed komik detail", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson({ data: { manga_id: "detail-k", title: "Detail Komik" } })
-      );
+      const raw = {
+        slug: "detail-k",
+        title: "Detail Komik",
+        image: "cover.jpg",
+        synopsis: "Short",
+        synopsis_full: "Full synopsis text",
+        metadata: {
+          type: "Manhwa",
+          author: "Author Name",
+          status: "Ongoing",
+        },
+        genres: [{ name: "Action", slug: "action" }],
+        chapters: [
+          { chapter: "Chapter 2", slug: "detail-k-chapter-2", date: "02/01/2026" },
+          { chapter: "Chapter 1", slug: "detail-k-chapter-1", date: "01/01/2026" },
+        ],
+      };
+      fetchMock.mockReturnValueOnce(okJson(raw));
+
       const result = await api.getKomikDetail("detail-k");
       expect(result).not.toBeNull();
       expect(result!.manga_id).toBe("detail-k");
       expect(result!.title).toBe("Detail Komik");
+      expect(result!.thumbnail).toBe("cover.jpg");
+      expect(result!.description).toBe("Full synopsis text");
+      expect(result!.type).toBe("Manhwa");
+      expect(result!.author).toBe("Author Name");
+      expect(result!.status).toBe("Ongoing");
+      expect(result!.genres).toEqual(["Action"]);
+      // Chapters sorted ascending
+      expect(result!.chapters).toHaveLength(2);
+      expect(result!.chapters![0].chapter_id).toBe("detail-k-chapter-1");
+      expect(result!.chapters![1].chapter_id).toBe("detail-k-chapter-2");
     });
 
-    it("returns null when data is undefined", async () => {
-      fetchMock.mockReturnValueOnce(okJson({}));
+    it("returns null when title is missing", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ slug: "missing" }));
       const result = await api.getKomikDetail("missing");
       expect(result).toBeNull();
+    });
+
+    it("skips author when it is '-'", async () => {
+      fetchMock.mockReturnValueOnce(
+        okJson({
+          slug: "k1",
+          title: "K",
+          metadata: { author: "-" },
+        })
+      );
+      const result = await api.getKomikDetail("k1");
+      expect(result!.author).toBeUndefined();
     });
   });
 
   // ---- getKomikChapterList ----
   describe("getKomikChapterList", () => {
-    it("transforms chapter list", async () => {
+    it("extracts chapters from detail response", async () => {
       fetchMock.mockReturnValueOnce(
         okJson({
-          data: [
-            { chapter_id: "ch-1", title: "Chapter 1", chapter: 1, date: "2025-01-01" },
-            { id: "ch-2", chapter_number: 2, created_at: "2025-01-02" },
+          slug: "manga-1",
+          title: "Manga 1",
+          chapters: [
+            { chapter: "Chapter 2", slug: "manga-1-chapter-2", date: "02/01/2026" },
+            { chapter: "Chapter 1", slug: "manga-1-chapter-1", date: "01/01/2026" },
           ],
         })
       );
+
       const result = await api.getKomikChapterList("manga-1");
       expect(result).toHaveLength(2);
-      expect(result[0].chapter_id).toBe("ch-1");
-      expect(result[1].chapter_id).toBe("ch-2");
-      expect(result[1].title).toBe("Chapter 2");
+      // Sorted ascending
+      expect(result[0].chapter_id).toBe("manga-1-chapter-1");
+      expect(result[0].chapter).toBe(1);
+      expect(result[1].chapter_id).toBe("manga-1-chapter-2");
       expect(result[1].chapter).toBe(2);
-      expect(result[1].date).toBe("2025-01-02");
     });
 
-    it("handles missing chapter/chapter_number with fallback 0", async () => {
-      fetchMock.mockReturnValueOnce(okJson({ data: [{ chapter_id: "ch-x" }] }));
-      const result = await api.getKomikChapterList("manga-1");
-      expect(result[0].chapter).toBe(0);
-    });
-
-    it("returns empty array instead of throwing on fetch failure", async () => {
-      // Both attempts fail (retries = 1 → 2 total)
+    it("returns empty array on fetch failure", async () => {
       fetchMock
         .mockRejectedValueOnce(new Error("Network error"))
         .mockRejectedValueOnce(new Error("Network error"));
@@ -446,13 +439,35 @@ describe("api-client", () => {
 
   // ---- searchKomik ----
   describe("searchKomik", () => {
-    it("encodes query", async () => {
+    it("uses query param search URL", async () => {
       fetchMock.mockReturnValueOnce(okJson({ data: [] }));
       await api.searchKomik("one piece");
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BASE_URL}/komik/search?query=one%20piece`,
+        `${BASE_URL}/comic/search?q=one%20piece`,
         expect.anything()
       );
+    });
+
+    it("transforms search results", async () => {
+      fetchMock.mockReturnValueOnce(
+        okJson({
+          data: [
+            {
+              title: "Naruto",
+              slug: "naruto",
+              thumbnail: "naruto.jpg",
+              type: "Manga",
+              genre: "Action",
+            },
+          ],
+        })
+      );
+
+      const result = await api.searchKomik("naruto");
+      expect(result).toHaveLength(1);
+      expect(result[0].manga_id).toBe("naruto");
+      expect(result[0].type).toBe("Manga");
+      expect(result[0].genres).toEqual(["Action"]);
     });
   });
 
@@ -461,22 +476,18 @@ describe("api-client", () => {
     it("returns image objects with page numbers", async () => {
       fetchMock.mockReturnValueOnce(
         okJson({
-          data: {
-            chapter: {
-              data: ["img1.jpg", "img2.jpg", "img3.jpg"],
-            },
-          },
+          images: ["img1.webp", "img2.webp", "img3.webp"],
         })
       );
       const result = await api.getKomikImages("ch-1");
       expect(result).toEqual([
-        { url: "img1.jpg", page: 1 },
-        { url: "img2.jpg", page: 2 },
-        { url: "img3.jpg", page: 3 },
+        { url: "img1.webp", page: 1 },
+        { url: "img2.webp", page: 2 },
+        { url: "img3.webp", page: 3 },
       ]);
     });
 
-    it("returns empty array when data structure is missing", async () => {
+    it("returns empty array when images field is missing", async () => {
       fetchMock.mockReturnValueOnce(okJson({}));
       const result = await api.getKomikImages("ch-missing");
       expect(result).toEqual([]);
@@ -486,12 +497,24 @@ describe("api-client", () => {
   // ---- getHomepageData ----
   describe("getHomepageData", () => {
     it("aggregates all homepage data", async () => {
-      // 4 parallel fetches
       fetchMock
-        .mockReturnValueOnce(okJson({ data: [{ manga_id: "k1", title: "Komik 1" }] })) // komikLatest
-        .mockReturnValueOnce(okJson({ data: [{ manga_id: "k2", title: "Komik 2" }] })) // komikPopular
-        .mockReturnValueOnce(okJson([{ urlId: "a1", title: "Anime 1" }])) // animeLatest
-        .mockReturnValueOnce(okJson([{ urlId: "a2", title: "Anime 2" }])); // animeRecommended
+        .mockReturnValueOnce(okJson({ comics: [{ title: "K1", link: "/manga/k1/" }] }))
+        .mockReturnValueOnce(okJson({ comics: [{ title: "K2", link: "/manga/k2/" }] }))
+        .mockReturnValueOnce(
+          okJson({
+            status: "success",
+            data: { animeList: [{ animeId: "a1", title: "Anime 1" }] },
+          })
+        )
+        .mockReturnValueOnce(
+          okJson({
+            status: "success",
+            data: {
+              ongoing: { animeList: [{ animeId: "a2", title: "Anime 2" }] },
+              completed: { animeList: [] },
+            },
+          })
+        );
 
       const result = await api.getHomepageData();
 
@@ -502,9 +525,6 @@ describe("api-client", () => {
     });
 
     it("returns empty arrays when individual fetches fail", async () => {
-      // getHomepageData catches errors via .catch(() => []), but each failed fetch
-      // goes through retry logic with delays, so we need enough mock responses
-      // for all retries (3 attempts per function × 4 functions = 12 fetch calls).
       for (let i = 0; i < 12; i++) {
         fetchMock.mockRejectedValueOnce(new Error("fail"));
       }
@@ -519,7 +539,6 @@ describe("api-client", () => {
   });
 
   // ---- fetchWithCache: retry & error handling ----
-  // These tests involve real setTimeout delays due to retry backoff, so they need longer timeouts.
   describe("fetchWithCache retry logic", () => {
     it("throws on non-ok response after retries", async () => {
       fetchMock
@@ -531,9 +550,12 @@ describe("api-client", () => {
     }, 15000);
 
     it("retries on network error and succeeds", async () => {
-      fetchMock
-        .mockRejectedValueOnce(new Error("Network error"))
-        .mockReturnValueOnce(okJson([{ urlId: "a1", title: "Recovered" }]));
+      fetchMock.mockRejectedValueOnce(new Error("Network error")).mockReturnValueOnce(
+        okJson({
+          status: "success",
+          data: { animeList: [{ animeId: "a1", title: "Recovered" }] },
+        })
+      );
 
       const result = await api.getAnimeLatest();
       expect(result).toHaveLength(1);
@@ -558,113 +580,59 @@ describe("api-client", () => {
     }, 30000);
   });
 
-  // ---- Transformer: alternate field names ----
-  describe("anime transformer alternate fields", () => {
-    it("uses fallback fields: url_id, judul, image, sinopsis, genre, chapter", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson([
-          {
-            url_id: "alt-id",
-            judul: "Alt Title",
-            image: "alt-img.jpg",
-            sinopsis: "Alt synopsis",
-            genre: ["Sci-Fi"],
-            chapter: [{ ch: "Ep 1", url: "/alt-ep1" }],
+  // ---- getAnimeEpisode ----
+  describe("getAnimeEpisode", () => {
+    it("returns episode data with server list", async () => {
+      const raw = {
+        status: "success",
+        data: {
+          title: "Anime Ep 1",
+          animeId: "anime-1",
+          defaultStreamingUrl: "https://default.url/stream",
+          server: {
+            qualities: [
+              {
+                title: "480p",
+                serverList: [{ title: "vidhide", serverId: "srv-1", href: "/anime/server/srv-1" }],
+              },
+            ],
           },
-        ])
-      );
+        },
+      };
+      fetchMock.mockReturnValueOnce(okJson(raw));
 
-      const result = await api.getAnimeLatest();
-      expect(result[0].urlId).toBe("alt-id");
-      expect(result[0].title).toBe("Alt Title");
-      expect(result[0].thumbnail).toBe("alt-img.jpg");
-      expect(result[0].synopsis).toBe("Alt synopsis");
-      expect(result[0].genres).toEqual(["Sci-Fi"]);
-      expect(result[0].episodes![0].title).toBe("Ep 1");
+      const result = await api.getAnimeEpisode("ep-1");
+      expect(result).not.toBeNull();
+      expect(result!.defaultStreamingUrl).toBe("https://default.url/stream");
+      expect(result!.server!.qualities).toHaveLength(1);
+      expect(result!.server!.qualities![0].serverList![0].serverId).toBe("srv-1");
     });
 
-    it("uses url as last fallback for urlId", async () => {
-      fetchMock.mockReturnValueOnce(okJson([{ url: "url-fallback" }]));
-      const result = await api.getAnimeLatest();
-      expect(result[0].urlId).toBe("url-fallback");
-    });
-  });
-
-  describe("komik transformer alternate fields", () => {
-    it("uses cover_image_url, user_rate, latestChapter, updatedAt", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson({
-          data: [
-            {
-              manga_id: "alt-k",
-              cover_image_url: "alt-cover.jpg",
-              user_rate: 7.5,
-              synopsis: "Alt desc",
-              latestChapter: "Ch 5",
-              updatedAt: "2025-02-01",
-            },
-          ],
-        })
-      );
-
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].thumbnail).toBe("alt-cover.jpg");
-      expect(result[0].rating).toBe(7.5);
-      expect(result[0].description).toBe("Alt desc");
-      expect(result[0].latestChapter).toBe("Ch 5");
-      expect(result[0].updatedAt).toBe("2025-02-01");
-    });
-
-    it("uses chapter id fallback from 'id' field", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson({
-          data: [
-            {
-              manga_id: "k-ch",
-              chapters: [{ id: "fallback-id", chapter_number: 3, created_at: "2025-03-01" }],
-            },
-          ],
-        })
-      );
-
-      const result = await api.getKomikLatest("mirror");
-      expect(result[0].chapters![0].chapter_id).toBe("fallback-id");
-      expect(result[0].chapters![0].chapter).toBe(3);
-      expect(result[0].chapters![0].date).toBe("2025-03-01");
+    it("returns null when data is missing", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success" }));
+      const result = await api.getAnimeEpisode("missing");
+      expect(result).toBeNull();
     });
   });
 
-  // ---- Anime detail transformer extras ----
-  describe("anime detail transformer", () => {
-    it("includes cover and totalEpisodes fields", async () => {
+  // ---- getAnimeServerUrl ----
+  describe("getAnimeServerUrl", () => {
+    it("returns stream URL", async () => {
       fetchMock.mockReturnValueOnce(
         okJson({
-          data: [
-            {
-              urlId: "det-1",
-              title: "Detailed",
-              cover: "cover.jpg",
-              totalEpisodes: 12,
-              episodes: [],
-            },
-          ],
+          status: "success",
+          data: { url: "https://stream.url/embed" },
         })
       );
 
-      const result = await api.getAnimeDetail("det-1");
-      expect(result!.cover).toBe("cover.jpg");
-      expect(result!.totalEpisodes).toBe(12);
+      const result = await api.getAnimeServerUrl("srv-1");
+      expect(result).toBe("https://stream.url/embed");
     });
 
-    it("falls back cover to thumbnail then image", async () => {
-      fetchMock.mockReturnValueOnce(
-        okJson({
-          data: [{ urlId: "det-2", thumbnail: "thumb.jpg" }],
-        })
-      );
-
-      const result = await api.getAnimeDetail("det-2");
-      expect(result!.cover).toBe("thumb.jpg");
+    it("returns null when url is missing", async () => {
+      fetchMock.mockReturnValueOnce(okJson({ status: "success", data: {} }));
+      const result = await api.getAnimeServerUrl("srv-missing");
+      expect(result).toBeNull();
     });
   });
 });

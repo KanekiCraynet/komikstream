@@ -24,7 +24,7 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool as any);
 const prisma = new PrismaClient({ adapter });
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.sansekai.my.id/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://www.sankavollerei.com";
 const REQUEST_DELAY = 2000; // 2 seconds between requests
 
 async function delay(ms: number): Promise<void> {
@@ -39,7 +39,7 @@ async function fetchAPI<T>(endpoint: string): Promise<T | null> {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Accept: "application/json",
         "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-        Referer: "https://api.sansekai.my.id/",
+        Referer: "https://www.sankavollerei.com/",
       },
     });
 
