@@ -1,7 +1,7 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { DatabaseError, DatabaseUnavailableError, UniqueConstraintError } from "@/lib/db";
+import { DatabaseError, DatabaseUnavailableError, UniqueConstraintError } from "@/lib/db-errors";
 
 // ─── Application Error Base ─────────────────────────────────────────
 

@@ -108,13 +108,32 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // OpenNext Cloudflare: Mark Prisma packages as server external so that
-  // OpenNext's esbuild step bundles them with the `workerd` condition.
-  // This resolves Prisma's worker-specific exports (WASM loader, etc.)
-  // correctly, without needing manual transpilePackages or resolveAlias.
-  // See: https://opennext.js.org/cloudflare/howtos/workerd
-  // See: https://opennext.js.org/cloudflare/howtos/db#nextconfigts
-  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  // Force the build toolchain to bundle pg and Prisma adapter packages
+  // instead of externalizing them. Without this, the bundler externalizes
+  // pg (which uses net/tls/dns) as a separate chunk that can't be loaded
+  // in Cloudflare Workers runtime.
+  // NOTE: Do NOT use serverExternalPackages for pg/prisma on Cloudflare Workers.
+  // CF Workers bundle everything into the worker script — external packages
+  // won't be available at runtime.
+  transpilePackages: [
+    "pg",
+    "pg-pool",
+    "pg-protocol",
+    "pg-types",
+    "pg-cloudflare",
+    "@prisma/adapter-pg",
+  ],
+
+  // Turbopack configuration
+  turbopack: {
+    // Force Prisma to use the edge/worker WASM loader instead of the Node.js
+    // base64 loader. The edge version uses static `import('./xxx.wasm')` which
+    // Cloudflare Workers supports, while the node version uses
+    // `new WebAssembly.Module(Buffer.from(base64))` which CF Workers blocks.
+    resolveAlias: {
+      ".prisma/client": ".prisma/client/edge",
+    },
+  },
 
   // Experimental features
   experimental: {

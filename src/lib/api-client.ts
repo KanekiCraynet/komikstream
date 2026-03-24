@@ -85,6 +85,7 @@ interface RawKomikChapterItem {
   chapter_number?: number;
   date?: string;
   created_at?: string;
+  release_date?: string;
 }
 
 interface AnimeDetailResponse {
@@ -442,6 +443,6 @@ function transformKomikChapter(raw: RawKomikChapterItem): KomikChapter {
     chapter_id: raw.chapter_id || raw.id || "",
     title: raw.title || `Chapter ${raw.chapter || raw.chapter_number}`,
     chapter: raw.chapter || raw.chapter_number || 0,
-    date: raw.date || raw.created_at,
+    date: raw.date || raw.created_at || raw.release_date,
   };
 }

@@ -7,6 +7,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+// ISR: regenerate chapter reader every 10 minutes.
+// Avoids hitting the external API on every request while keeping images fresh.
+export const revalidate = 600;
+
 interface ReaderPageProps {
   params: Promise<{ mangaId: string; chapterId: string }>;
 }
