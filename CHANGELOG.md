@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.5] - 2026-03-24
+
+### Bug Fixes
+- fix(api): update API URL references to sankavollerei.com (68b0dcd)
+
+
 ## [0.20.4] - 2026-03-24
 
 ### Bug Fixes
