@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.4] - 2026-03-24
+
+### Bug Fixes
+- fix(api): update API URL references to sankavollerei.com (26c5e40)
+
+### Chores
+- chore(api): add diagnostic error details to search and video API routes (5e3b259)
+
+
 ## [0.20.3] - 2026-03-24
 
 ### Bug Fixes
