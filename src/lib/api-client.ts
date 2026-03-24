@@ -1,139 +1,237 @@
 /**
- * API Client with ISR Caching
+ * API Client — sankavollerei.com Provider
  *
- * Optimized for performance with Incremental Static Regeneration.
- * Safe to use in both client and server components.
+ * Fetches anime (Otakudesu source) and comic (Komiku source) data from
+ * https://www.sankavollerei.com. Safe to use in both client and server components.
  *
- * NOTE: fetch() uses `next: { revalidate }` (route-level ISR via Next.js/OpenNext)
- * but does NOT pass `tags` — tag-based revalidation via `revalidateTag()` requires
- * a KV binding in Cloudflare Workers which is not configured. Tags are dead code
- * since `revalidateTag` is never called anywhere in this codebase.
+ * The API has a bot detector ("Plana AI Detector") that blocks requests without
+ * browser-like headers, so every fetch includes User-Agent / Referer / etc.
+ *
+ * ISR is handled at the ROUTE level via `export const revalidate = N` in each page.
  */
 
 import type { Anime, Komik, KomikChapter, KomikImage } from "@/types";
 import { CACHE_TIMES } from "./cache-config";
-// NOTE: logger is NOT imported here because api-client is used in client components too.
-// logger.ts has `import "server-only"` which would break client-side bundling.
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.sansekai.my.id/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://www.sankavollerei.com";
+
+// ==================== BROWSER-LIKE HEADERS ====================
+// Required to bypass the Plana AI Detector on sankavollerei.com
+
+const ANIME_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "application/json, */*",
+  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8",
+  Referer: "https://www.sankavollerei.com/anime/",
+};
+
+const COMIC_HEADERS: Record<string, string> = {
+  ...ANIME_HEADERS,
+  Referer: "https://www.sankavollerei.com/comic",
+};
 
 // ==================== RAW API TYPES ====================
 
+// --- Anime (Otakudesu source) ---
+
 interface RawAnimeListItem {
-  urlId?: string;
-  url_id?: string;
-  url?: string;
   title?: string;
-  judul?: string;
-  thumbnail?: string;
-  image?: string;
-  cover?: string;
-  synopsis?: string;
-  sinopsis?: string;
-  description?: string;
-  rating?: string | number;
+  poster?: string;
+  episodes?: number | null;
+  releaseDay?: string;
+  latestReleaseDate?: string;
+  animeId?: string;
+  href?: string;
+  otakudesuUrl?: string;
+  // search results include these:
+  status?: string;
+  score?: string;
+  genreList?: RawGenreItem[];
+}
+
+interface RawGenreItem {
+  title: string;
+  genreId: string;
+  href?: string;
+  otakudesuUrl?: string;
+}
+
+interface RawAnimeDetailData {
+  title?: string;
+  poster?: string;
+  japanese?: string;
+  score?: string;
+  producers?: string;
   type?: string;
   status?: string;
-  genres?: string[];
-  genre?: string[];
-  episodes?: RawEpisode[];
-  chapter?: RawEpisode[];
-  total_episodes?: number;
-  totalEpisodes?: number;
+  episodes?: number | null;
+  duration?: string;
+  aired?: string;
+  studios?: string;
+  batch?: unknown;
+  synopsis?: { paragraphs?: string[]; connections?: unknown[] };
+  genreList?: RawGenreItem[];
+  episodeList?: RawEpisodeListItem[];
+  recommendedAnimeList?: RawAnimeListItem[];
 }
 
-interface RawEpisode {
-  id?: number;
-  url?: string;
-  ch?: string;
+interface RawEpisodeListItem {
   title?: string;
+  eps?: number;
   date?: string;
+  episodeId?: string;
+  href?: string;
+  otakudesuUrl?: string;
 }
 
-interface RawKomikItem {
-  manga_id?: string;
+interface RawAnimeResponse<T> {
+  status?: string;
+  creator?: string;
+  statusCode?: number;
+  ok?: boolean;
+  data?: T;
+  pagination?: {
+    currentPage?: number;
+    hasPrevPage?: boolean;
+    hasNextPage?: boolean;
+    nextPage?: number | null;
+    totalPages?: number;
+  } | null;
+}
+
+// --- Anime Episode & Server ---
+
+interface RawServerItem {
   title?: string;
+  serverId?: string;
+  href?: string;
+}
+
+interface RawQualityItem {
+  title?: string;
+  serverList?: RawServerItem[];
+}
+
+interface RawEpisodeData {
+  title?: string;
+  animeId?: string;
+  releaseTime?: string;
+  defaultStreamingUrl?: string;
+  hasPrevEpisode?: boolean;
+  prevEpisode?: { episodeId?: string } | null;
+  hasNextEpisode?: boolean;
+  nextEpisode?: { episodeId?: string } | null;
+  server?: {
+    qualities?: RawQualityItem[];
+  };
+  downloadUrl?: {
+    qualities?: Array<{
+      title?: string;
+      size?: string;
+      urls?: Array<{ title?: string; url?: string }>;
+    }>;
+  };
+  info?: {
+    credit?: string;
+    encoder?: string;
+    duration?: string;
+    type?: string;
+    genreList?: RawGenreItem[];
+    episodeList?: RawEpisodeListItem[];
+  };
+}
+
+// --- Comic (Komiku source) ---
+
+interface RawComicListItem {
+  title?: string;
+  link?: string;
+  image?: string;
+  chapter?: string;
+  time_ago?: string;
+}
+
+interface RawComicSearchItem {
+  title?: string;
+  altTitle?: string | null;
+  slug?: string;
+  href?: string;
   thumbnail?: string;
-  cover?: string;
-  cover_image_url?: string;
   type?: string;
-  status?: number | string;
-  rating?: string | number;
-  user_rate?: number;
+  genre?: string;
   description?: string;
-  synopsis?: string;
-  author?: string;
-  artist?: string;
-  genres?: string[];
-  chapters?: RawKomikChapterItem[];
-  latest_chapter?: string;
-  latestChapter?: string;
-  updated_at?: string;
-  updatedAt?: string;
-  taxonomy?: {
-    Genre?: Array<{ name: string }>;
-    Author?: Array<{ name: string }>;
-    Artist?: Array<{ name: string }>;
-  };
 }
 
-interface RawKomikChapterItem {
-  chapter_id?: string;
-  id?: string;
-  title?: string;
-  chapter?: number;
-  chapter_number?: number;
+interface RawComicGenreItem {
+  name: string;
+  slug: string;
+  link?: string;
+}
+
+interface RawComicChapterItem {
+  chapter?: string;
+  slug?: string;
+  link?: string;
   date?: string;
-  created_at?: string;
-  release_date?: string;
 }
 
-interface AnimeDetailResponse {
-  data?: RawAnimeListItem[];
-}
-
-interface KomikListResponse {
-  data?: RawKomikItem[];
-  retcode?: number;
-}
-
-interface KomikDetailResponse {
-  data?: RawKomikItem;
-}
-
-interface KomikImageResponse {
-  data?: {
-    chapter?: {
-      data?: string[];
-    };
+interface RawComicDetailData {
+  creator?: string;
+  slug?: string;
+  title?: string;
+  title_indonesian?: string;
+  image?: string;
+  synopsis?: string;
+  synopsis_full?: string;
+  summary?: string;
+  background_story?: string;
+  metadata?: {
+    type?: string;
+    author?: string;
+    status?: string;
+    concept?: string;
+    age_rating?: string;
+    reading_direction?: string;
   };
+  genres?: RawComicGenreItem[];
+  chapters?: RawComicChapterItem[];
+  similar_manga?: Array<{
+    title?: string;
+    slug?: string;
+    link?: string;
+    image?: string;
+    type?: string;
+    description?: string;
+  }>;
+}
+
+interface RawComicChapterData {
+  creator?: string;
+  manga_title?: string;
+  chapter_title?: string;
+  navigation?: {
+    previousChapter?: string | null;
+    nextChapter?: string | null;
+    chapterList?: unknown;
+  };
+  images?: string[];
 }
 
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Fetch JSON from an external API with basic retry logic.
- *
- * Intentionally uses plain fetch() without `next: { revalidate }` or
- * AbortController — both caused silent failures in Cloudflare Workers runtime
- * when OpenNext's fetch interceptor tried to access Workers Cache infrastructure
- * that is not configured.
- *
- * ISR is handled at the ROUTE level via `export const revalidate = N` in each
- * page, which causes OpenNext to cache the full rendered HTML response.
- * Individual fetch calls do not need their own revalidate directive.
- *
- * The `revalidate` parameter is kept in the signature so callers don't need
- * to change, but it is no longer forwarded to fetch().
+ * Fetch JSON from the external API with retry logic and browser-like headers.
  */
-async function fetchWithCache<T>(url: string, _revalidate: number, retries = 1): Promise<T> {
+async function fetchWithCache<T>(
+  url: string,
+  _revalidate: number,
+  retries = 1,
+  headers: Record<string, string> = ANIME_HEADERS
+): Promise<T> {
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      const res = await fetch(url, { headers });
 
       if (res.status === 429) {
         const waitTime = Math.min(500 * Math.pow(2, i), 3000);
@@ -153,7 +251,6 @@ async function fetchWithCache<T>(url: string, _revalidate: number, retries = 1):
       if (i === retries) {
         throw error;
       }
-      // Short delay before retry
       await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
     }
   }
@@ -169,10 +266,8 @@ function ensureArray<T>(data: T | T[] | null | undefined): T[] {
 // ==================== ANIME HELPERS ====================
 
 /**
- * Extract episode number from a title/ch string.
- * Handles formats like "10", "Episode 10", "Ep. 10.5", "OVA 2", etc.
- * Returns 0 when no number is found (e.g. "OVA Special") so those
- * items sort to the beginning, which is acceptable.
+ * Extract episode number from a title string.
+ * Handles "Episode 10", "Ep. 10.5", etc.
  */
 function extractEpisodeNumber(text: string): number {
   const match = text.match(/(\d+(?:\.\d+)?)/);
@@ -182,44 +277,56 @@ function extractEpisodeNumber(text: string): number {
 // ==================== ANIME API ====================
 
 export async function getAnimeLatest(): Promise<Anime[]> {
-  const res = await fetchWithCache<RawAnimeListItem[]>(
-    `${BASE_URL}/anime/latest`,
+  const res = await fetchWithCache<RawAnimeResponse<{ animeList?: RawAnimeListItem[] }>>(
+    `${BASE_URL}/anime/ongoing-anime`,
     CACHE_TIMES.LATEST
   );
-  return ensureArray(res).map(transformAnimeList);
+  return ensureArray(res.data?.animeList).map(transformAnimeListItem);
 }
 
 export async function getAnimeRecommended(page: number = 1): Promise<Anime[]> {
-  const res = await fetchWithCache<RawAnimeListItem[]>(
-    `${BASE_URL}/anime/recommended?page=${page}`,
-    CACHE_TIMES.POPULAR
-  );
-  return ensureArray(res).map(transformAnimeList);
+  // The home endpoint returns ongoing + completed sections
+  const res = await fetchWithCache<
+    RawAnimeResponse<{
+      ongoing?: { animeList?: RawAnimeListItem[] };
+      completed?: { animeList?: RawAnimeListItem[] };
+    }>
+  >(`${BASE_URL}/anime/home`, CACHE_TIMES.POPULAR);
+
+  const ongoing = ensureArray(res.data?.ongoing?.animeList);
+  const completed = ensureArray(res.data?.completed?.animeList);
+  // Merge both lists — use page param to offset (20 items per page)
+  const all = [...ongoing, ...completed];
+  const perPage = 20;
+  const start = (page - 1) * perPage;
+  return all.slice(start, start + perPage).map(transformAnimeListItem);
 }
 
 export async function getAnimeMovie(): Promise<Anime[]> {
-  const res = await fetchWithCache<RawAnimeListItem[]>(
-    `${BASE_URL}/anime/movie`,
+  // sankavollerei.com default source doesn't have a dedicated movie endpoint.
+  // Use the complete-anime list as a reasonable fallback.
+  const res = await fetchWithCache<RawAnimeResponse<{ animeList?: RawAnimeListItem[] }>>(
+    `${BASE_URL}/anime/complete-anime`,
     CACHE_TIMES.POPULAR
   );
-  return ensureArray(res).map(transformAnimeList);
+  return ensureArray(res.data?.animeList).map(transformAnimeListItem);
 }
 
 export async function getAnimeDetail(urlId: string): Promise<Anime | null> {
-  const res = await fetchWithCache<AnimeDetailResponse>(
-    `${BASE_URL}/anime/detail?urlId=${urlId}`,
+  const res = await fetchWithCache<RawAnimeResponse<RawAnimeDetailData>>(
+    `${BASE_URL}/anime/anime/${urlId}`,
     CACHE_TIMES.DETAIL
   );
-  const detail = res.data?.[0];
-  return detail ? transformAnimeDetail(detail) : null;
+  const detail = res.data;
+  return detail?.title ? transformAnimeDetail(detail, urlId) : null;
 }
 
 export async function searchAnime(query: string): Promise<Anime[]> {
-  const res = await fetchWithCache<RawAnimeListItem[]>(
-    `${BASE_URL}/anime/search?query=${encodeURIComponent(query)}`,
+  const res = await fetchWithCache<RawAnimeResponse<{ animeList?: RawAnimeListItem[] }>>(
+    `${BASE_URL}/anime/search/${encodeURIComponent(query)}`,
     CACHE_TIMES.SEARCH
   );
-  return ensureArray(res).map(transformAnimeList);
+  return ensureArray(res.data?.animeList).map(transformAnimeListItem);
 }
 
 /**
@@ -235,106 +342,142 @@ export interface AnimeVideoResult {
  * Fetch anime video URL via the internal API proxy.
  *
  * **Client-only** — uses a relative URL (`/api/anime/video`) that requires
- * a browser context. Do NOT call this from server components or server-side code.
+ * a browser context. Do NOT call this from server components.
  */
 export async function getAnimeVideo(
   episodeId: string,
-  resolution: string = "480p"
+  quality: string = "480p"
 ): Promise<AnimeVideoResult> {
   try {
-    const res = await fetch(`/api/anime/video?chapterUrlId=${episodeId}&reso=${resolution}`);
-    if (!res.ok) return { url: null, type: "direct", availableResolutions: [] };
+    const res = await fetch(
+      `/api/anime/video?episodeId=${encodeURIComponent(episodeId)}&quality=${encodeURIComponent(quality)}`
+    );
+    if (!res.ok) return { url: null, type: "embed", availableResolutions: [] };
     const data = await res.json();
     return {
       url: data.url || null,
-      type: data.type || "direct",
+      type: data.type || "embed",
       availableResolutions: data.availableResolutions || [],
     };
   } catch {
-    return { url: null, type: "direct", availableResolutions: [] };
+    return { url: null, type: "embed", availableResolutions: [] };
   }
+}
+
+/**
+ * Fetch anime episode data (server-side only).
+ * Used by the video API route to get server list.
+ */
+export async function getAnimeEpisode(episodeId: string): Promise<RawEpisodeData | null> {
+  const res = await fetchWithCache<RawAnimeResponse<RawEpisodeData>>(
+    `${BASE_URL}/anime/episode/${episodeId}`,
+    CACHE_TIMES.SEARCH
+  );
+  return res.data || null;
+}
+
+/**
+ * Fetch a stream URL for a specific server (server-side only).
+ */
+export async function getAnimeServerUrl(serverId: string): Promise<string | null> {
+  const res = await fetchWithCache<RawAnimeResponse<{ url?: string }>>(
+    `${BASE_URL}/anime/server/${serverId}`,
+    CACHE_TIMES.SEARCH
+  );
+  return res.data?.url || null;
 }
 
 // ==================== KOMIK API ====================
 
-export async function getKomikLatest(type: "project" | "mirror"): Promise<Komik[]> {
-  const res = await fetchWithCache<KomikListResponse>(
-    `${BASE_URL}/komik/latest?type=${type}`,
-    CACHE_TIMES.LATEST
+export async function getKomikLatest(_type?: "project" | "mirror"): Promise<Komik[]> {
+  // The new API doesn't differentiate project/mirror — just returns latest
+  const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
+    `${BASE_URL}/comic/terbaru`,
+    CACHE_TIMES.LATEST,
+    1,
+    COMIC_HEADERS
   );
-  return ensureArray(res.data).map(transformKomik);
+  return ensureArray(res.comics).map(transformComicListItem);
 }
 
 export async function getKomikPopular(page: number = 1): Promise<Komik[]> {
-  const res = await fetchWithCache<KomikListResponse>(
-    `${BASE_URL}/komik/popular?page=${page}`,
-    CACHE_TIMES.POPULAR
+  const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
+    `${BASE_URL}/comic/populer${page > 1 ? `?page=${page}` : ""}`,
+    CACHE_TIMES.POPULAR,
+    1,
+    COMIC_HEADERS
   );
-  return ensureArray(res.data).map(transformKomik);
+  return ensureArray(res.comics).map(transformComicListItem);
 }
 
-export async function getKomikRecommended(type: "manhwa" | "manhua" | "manga"): Promise<Komik[]> {
-  const res = await fetchWithCache<KomikListResponse>(
-    `${BASE_URL}/komik/recommended?type=${type}`,
-    CACHE_TIMES.POPULAR
+export async function getKomikRecommended(_type?: "manhwa" | "manhua" | "manga"): Promise<Komik[]> {
+  // The new API has /comic/recommendations without type filter
+  const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
+    `${BASE_URL}/comic/recommendations`,
+    CACHE_TIMES.POPULAR,
+    1,
+    COMIC_HEADERS
   );
-  return ensureArray(res.data).map(transformKomik);
+  return ensureArray(res.comics).map(transformComicListItem);
 }
 
 export async function getKomikDetail(mangaId: string): Promise<Komik | null> {
-  const res = await fetchWithCache<KomikDetailResponse>(
-    `${BASE_URL}/komik/detail?manga_id=${mangaId}`,
-    CACHE_TIMES.DETAIL
+  const res = await fetchWithCache<RawComicDetailData>(
+    `${BASE_URL}/comic/comic/${mangaId}`,
+    CACHE_TIMES.DETAIL,
+    1,
+    COMIC_HEADERS
   );
-  return res.data ? transformKomik(res.data) : null;
+  return res?.title ? transformComicDetail(res) : null;
 }
 
 /**
  * Fetch the chapter list for a manga.
  *
- * Returns an empty array on failure instead of throwing, so that the detail
- * page can still render (with a "no chapters" state) even if this endpoint
- * is temporarily unavailable.
+ * With the new API, chapters are included in the detail response.
+ * This function fetches the detail and extracts just the chapters.
  */
 export async function getKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
   try {
-    const res = await fetchWithCache<KomikListResponse>(
-      `${BASE_URL}/komik/chapterlist?manga_id=${mangaId}`,
-      CACHE_TIMES.DETAIL
-    );
-    const chapters = ensureArray(res.data).map((item) =>
-      transformKomikChapter(item as RawKomikChapterItem)
+    const res = await fetchWithCache<RawComicDetailData>(
+      `${BASE_URL}/comic/comic/${mangaId}`,
+      CACHE_TIMES.DETAIL,
+      1,
+      COMIC_HEADERS
     );
 
-    // Sort ascending by chapter number so chapters[0] = earliest, chapters[last] = latest.
-    // The external API returns chapters in descending order (newest first).
+    const chapters = ensureArray(res?.chapters).map(transformComicChapter);
+
+    // Sort ascending by chapter number
     return chapters.sort((a, b) => {
       const numA = typeof a.chapter === "number" ? a.chapter : parseFloat(String(a.chapter)) || 0;
       const numB = typeof b.chapter === "number" ? b.chapter : parseFloat(String(b.chapter)) || 0;
       return numA - numB;
     });
   } catch (err) {
-    // Use console.warn — logger.ts has `import "server-only"` which would
-    // break client-side bundling if imported at the module level.
     console.warn(`[api-client] getKomikChapterList failed for ${mangaId}:`, err);
     return [];
   }
 }
 
 export async function searchKomik(query: string): Promise<Komik[]> {
-  const res = await fetchWithCache<KomikListResponse>(
-    `${BASE_URL}/komik/search?query=${encodeURIComponent(query)}`,
-    CACHE_TIMES.SEARCH
+  const res = await fetchWithCache<{ data?: RawComicSearchItem[] }>(
+    `${BASE_URL}/comic/search?q=${encodeURIComponent(query)}`,
+    CACHE_TIMES.SEARCH,
+    1,
+    COMIC_HEADERS
   );
-  return ensureArray(res.data).map(transformKomik);
+  return ensureArray(res.data).map(transformComicSearchItem);
 }
 
 export async function getKomikImages(chapterId: string): Promise<KomikImage[]> {
-  const res = await fetchWithCache<KomikImageResponse>(
-    `${BASE_URL}/komik/getimage?chapter_id=${chapterId}`,
-    CACHE_TIMES.IMAGES
+  const res = await fetchWithCache<RawComicChapterData>(
+    `${BASE_URL}/comic/chapter/${chapterId}`,
+    CACHE_TIMES.IMAGES,
+    1,
+    COMIC_HEADERS
   );
-  const imageUrls = res.data?.chapter?.data || [];
+  const imageUrls = ensureArray(res?.images);
   return imageUrls.map((url: string, index: number) => ({
     url,
     page: index + 1,
@@ -345,7 +488,7 @@ export async function getKomikImages(chapterId: string): Promise<KomikImage[]> {
 
 export async function getHomepageData() {
   const [komikLatest, komikPopular, animeLatest, animeRecommended] = await Promise.all([
-    getKomikLatest("mirror").catch(() => []),
+    getKomikLatest().catch(() => []),
     getKomikPopular(1).catch(() => []),
     getAnimeLatest().catch(() => []),
     getAnimeRecommended(1).catch(() => []),
@@ -361,88 +504,125 @@ export async function getHomepageData() {
 
 // ==================== TRANSFORMERS ====================
 
-function transformAnimeList(raw: RawAnimeListItem): Anime {
-  return {
-    urlId: raw.urlId || raw.url_id || raw.url || "",
-    title: raw.title || raw.judul || "",
-    thumbnail: raw.thumbnail || raw.image || raw.cover || "",
-    synopsis: raw.synopsis || raw.sinopsis || raw.description,
-    rating: raw.rating,
-    type: raw.type,
-    status: raw.status,
-    genres: raw.genres || raw.genre || [],
-    // Sort ascending by episode number so episodes[0] = first, episodes[last] = latest.
-    // The external API returns episodes in descending order (newest first).
-    episodes: (raw.episodes || raw.chapter || [])
-      .map((ep) => ({
-        title: ep.title || ep.ch || "",
-        url: ep.url,
-        date: ep.date,
-      }))
-      .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title)),
-  };
-}
+// --- Anime Transformers ---
 
-function transformAnimeDetail(raw: RawAnimeListItem): Anime {
+function transformAnimeListItem(raw: RawAnimeListItem): Anime {
   return {
-    urlId: raw.urlId || raw.url_id || raw.url || "",
-    title: raw.title || raw.judul || "",
-    thumbnail: raw.thumbnail || raw.image || raw.cover || "",
-    cover: raw.cover || raw.thumbnail || raw.image,
-    synopsis: raw.synopsis || raw.sinopsis || raw.description,
-    rating: raw.rating,
-    type: raw.type,
-    status: raw.status,
-    genres: raw.genres || raw.genre || [],
-    // Sort ascending by episode number so episodes[0] = first, episodes[last] = latest.
-    // The external API returns episodes in descending order (newest first).
-    episodes: (raw.episodes || raw.chapter || [])
-      .map((ep) => ({
-        title: ep.title || ep.ch || "",
-        url: ep.url,
-        date: ep.date,
-      }))
-      .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title)),
-    totalEpisodes: raw.total_episodes || raw.totalEpisodes,
-  };
-}
-
-function transformKomik(raw: RawKomikItem): Komik {
-  return {
-    manga_id: raw.manga_id || "",
+    urlId: raw.animeId || "",
     title: raw.title || "",
-    thumbnail: raw.thumbnail || raw.cover || raw.cover_image_url || "",
-    cover: raw.cover || raw.thumbnail || raw.cover_image_url,
-    type: raw.type,
-    status:
-      typeof raw.status === "number" ? (raw.status === 1 ? "Ongoing" : "Completed") : raw.status,
-    rating: raw.rating || raw.user_rate,
-    description: raw.description || raw.synopsis,
-    author: raw.author || raw.taxonomy?.Author?.[0]?.name,
-    artist: raw.artist || raw.taxonomy?.Artist?.[0]?.name,
-    genres: raw.genres || raw.taxonomy?.Genre?.map((g) => g.name) || [],
-    chapters: (raw.chapters || [])
-      .map((ch) => ({
-        chapter_id: ch.chapter_id || ch.id || "",
-        title: ch.title || `Chapter ${ch.chapter || ch.chapter_number}`,
-        chapter: ch.chapter || ch.chapter_number,
-        date: ch.date || ch.created_at,
-      }))
-      .sort((a, b) => {
-        const numA = typeof a.chapter === "number" ? a.chapter : parseFloat(String(a.chapter)) || 0;
-        const numB = typeof b.chapter === "number" ? b.chapter : parseFloat(String(b.chapter)) || 0;
-        return numA - numB;
-      }),
-    latestChapter: raw.latest_chapter || raw.latestChapter,
-    updatedAt: raw.updated_at || raw.updatedAt,
+    thumbnail: raw.poster || "",
+    rating: raw.score || undefined,
+    type: undefined,
+    status: raw.status || undefined,
+    genres: raw.genreList?.map((g) => g.title) || [],
+    episodes: [],
   };
 }
 
-function transformKomikChapter(raw: RawKomikChapterItem): KomikChapter {
+function transformAnimeDetail(raw: RawAnimeDetailData, urlId: string): Anime {
+  const synopsis = raw.synopsis?.paragraphs?.join("\n\n") || undefined;
+
+  // Sort ascending by episode number
+  const episodes = ensureArray(raw.episodeList)
+    .map((ep) => ({
+      episodeId: ep.episodeId || "",
+      title: ep.title || `Episode ${ep.eps}`,
+      episode: ep.eps,
+      url: ep.episodeId || "",
+      date: ep.date || undefined,
+    }))
+    .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title));
+
   return {
-    chapter_id: raw.chapter_id || raw.id || "",
-    title: raw.title || `Chapter ${raw.chapter || raw.chapter_number}`,
-    chapter: raw.chapter || raw.chapter_number || 0,
-    date: raw.date || raw.created_at || raw.release_date,
+    urlId,
+    title: raw.title || "",
+    thumbnail: raw.poster || "",
+    cover: raw.poster || "",
+    synopsis,
+    rating: raw.score || undefined,
+    type: raw.type || undefined,
+    status: raw.status || undefined,
+    genres: raw.genreList?.map((g) => g.title) || [],
+    episodes,
+    totalEpisodes: raw.episodes ?? undefined,
+    duration: raw.duration || undefined,
+    studio: raw.studios || undefined,
+  };
+}
+
+// --- Comic Transformers ---
+
+/**
+ * Transform a comic list item (from /comic/terbaru, /comic/populer).
+ * These items have minimal data — only title, image, link, chapter, time_ago.
+ * We extract the slug from the link to use as manga_id.
+ */
+function transformComicListItem(raw: RawComicListItem): Komik {
+  // Extract slug from link like "/manga/sewayaki-danshi-to-gutara-osananajimi/"
+  const slug = raw.link
+    ? raw.link
+        .replace(/^\/manga\//, "")
+        .replace(/^\//, "")
+        .replace(/\/$/, "")
+    : "";
+
+  return {
+    manga_id: slug,
+    title: raw.title || "",
+    thumbnail: raw.image || "",
+    latestChapter: raw.chapter || undefined,
+    updatedAt: raw.time_ago || undefined,
+  };
+}
+
+function transformComicSearchItem(raw: RawComicSearchItem): Komik {
+  return {
+    manga_id: raw.slug || "",
+    title: raw.title || "",
+    thumbnail: raw.thumbnail || "",
+    type: raw.type || undefined,
+    genres: raw.genre ? [raw.genre] : [],
+    description: raw.description || undefined,
+  };
+}
+
+function transformComicDetail(raw: RawComicDetailData): Komik {
+  const chapters = ensureArray(raw.chapters)
+    .map(transformComicChapter)
+    .sort((a, b) => {
+      const numA = typeof a.chapter === "number" ? a.chapter : parseFloat(String(a.chapter)) || 0;
+      const numB = typeof b.chapter === "number" ? b.chapter : parseFloat(String(b.chapter)) || 0;
+      return numA - numB;
+    });
+
+  return {
+    manga_id: raw.slug || "",
+    title: raw.title || "",
+    thumbnail: raw.image || "",
+    cover: raw.image || "",
+    type: raw.metadata?.type || undefined,
+    status: raw.metadata?.status || undefined,
+    description: raw.synopsis_full || raw.synopsis || undefined,
+    author: raw.metadata?.author !== "-" ? raw.metadata?.author : undefined,
+    genres: raw.genres?.map((g) => g.name) || [],
+    chapters,
+    latestChapter: chapters.length > 0 ? chapters[chapters.length - 1]?.title : undefined,
+  };
+}
+
+/**
+ * Extract chapter number from a title like "Chapter 18".
+ */
+function extractChapterNumber(title: string): number {
+  const match = title.match(/(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+function transformComicChapter(raw: RawComicChapterItem): KomikChapter {
+  return {
+    chapter_id: raw.slug || "",
+    title: raw.chapter || "",
+    chapter: extractChapterNumber(raw.chapter || ""),
+    date: raw.date || undefined,
   };
 }

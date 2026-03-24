@@ -15,7 +15,7 @@
   // Worker runtime without needing them in secrets or the bundled .env file.
   "vars": {
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsua3Vyb21hbmdhLm1lJA",
-    "NEXT_PUBLIC_API_URL": "https://api.sansekai.my.id/api",
+    "NEXT_PUBLIC_API_URL": "https://www.sankavollerei.com",
     "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
     "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
   },

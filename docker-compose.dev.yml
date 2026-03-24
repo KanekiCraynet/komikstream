@@ -23,7 +23,7 @@ services:
       - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-}
       - CLERK_WEBHOOK_SECRET=${CLERK_WEBHOOK_SECRET:-}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.sansekai.my.id/api}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://www.sankavollerei.com}
     depends_on:
       db:
         condition: service_healthy
