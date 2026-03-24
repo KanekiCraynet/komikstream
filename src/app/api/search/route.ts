@@ -47,9 +47,9 @@ export async function GET(request: NextRequest) {
           }))
         );
       } catch (error) {
-        throw new ExternalApiError("Anime search failed", {
+        const msg = error instanceof Error ? error.message : String(error);
+        throw new ExternalApiError(`Anime search failed: ${msg}`, {
           url: `searchAnime(${query})`,
-          status: error instanceof Error ? undefined : undefined,
         });
       }
     }
@@ -73,9 +73,9 @@ export async function GET(request: NextRequest) {
           }))
         );
       } catch (error) {
-        throw new ExternalApiError("Komik search failed", {
+        const msg = error instanceof Error ? error.message : String(error);
+        throw new ExternalApiError(`Komik search failed: ${msg}`, {
           url: `searchKomik(${query})`,
-          status: error instanceof Error ? undefined : undefined,
         });
       }
     }

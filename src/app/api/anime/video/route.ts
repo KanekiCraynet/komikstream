@@ -38,10 +38,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (!res.ok) {
-      throw new ExternalApiError("Failed to fetch video from upstream", {
-        status: res.status,
-        url,
-      });
+      const body = await res.text().catch(() => "");
+      throw new ExternalApiError(
+        `Failed to fetch video from upstream: HTTP ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
+        { status: res.status, url }
+      );
     }
 
     const data = await res.json();
