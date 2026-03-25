@@ -29,8 +29,8 @@ const clerkHandler = clerkMiddleware(async (auth, req) => {
 //   - API routes: 60 req/min per IP on /api/*
 //   - Search routes: 20 req/min per IP on /api/search*
 
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  // Skip middleware for webhook routes (they have their own verification)
+export default function proxy(req: NextRequest, event: NextFetchEvent) {
+  // Skip proxy for webhook routes (they have their own verification)
   if (isPublicApiRoute(req)) {
     return NextResponse.next();
   }

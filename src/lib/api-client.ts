@@ -20,10 +20,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://www.sankavollerei.c
 
 const ANIME_HEADERS: Record<string, string> = {
   "User-Agent":
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-  Accept: "application/json, */*",
-  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
   Referer: "https://www.sankavollerei.com/anime/",
+  "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"Windows"',
+  "sec-fetch-dest": "empty",
+  "sec-fetch-mode": "cors",
+  "sec-fetch-site": "same-origin",
 };
 
 const COMIC_HEADERS: Record<string, string> = {
@@ -225,13 +231,13 @@ interface RawComicChapterData {
  */
 async function fetchWithCache<T>(
   url: string,
-  _revalidate: number,
+  revalidate: number,
   retries = 1,
   headers: Record<string, string> = ANIME_HEADERS
 ): Promise<T> {
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, { headers, next: { revalidate } });
 
       if (res.status === 429) {
         const waitTime = Math.min(500 * Math.pow(2, i), 3000);

@@ -57,7 +57,18 @@ export default async function KomikReaderPage({ params }: ReaderPageProps) {
   }
 
   if (!images || images.length === 0) {
-    notFound();
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-4 text-center">
+        <BookOpen className="mb-4 h-16 w-16 text-yellow-500" />
+        <h1 className="mb-2 text-2xl font-bold text-white">Gambar Tidak Tersedia</h1>
+        <p className="text-muted-foreground mb-6">
+          Gambar chapter tidak tersedia saat ini. Silakan coba lagi nanti.
+        </p>
+        <Link href={`/komik/${mangaId}`} className="text-primary hover:underline">
+          Kembali ke detail komik
+        </Link>
+      </div>
+    );
   }
 
   // Find current, prev, next chapter

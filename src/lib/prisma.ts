@@ -14,18 +14,18 @@
  *    which forbids I/O reuse across requests ("Cannot perform I/O on behalf
  *    of a different request").
  *
- * 3. Uses `@prisma/client/edge` — the edge variant uses static WASM imports
- *    that CF Workers supports, combined with `transpilePackages` and
- *    `turbopack.resolveAlias` in next.config.ts.
+ * 3. Imports from `@prisma/client` (NOT `/edge`) — per Prisma maintainers,
+ *    `/edge` must NOT be used with driver adapters. The standard import
+ *    lets package export conditions route correctly:
+ *    - OpenNext esbuild with `conditions: ["workerd"]` → edge.js (WASM)
+ *    - Node.js dev → index.js (binary engine)
+ *    Combined with `serverExternalPackages` in next.config.ts.
  */
 
 import "server-only";
 
 import { cache } from "react";
-// Use the edge import to get static WASM imports instead of base64 decoding.
-// CF Workers blocks dynamic `new WebAssembly.Module()` but supports static
-// `import('./xxx.wasm')` which the edge build uses.
-import { PrismaClient } from "@prisma/client/edge";
+import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 /**

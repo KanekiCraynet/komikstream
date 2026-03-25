@@ -27,6 +27,14 @@ export function isClerkConfigured(): boolean {
   )
     return false;
 
+  // Warn in development if production keys are used (will cause origin mismatch)
+  if (process.env.NODE_ENV === "development" && publishableKey.startsWith("pk_live_")) {
+    console.warn(
+      "[auth] Production Clerk keys detected in development.\n" +
+        "This will fail with an origin mismatch error. Use pk_test_* / sk_test_* keys in .env for local dev."
+    );
+  }
+
   return true;
 }
 

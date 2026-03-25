@@ -60,6 +60,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Let OpenNext's esbuild handle Prisma bundling with the `workerd` condition
+  // for correct WASM resolution. See: https://opennext.js.org/cloudflare/howtos/db
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
   // NOTE: output "standalone" is only for Docker deployment.
   // For Cloudflare Workers (via OpenNext), do NOT set output.
   // Uncomment the line below if switching back to Docker/Vercel:
