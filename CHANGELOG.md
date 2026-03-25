@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.1] - 2026-03-25
+
+### Bug Fixes
+- fix(middleware): update Clerk middleware to use lazy getters for secret keys (70adbf8)
+
+
 ## [0.23.0] - 2026-03-25
 
 ### Features
