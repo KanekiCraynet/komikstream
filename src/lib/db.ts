@@ -1,9 +1,9 @@
 import "server-only";
 
-// Use the edge import to get static WASM imports instead of base64 decoding.
-// CF Workers blocks dynamic `new WebAssembly.Module()` but supports static
-// `import('./xxx.wasm')` which the edge build uses.
-import { Prisma, PrismaClient } from "@prisma/client/edge";
+// Import from @prisma/client (NOT /edge) — with driver adapters (adapter-pg),
+// the /edge subpath must not be used. OpenNext's esbuild uses the `workerd`
+// export condition to resolve the correct WASM-based edge build automatically.
+import { Prisma, PrismaClient } from "@prisma/client";
 import { getSafePrisma } from "@/lib/prisma";
 
 // Re-export error types from db-errors.ts for backward compatibility.

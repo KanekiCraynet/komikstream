@@ -15,11 +15,24 @@ const isProtectedRoute = createRouteMatcher([
 const isPublicApiRoute = createRouteMatcher(["/api/webhooks(.*)", "/api/health"]);
 
 // Clerk middleware handler
-const clerkHandler = clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
+// Pass keys explicitly via lazy getters so they are read at request time
+// (after CF Workers' populateProcessEnv runs), not at module init time
+// when process.env is still empty.
+const clerkHandler = clerkMiddleware(
+  async (auth, req) => {
+    if (isProtectedRoute(req)) {
+      await auth.protect();
+    }
+  },
+  {
+    get secretKey() {
+      return process.env.CLERK_SECRET_KEY;
+    },
+    get publishableKey() {
+      return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    },
   }
-});
+);
 
 // NOTE: In-memory rate limiting has been removed.
 // Cloudflare Workers are stateless (each request may hit a different isolate),
@@ -29,8 +42,8 @@ const clerkHandler = clerkMiddleware(async (auth, req) => {
 //   - API routes: 60 req/min per IP on /api/*
 //   - Search routes: 20 req/min per IP on /api/search*
 
-export default function proxy(req: NextRequest, event: NextFetchEvent) {
-  // Skip proxy for webhook routes (they have their own verification)
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  // Skip middleware for webhook routes (they have their own verification)
   if (isPublicApiRoute(req)) {
     return NextResponse.next();
   }
