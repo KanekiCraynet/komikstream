@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-03-25
+
+### Features
+- feat: enhance error handling and improve API request headers (8dfec7f)
+
+
 ## [0.21.0] - 2026-03-25
 
 ### Features
