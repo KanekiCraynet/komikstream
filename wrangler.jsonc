@@ -17,6 +17,7 @@
   "vars": {
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsua3Vyb21hbmdhLm1lJA",
     "NEXT_PUBLIC_API_URL": "https://www.sankavollerei.com",
+    "NEXT_PUBLIC_CLERK_PROXY_URL": "https://clerk.kuromanga.me",
     "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
     "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
   },

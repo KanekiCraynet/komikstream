@@ -31,6 +31,9 @@ const clerkHandler = clerkMiddleware(
     get publishableKey() {
       return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
     },
+    get proxyUrl() {
+      return process.env.NEXT_PUBLIC_CLERK_PROXY_URL;
+    },
   }
 );
 

@@ -69,6 +69,7 @@ function ClerkProviderWithTheme({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      proxyUrl={process.env.NEXT_PUBLIC_CLERK_PROXY_URL}
       appearance={{
         baseTheme: mounted && resolvedTheme === "dark" ? dark : undefined,
         variables: {
