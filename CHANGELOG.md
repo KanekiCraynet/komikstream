@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.24.0] - 2026-03-25
+
+### Features
+- feat: add proxy URL for Clerk integration in middleware and environment configuration (6dd7b5e)
+
+
 ## [0.23.1] - 2026-03-25
 
 ### Bug Fixes
