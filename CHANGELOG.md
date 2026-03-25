@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.25.0] - 2026-03-25
+
+### Features
+- feat: add GlobalError component for improved error handling (ae462cc)
+
+
 ## [0.24.1] - 2026-03-25
 
 ### Bug Fixes
