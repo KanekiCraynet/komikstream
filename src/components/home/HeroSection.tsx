@@ -1,6 +1,7 @@
 import { SearchBar } from "@/components/ui";
 import { Book, Film, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export function HeroSection() {
   return (
@@ -31,7 +32,9 @@ export function HeroSection() {
           </p>
 
           <div className="w-full max-w-2xl">
-            <SearchBar className="shadow-primary/10 w-full shadow-lg" />
+            <Suspense>
+              <SearchBar className="shadow-primary/10 w-full shadow-lg" />
+            </Suspense>
           </div>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
