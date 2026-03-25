@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2026-03-25
+
+### Features
+- feat(middleware): add Clerk middleware for route protection and public API handling (24e5fa1)
+
+
 ## [0.20.5] - 2026-03-24
 
 ### Bug Fixes
