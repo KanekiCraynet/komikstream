@@ -73,11 +73,11 @@ export function Card({ item, type, className, index = 0, priority = false }: Car
             />
           )}
 
-          {/* Overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          {/* Overlay on hover/active (active for touch devices) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-active:opacity-100" />
 
-          {/* Play/Read icon on hover */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100">
+          {/* Play/Read icon on hover/active */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-active:scale-110 group-active:opacity-100">
             <div className="bg-primary text-primary-foreground shadow-primary/50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl">
               {isKomik ? (
                 <BookOpen className="h-5 w-5" />

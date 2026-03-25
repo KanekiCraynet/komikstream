@@ -209,7 +209,7 @@ export default async function KomikReaderPage({ params }: ReaderPageProps) {
       </main>
 
       {/* Navigation (bottom) */}
-      <nav className="bg-background border-border sticky bottom-0 border-t">
+      <nav className="bg-background border-border sticky bottom-0 border-t pb-[env(safe-area-inset-bottom)]">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-4">
             {prevChapter ? (

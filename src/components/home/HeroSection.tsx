@@ -52,7 +52,7 @@ export function HeroSection() {
           </div>
 
           {/* Features */}
-          <div className="mt-16 grid grid-cols-3 gap-8">
+          <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8">
             <div className="text-center">
               <div className="bg-primary/10 mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl">
                 <Book className="text-primary h-5 w-5" />
