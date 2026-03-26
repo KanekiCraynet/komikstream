@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.7] - 2026-03-26
+
+### Bug Fixes
+- fix: sitemap id type mismatch — Next.js passes string, not number (65f90cb)
+
+
 ## [0.26.6] - 2026-03-26
 
 ### Bug Fixes
