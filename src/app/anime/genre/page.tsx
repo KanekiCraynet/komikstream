@@ -12,7 +12,13 @@ export const metadata: Metadata = {
 };
 
 export default async function AnimeGenrePage() {
-  const genres = await getAnimeGenres();
+  let genres: Awaited<ReturnType<typeof getAnimeGenres>>;
+  try {
+    genres = await getAnimeGenres();
+  } catch {
+    // API unavailable at build time — render empty, ISR will retry
+    genres = [];
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

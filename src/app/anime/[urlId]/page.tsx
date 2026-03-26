@@ -285,7 +285,12 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
 // ─── Batch Download Section ──────────────────────────────────────────
 
 async function AnimeBatchSection({ urlId }: { urlId: string }) {
-  const batch = await getAnimeBatch(urlId);
+  let batch: Awaited<ReturnType<typeof getAnimeBatch>> | null;
+  try {
+    batch = await getAnimeBatch(urlId);
+  } catch {
+    return null;
+  }
   if (!batch || batch.batchList.length === 0) return null;
 
   return (
