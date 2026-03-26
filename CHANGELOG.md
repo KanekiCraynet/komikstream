@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.4] - 2026-03-26
+
+### Bug Fixes
+- fix: skip KV cache for RSC prefetch requests (c9e27d8)
+
+
 ## [0.26.3] - 2026-03-26
 
 ### Bug Fixes
