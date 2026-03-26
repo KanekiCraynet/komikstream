@@ -1,0 +1,167 @@
+name: Deploy Azure
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "CHANGELOG.md"
+      - "**.md"
+      - "workers/**"
+      - "wrangler.jsonc"
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip tests before deployment"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC federated credentials
+
+concurrency:
+  group: azure-production
+  cancel-in-progress: false
+
+jobs:
+  # ==================== CI CHECKS ====================
+  ci:
+    name: CI Checks
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip-security: true
+
+  # ==================== SECURITY ====================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup project
+        uses: ./.github/actions/setup
+
+      - name: Run npm audit (critical)
+        run: npm audit --audit-level=critical
+
+      - name: Gitleaks - Check for secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  # ==================== BUILD & DEPLOY TO AZURE ====================
+  deploy:
+    name: Deploy to Azure App Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [ci, security]
+    if: |
+      always() &&
+      needs.security.result == 'success' &&
+      (needs.ci.result == 'success' || github.event.inputs.skip_tests == 'true')
+    environment:
+      name: production
+      url: "https://kuromanga.me"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup project
+        uses: ./.github/actions/setup
+        with:
+          prisma-generate: "true"
+          next-cache: "true"
+
+      - name: Build for Azure (standalone)
+        env:
+          BUILD_TARGET: azure
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_CLERK_PROXY_URL: "https://clerk.kuromanga.me"
+          NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
+          NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up"
+          NEXT_PUBLIC_API_URL: "https://www.sankavollerei.com"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          SKIP_DB_CONNECTION: "true"
+          NODE_ENV: production
+        run: npx next build
+
+      - name: Prepare deployment package
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          cp -r prisma .next/standalone/prisma
+          cd .next/standalone
+          zip -r ../../deploy.zip . -x '*.map'
+          cd ../..
+          ls -lh deploy.zip
+
+      - name: Login to Azure
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@2fdd5c3ebb4e540834b57a18cee6487dc5eedf32 # v3.0.2
+        with:
+          app-name: kuromanga
+          package: deploy.zip
+          clean: true
+          restart: true
+
+      - name: Wait for App Service restart
+        run: sleep 30
+
+  # ==================== POST-DEPLOYMENT ====================
+  post-deploy:
+    name: Post-Deployment Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [deploy]
+    if: success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Health Check (Azure origin)
+        continue-on-error: true
+        uses: ./.github/actions/health-check
+        with:
+          url: "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net/api/health"
+          max-retries: "5"
+          retry-delay: "20"
+          initial-delay: "60"
+
+      - name: Health Check (via Cloudflare)
+        continue-on-error: true
+        uses: ./.github/actions/health-check
+        with:
+          url: "https://kuromanga.me/api/health"
+          max-retries: "3"
+          retry-delay: "10"
+          initial-delay: "10"
+
+      - name: Deployment Summary
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "## Azure Production Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Property | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| -------- | ----- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| URL | https://kuromanga.me |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Azure Origin | https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${COMMIT_SHA}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${BRANCH_NAME}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Triggered by | ${ACTOR} |" >> "$GITHUB_STEP_SUMMARY"

@@ -1,73 +1,29 @@
-name: Deploy Production
+name: Deploy Cloudflare Worker
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "CHANGELOG.md"
-      - "**.md"
+    paths:
+      - "workers/proxy/**"
+      - "wrangler.jsonc"
   workflow_dispatch:
-    inputs:
-      skip_tests:
-        description: "Skip tests before deployment"
-        required: false
-        default: "false"
-        type: boolean
 
 permissions:
   contents: read
   deployments: write
 
 concurrency:
-  group: production
+  group: cloudflare-production
   cancel-in-progress: false
 
 jobs:
-  # ==================== CI CHECKS ====================
-  ci:
-    name: CI Checks
-    if: ${{ github.event.inputs.skip_tests != 'true' }}
-    uses: ./.github/workflows/ci.yml
-    with:
-      skip-security: true
-
-  # ==================== SECURITY (always runs, even with skip_tests) ====================
-  security:
-    name: Security Audit
+  # ==================== DEPLOY WORKER PROXY ====================
+  deploy:
+    name: Deploy Proxy Worker to Cloudflare
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0
-
-      - name: Setup project
-        uses: ./.github/actions/setup
-
-      - name: Run npm audit (critical)
-        run: npm audit --audit-level=critical
-
-      - name: Gitleaks - Check for secrets
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
-
-  # ==================== DEPLOY PRODUCTION ====================
-  deploy:
-    name: Deploy to Cloudflare Workers
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [ci, security]
-    if: |
-      always() &&
-      needs.security.result == 'success' &&
-      (needs.ci.result == 'success' || github.event.inputs.skip_tests == 'true')
     environment:
       name: production
-      url: "https://kuromanga.me"
-    outputs:
       url: "https://kuromanga.me"
     steps:
       - name: Checkout code
@@ -80,65 +36,19 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        # --ignore-scripts skips husky prepare hook in CI
         run: npm clean-install --ignore-scripts
 
-      - name: Build for Cloudflare Workers
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_CLERK_PROXY_URL: "https://clerk.kuromanga.me"
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
-          NEXT_PUBLIC_API_URL: "https://www.sankavollerei.com"
-          NODE_ENV: production
-        run: npm run build:cf
-
-      - name: Deploy to Cloudflare Workers
-        id: deploy
+      - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
 
-      - name: Set Worker Runtime Secrets
-        # Push server-side secrets via Cloudflare API so they are available
-        # at Worker runtime. NEXT_PUBLIC_* vars are baked into the bundle at
-        # build time and do not need to be set here.
-        # Secrets set via this API persist across deployments — they are only
-        # re-applied here so that the workflow is fully self-contained.
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
-        run: |
-          set_secret() {
-            local name="$1" value="$2"
-            local status
-            status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/kuromanga/secrets" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\":\"${name}\",\"text\":\"${value}\",\"type\":\"secret_text\"}")
-            if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
-              echo "✅ Secret ${name} set (HTTP ${status})"
-            else
-              echo "⚠️  Secret ${name} returned HTTP ${status} — check CF dashboard"
-            fi
-          }
-          set_secret "DATABASE_URL"      "$DATABASE_URL"
-          set_secret "CLERK_SECRET_KEY"  "$CLERK_SECRET_KEY"
-          if [ -n "$CLERK_WEBHOOK_SECRET" ]; then
-            set_secret "CLERK_WEBHOOK_SECRET" "$CLERK_WEBHOOK_SECRET"
-          fi
-
       - name: Create GitHub Deployment Status
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            console.log('Deployed to production: https://kuromanga.me');
+            console.log('Deployed Cloudflare Worker proxy to production: https://kuromanga.me');
 
   # ==================== POST-DEPLOYMENT ====================
   post-deploy:
@@ -156,9 +66,9 @@ jobs:
         uses: ./.github/actions/health-check
         with:
           url: "https://kuromanga.me/api/health"
-          max-retries: "5"
-          retry-delay: "15"
-          initial-delay: "30"
+          max-retries: "3"
+          retry-delay: "10"
+          initial-delay: "15"
 
       - name: Deployment Summary
         env:
@@ -166,11 +76,12 @@ jobs:
           BRANCH_NAME: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
         run: |
-          echo "## Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "| -------- | ----- |" >> $GITHUB_STEP_SUMMARY
-          echo "| URL | https://kuromanga.me |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | \`${COMMIT_SHA}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Branch | \`${BRANCH_NAME}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Triggered by | ${ACTOR} |" >> $GITHUB_STEP_SUMMARY
+          echo "## Cloudflare Worker Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Property | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| -------- | ----- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| URL | https://kuromanga.me |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Worker | kuromanga (proxy) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${COMMIT_SHA}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${BRANCH_NAME}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Triggered by | ${ACTOR} |" >> "$GITHUB_STEP_SUMMARY"

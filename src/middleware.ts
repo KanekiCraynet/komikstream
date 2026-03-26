@@ -79,9 +79,9 @@ async function checkPublicRateLimit(req: NextRequest): Promise<NextResponse | nu
 }
 
 export default async function middleware(req: NextRequest, event: NextFetchEvent) {
-  // Generate a unique trace ID for request correlation across log entries.
-  // Downstream route handlers read it via request.headers.get("x-trace-id").
-  const traceId = crypto.randomUUID();
+  // Preserve trace ID injected by the Cloudflare Worker proxy (edge gateway).
+  // If no Worker trace ID is present (e.g. direct Azure access), generate one.
+  const traceId = req.headers.get("x-trace-id") ?? crypto.randomUUID();
   req.headers.set("x-trace-id", traceId);
 
   // Skip middleware for webhook routes (they have their own verification)

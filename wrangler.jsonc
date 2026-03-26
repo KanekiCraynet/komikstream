@@ -1,61 +1,38 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kuromanga",
-  "keep_names": false,
   "compatibility_date": "2026-03-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": ".open-next/worker.js",
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS",
-  },
-  // Public runtime variables available to server-side code in the CF Worker.
-  // NEXT_PUBLIC_* vars are baked into client bundles at build time by Next.js,
-  // but server-side code (e.g. isClerkConfigured() in layout.tsx) reads them
-  // from process.env at runtime — these bindings provide that value in the CF
-  // Worker runtime without needing them in secrets or the bundled .env file.
-  "vars": {
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsua3Vyb21hbmdhLm1lJA",
-    "NEXT_PUBLIC_API_URL": "https://www.sankavollerei.com",
-    "NEXT_PUBLIC_CLERK_PROXY_URL": "https://clerk.kuromanga.me",
-    "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
-    "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
-  },
-  // KV namespaces for cross-instance rate limiting and API response caching.
-  // Create these via: wrangler kv namespace create RATE_LIMIT_KV
-  //                    wrangler kv namespace create API_CACHE_KV
-  // Then replace the IDs below with the output from those commands.
+  // Thin edge proxy — no Next.js, no Node.js compat needed.
+  // Wrangler compiles TypeScript directly via built-in esbuild.
+  "main": "workers/proxy/index.ts",
+  // Route kuromanga.me through this Worker.
+  // Requires Cloudflare DNS record for kuromanga.me with proxy ON (orange cloud).
+  // NOTE: Comment out routes[] during initial testing to deploy to workers.dev only.
+  "routes": [
+    {
+      "pattern": "kuromanga.me/*",
+      "zone_name": "kuromanga.me"
+    }
+  ],
+  // KV namespaces — reused from previous full-Worker deployment.
+  // RATE_LIMIT_KV: fixed-window rate limiting for /api/search and /api/anime/video
+  // API_CACHE_KV: response cache for public GET routes (HTML + search JSON)
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
-      "id": "e89a9b449b1949deb8c54bfcd3ab6dab",
+      "id": "e89a9b449b1949deb8c54bfcd3ab6dab"
     },
     {
       "binding": "API_CACHE_KV",
-      "id": "a4dc5febb4c54989be82402ea0bbabdf",
-    },
+      "id": "a4dc5febb4c54989be82402ea0bbabdf"
+    }
   ],
-  // R2 bucket for Next.js Incremental Static Regeneration (ISR) cache.
-  // Shares ISR cache across all Worker isolates instead of per-isolate in-memory.
-  // Binding name must be NEXT_INC_CACHE_R2_BUCKET (expected by @opennextjs/cloudflare).
-  "r2_buckets": [
-    {
-      "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "kuromanga-isr-cache",
-    },
-  ],
-  // Workers Analytics Engine for structured event tracking (cache metrics, API perf).
-  // Free tier: 100k events/day, 90-day retention, queryable via GraphQL.
+  // Workers Analytics Engine — rate_limit_hit events.
+  // Free tier: 100k events/day, 90-day retention.
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "kuromanga_events",
-    },
-  ],
-  // Stub out @vercel/og to eliminate resvg.wasm (1.4MB) + yoga.wasm (87KB)
-  // We don't use OG image generation in this project
-  "alias": {
-    "next/dist/compiled/@vercel/og/index.edge.js": "./stubs/og-stub.js",
-    "next/dist/compiled/@vercel/og/index.node.js": "./stubs/og-stub.js",
-  },
+      "dataset": "kuromanga_events"
+    }
+  ]
 }

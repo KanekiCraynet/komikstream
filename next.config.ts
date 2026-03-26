@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === "production" && !process.env.CI) {
     if (!process.env[envVar]) {
       console.warn(
         `⚠️ Missing environment variable: ${envVar}\n` +
-          `Please set it in your Cloudflare Workers Variables or .env file.`
+          `Please set it in your deployment platform (Azure App Settings / CF Workers Variables) or .env file.`
       );
     }
   }
@@ -59,14 +59,18 @@ const securityHeaders = [
   },
 ];
 
+// BUILD_TARGET=azure → standalone output for Azure App Service zip deploy.
+// Unset (default) → no output mode, compatible with OpenNext CF build and local dev.
+const isAzureBuild = process.env.BUILD_TARGET === "azure";
+
 const nextConfig: NextConfig = {
-  // Let OpenNext's esbuild handle Prisma bundling with the `workerd` condition
-  // for correct WASM resolution. See: https://opennext.js.org/cloudflare/howtos/db
+  // Prisma client is always server-external — both CF Workers (OpenNext esbuild
+  // rebundles with workerd condition) and Azure (Node.js resolves from node_modules).
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
-  // NOTE: output "standalone" is only for Docker deployment.
-  // For Cloudflare Workers (via OpenNext), do NOT set output.
-  // Uncomment the line below if switching back to Docker/Vercel:
-  // output: "standalone",
+
+  // Azure: standalone output for zip deploy (node .next/standalone/server.js).
+  // CF/local: no output mode (OpenNext wraps the build, standalone not needed).
+  ...(isAzureBuild ? { output: "standalone" as const } : {}),
 
   // Remove X-Powered-By header (information disclosure)
   poweredByHeader: false,
@@ -111,32 +115,31 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Force the build toolchain to bundle pg and Prisma adapter packages
-  // instead of externalizing them. Without this, the bundler externalizes
-  // pg (which uses net/tls/dns) as a separate chunk that can't be loaded
-  // in Cloudflare Workers runtime.
-  // NOTE: Do NOT use serverExternalPackages for pg/prisma on Cloudflare Workers.
-  // CF Workers bundle everything into the worker script — external packages
-  // won't be available at runtime.
-  transpilePackages: [
-    "pg",
-    "pg-pool",
-    "pg-protocol",
-    "pg-types",
-    "pg-cloudflare",
-    "@prisma/adapter-pg",
-  ],
+  // CF Workers: bundle pg/Prisma into the worker script (workerd can't load externals).
+  // Azure/Node.js: not needed — Node resolves these from node_modules natively.
+  ...(!isAzureBuild
+    ? {
+        transpilePackages: [
+          "pg",
+          "pg-pool",
+          "pg-protocol",
+          "pg-types",
+          "pg-cloudflare",
+          "@prisma/adapter-pg",
+        ],
+      }
+    : {}),
 
-  // Turbopack configuration
-  turbopack: {
-    // Force Prisma to use the edge/worker WASM loader instead of the Node.js
-    // base64 loader. The edge version uses static `import('./xxx.wasm')` which
-    // Cloudflare Workers supports, while the node version uses
-    // `new WebAssembly.Module(Buffer.from(base64))` which CF Workers blocks.
-    resolveAlias: {
-      ".prisma/client": ".prisma/client/edge",
-    },
-  },
+  // Turbopack configuration (dev server only, does not affect production builds)
+  // CF Workers: force Prisma edge/WASM loader instead of Node.js base64 loader.
+  // Azure: use default Prisma client (native binary engine).
+  turbopack: !isAzureBuild
+    ? {
+        resolveAlias: {
+          ".prisma/client": ".prisma/client/edge",
+        },
+      }
+    : {},
 
   // Experimental features
   experimental: {
