@@ -11,8 +11,8 @@
   "routes": [
     {
       "pattern": "kuromanga.me/*",
-      "zone_name": "kuromanga.me"
-    }
+      "zone_name": "kuromanga.me",
+    },
   ],
   // KV namespaces — reused from previous full-Worker deployment.
   // RATE_LIMIT_KV: fixed-window rate limiting for /api/search and /api/anime/video
@@ -20,19 +20,19 @@
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
-      "id": "e89a9b449b1949deb8c54bfcd3ab6dab"
+      "id": "e89a9b449b1949deb8c54bfcd3ab6dab",
     },
     {
       "binding": "API_CACHE_KV",
-      "id": "a4dc5febb4c54989be82402ea0bbabdf"
-    }
+      "id": "a4dc5febb4c54989be82402ea0bbabdf",
+    },
   ],
   // Workers Analytics Engine — rate_limit_hit events.
   // Free tier: 100k events/day, 90-day retention.
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "kuromanga_events"
-    }
-  ]
+      "dataset": "kuromanga_events",
+    },
+  ],
 }
