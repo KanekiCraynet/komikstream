@@ -21,7 +21,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 async function GenreResults({ genre, page }: { genre: string; page: number }) {
-  const result = await getKomikByGenre(genre, page);
+  let result: Awaited<ReturnType<typeof getKomikByGenre>>;
+  try {
+    result = await getKomikByGenre(genre, page);
+  } catch {
+    result = { items: [], hasNextPage: false, totalPages: 0 };
+  }
   const title = genre.charAt(0).toUpperCase() + genre.slice(1).replace(/-/g, " ");
 
   if (result.items.length === 0) {

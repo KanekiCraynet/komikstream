@@ -45,7 +45,8 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
 };
 
 const CACHE_TTLS: Record<string, number> = {
-  html: 300, // 5 min for public pages
+  html_listing: 300, // 5 min for homepage, listing, genre pages
+  html_detail: 1800, // 30 min for detail pages (matches ISR revalidate)
   search: 30, // 30s for /api/search
 };
 
@@ -82,13 +83,26 @@ function getRateLimitKey(pathname: string): string | null {
  *
  * /api/anime/video is explicitly excluded — embed URLs may be time-limited/signed.
  */
-function getCacheConfig(pathname: string, search: string): { ttl: number; key: string } | null {
+function getCacheConfig(
+  pathname: string,
+  search: string,
+  isRSC: boolean
+): { ttl: number; key: string } | null {
+  // RSC prefetch requests return a different payload — never cache them
+  // to avoid serving RSC stream as HTML to regular browser requests.
+  if (isRSC) return null;
+
   if (pathname.startsWith("/api/search")) {
     return { ttl: CACHE_TTLS.search, key: `search:${pathname}${search}` };
   }
-  // Public pages: /, /anime*, /komik*
+  // Detail pages: /anime/[id], /komik/[id] — longer TTL (matches ISR revalidate)
+  const DETAIL_RE = /^\/(anime|komik)\/[^/]+$/;
+  if (DETAIL_RE.test(pathname)) {
+    return { ttl: CACHE_TTLS.html_detail, key: `html:${pathname}` };
+  }
+  // Listing/genre/homepage — shorter TTL (content changes frequently)
   if (pathname === "/" || pathname.startsWith("/anime") || pathname.startsWith("/komik")) {
-    return { ttl: CACHE_TTLS.html, key: `html:${pathname}` };
+    return { ttl: CACHE_TTLS.html_listing, key: `html:${pathname}` };
   }
   return null;
 }
@@ -187,8 +201,9 @@ export default {
     // ── 2. KV cache check (GET public routes only) ──
 
     const isGet = method === "GET";
+    const isRSC = request.headers.get("RSC") === "1";
     const isPublic = isGet && !isPrivateRoute(pathname);
-    const cacheConfig = isPublic ? getCacheConfig(pathname, search) : null;
+    const cacheConfig = isPublic ? getCacheConfig(pathname, search, isRSC) : null;
 
     if (cacheConfig) {
       try {
@@ -201,7 +216,7 @@ export default {
               "Content-Type": entry.contentType,
               "x-cache": "HIT",
               "x-trace-id": traceId,
-              "Cache-Control": `public, max-age=${cacheConfig.ttl}`,
+              "Cache-Control": `public, max-age=${cacheConfig.ttl}, stale-while-revalidate=${cacheConfig.ttl}`,
             },
           });
         }

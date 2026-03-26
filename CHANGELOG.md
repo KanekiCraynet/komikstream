@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.5] - 2026-03-26
+
+### Bug Fixes
+- fix: mobile UI bugs + SEO optimization for traffic growth (26a706a)
+
+
+## [0.26.4] - 2026-03-26
+
+### Bug Fixes
+- fix: skip KV cache for RSC prefetch requests (c9e27d8)
+
+
+## [0.26.3] - 2026-03-26
+
+### Bug Fixes
+- fix: update azure/webapps-deploy to v3.0.8 (valid SHA) (c9adc4d)
+
+
+## [0.26.2] - 2026-03-26
+
+### Bug Fixes
+- fix: add try/catch to API calls for build-time resilience (dbf5383)
+
+
+## [0.26.1] - 2026-03-26
+
+### Bug Fixes
+- fix: prettier formatting for wrangler.jsonc and SearchBar test role (e967350)
+
+### Chores
+- chore: cleanup OpenNext artifacts and update cache-warm URL (e4fe8d3)
+
+
 ## [0.26.0] - 2026-03-26
 
 ### Features

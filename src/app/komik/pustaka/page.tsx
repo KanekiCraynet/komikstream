@@ -17,7 +17,12 @@ export const metadata: Metadata = {
 };
 
 async function PustakaResults({ page }: { page: number }) {
-  const items = await getKomikPustaka(page);
+  let items: Awaited<ReturnType<typeof getKomikPustaka>>;
+  try {
+    items = await getKomikPustaka(page);
+  } catch {
+    items = [];
+  }
 
   if (items.length === 0) {
     return (

@@ -40,7 +40,7 @@ describe("SearchBar", () => {
 
   it("updates value on input change", async () => {
     render(<SearchBar />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "Naruto");
     expect(input).toHaveValue("Naruto");
@@ -56,7 +56,7 @@ describe("SearchBar", () => {
 
   it("clears input when clear button is clicked", async () => {
     render(<SearchBar defaultValue="test" />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     // Find and click the clear button
     const clearButton = screen.getByRole("button", { name: /hapus pencarian/i });
@@ -75,7 +75,7 @@ describe("SearchBar", () => {
 
   it("enables search button when input has value", async () => {
     render(<SearchBar />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "test");
 
@@ -85,13 +85,13 @@ describe("SearchBar", () => {
 
   it("applies custom className", () => {
     render(<SearchBar className="custom-search" />);
-    const container = screen.getByRole("textbox").closest("div")?.parentElement;
+    const container = screen.getByRole("searchbox").closest("div")?.parentElement;
     expect(container).toHaveClass("custom-search");
   });
 
   it("triggers search on Enter key", async () => {
     render(<SearchBar searchPath="/komik/search" />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "Dragon Ball{enter}");
 
@@ -101,7 +101,7 @@ describe("SearchBar", () => {
 
   it("navigates to correct search path on submit", async () => {
     render(<SearchBar searchPath="/anime/search" />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "Bleach");
 
@@ -113,7 +113,7 @@ describe("SearchBar", () => {
 
   it("defaults to komik search path when no searchPath provided", async () => {
     render(<SearchBar />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "Test");
 
@@ -125,7 +125,7 @@ describe("SearchBar", () => {
 
   it("trims whitespace from search query", async () => {
     render(<SearchBar searchPath="/search" />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "  hello world  ");
 
@@ -137,7 +137,7 @@ describe("SearchBar", () => {
 
   it("does not search with only whitespace", async () => {
     render(<SearchBar />);
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("searchbox");
 
     await userEvent.type(input, "   ");
 
