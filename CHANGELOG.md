@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.5] - 2026-03-26
+
+### Bug Fixes
+- fix: mobile UI bugs + SEO optimization for traffic growth (26a706a)
+
+
 ## [0.26.4] - 2026-03-26
 
 ### Bug Fixes
