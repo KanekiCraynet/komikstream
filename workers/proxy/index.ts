@@ -82,7 +82,15 @@ function getRateLimitKey(pathname: string): string | null {
  *
  * /api/anime/video is explicitly excluded — embed URLs may be time-limited/signed.
  */
-function getCacheConfig(pathname: string, search: string): { ttl: number; key: string } | null {
+function getCacheConfig(
+  pathname: string,
+  search: string,
+  isRSC: boolean
+): { ttl: number; key: string } | null {
+  // RSC prefetch requests return a different payload — never cache them
+  // to avoid serving RSC stream as HTML to regular browser requests.
+  if (isRSC) return null;
+
   if (pathname.startsWith("/api/search")) {
     return { ttl: CACHE_TTLS.search, key: `search:${pathname}${search}` };
   }
@@ -187,8 +195,9 @@ export default {
     // ── 2. KV cache check (GET public routes only) ──
 
     const isGet = method === "GET";
+    const isRSC = request.headers.get("RSC") === "1";
     const isPublic = isGet && !isPrivateRoute(pathname);
-    const cacheConfig = isPublic ? getCacheConfig(pathname, search) : null;
+    const cacheConfig = isPublic ? getCacheConfig(pathname, search, isRSC) : null;
 
     if (cacheConfig) {
       try {
