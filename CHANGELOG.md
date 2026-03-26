@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.3] - 2026-03-26
+
+### Bug Fixes
+- fix: update azure/webapps-deploy to v3.0.8 (valid SHA) (c9adc4d)
+
+
 ## [0.26.2] - 2026-03-26
 
 ### Bug Fixes
