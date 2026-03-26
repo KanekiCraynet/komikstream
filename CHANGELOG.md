@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.1] - 2026-03-26
+
+### Bug Fixes
+- fix: prettier formatting for wrangler.jsonc and SearchBar test role (e967350)
+
+### Chores
+- chore: cleanup OpenNext artifacts and update cache-warm URL (e4fe8d3)
+
+
 ## [0.26.0] - 2026-03-26
 
 ### Features
