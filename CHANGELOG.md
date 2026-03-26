@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.6] - 2026-03-26
+
+### Bug Fixes
+- fix: update Button test for 44px icon touch target (b77626b)
+
+### Chores
+- chore(deps-dev): bump picomatch (1905553)
+
+
 ## [0.26.5] - 2026-03-26
 
 ### Bug Fixes
