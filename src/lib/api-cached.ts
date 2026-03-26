@@ -27,6 +27,8 @@ import {
 import { findCachedAnime, upsertCachedAnime, findCachedKomik, upsertCachedKomik } from "./db";
 import { isDatabaseConfigured } from "./prisma";
 import { logger } from "./logger";
+import { kvCacheGet, kvCachePut } from "./kv-cache";
+import { trackEvent } from "./analytics";
 
 // ─── Type Mappers: DB -> App Types ──────────────────────────────────
 
@@ -205,35 +207,53 @@ function warmKomikCacheInBackground(items: Komik[]) {
 // ─── Cached Detail Endpoints ────────────────────────────────────────
 
 /**
- * Get anime detail with DB-first caching.
+ * Get anime detail with three-tier caching: KV -> DB -> External API.
  * TTL = CACHE_TIMES.DETAIL (30 minutes).
  */
 export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null> {
+  // L1: KV cache (fastest, cross-instance)
+  const kvKey = `anime:${urlId}`;
+  const kvHit = await kvCacheGet<Anime>(kvKey);
+  if (kvHit) {
+    logger.debug("Anime KV cache hit", { urlId });
+    trackEvent({ type: "cache_hit", cacheTier: "kv", contentType: "anime", contentId: urlId });
+    return kvHit;
+  }
+
+  // L2: Supabase DB cache
   if (isDatabaseConfigured()) {
     try {
       const cached = await findCachedAnime(urlId, CACHE_TIMES.DETAIL);
       if (cached) {
-        logger.debug("Anime cache hit", { urlId });
-        return mapDbAnimeToApp(cached);
+        logger.debug("Anime DB cache hit", { urlId });
+        trackEvent({ type: "cache_hit", cacheTier: "db", contentType: "anime", contentId: urlId });
+        const anime = mapDbAnimeToApp(cached);
+        // Backfill KV (fire-and-forget)
+        kvCachePut(kvKey, anime, CACHE_TIMES.DETAIL);
+        return anime;
       }
       logger.debug("Anime cache miss", { urlId });
+      trackEvent({ type: "cache_miss", contentType: "anime", contentId: urlId });
     } catch (err) {
-      logger.warn("Anime cache read failed, falling back to API", {
+      logger.warn("Anime DB cache read failed, falling back to API", {
         urlId,
         error: String(err),
       });
     }
   }
 
-  // Fallback to external API
+  // L3: External API
   try {
     const anime = await getAnimeDetail(urlId);
 
-    // Write back to cache (fire-and-forget)
-    if (anime && isDatabaseConfigured()) {
-      upsertCachedAnime(mapAppAnimeToDb(anime)).catch((err) => {
-        logger.debug("Failed to write anime cache", { urlId, error: String(err) });
-      });
+    // Write back to both caches (fire-and-forget)
+    if (anime) {
+      kvCachePut(kvKey, anime, CACHE_TIMES.DETAIL);
+      if (isDatabaseConfigured()) {
+        upsertCachedAnime(mapAppAnimeToDb(anime)).catch((err) => {
+          logger.debug("Failed to write anime DB cache", { urlId, error: String(err) });
+        });
+      }
     }
 
     return anime;
@@ -244,35 +264,58 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
 }
 
 /**
- * Get komik detail with DB-first caching.
+ * Get komik detail with three-tier caching: KV -> DB -> External API.
  * TTL = CACHE_TIMES.DETAIL (30 minutes).
  */
 export async function getCachedKomikDetail(mangaId: string): Promise<Komik | null> {
+  // L1: KV cache (fastest, cross-instance)
+  const kvKey = `komik:${mangaId}`;
+  const kvHit = await kvCacheGet<Komik>(kvKey);
+  if (kvHit) {
+    logger.debug("Komik KV cache hit", { mangaId });
+    trackEvent({ type: "cache_hit", cacheTier: "kv", contentType: "komik", contentId: mangaId });
+    return kvHit;
+  }
+
+  // L2: Supabase DB cache
   if (isDatabaseConfigured()) {
     try {
       const cached = await findCachedKomik(mangaId, CACHE_TIMES.DETAIL);
       if (cached) {
-        logger.debug("Komik cache hit", { mangaId });
-        return mapDbKomikToApp(cached);
+        logger.debug("Komik DB cache hit", { mangaId });
+        trackEvent({
+          type: "cache_hit",
+          cacheTier: "db",
+          contentType: "komik",
+          contentId: mangaId,
+        });
+        const komik = mapDbKomikToApp(cached);
+        // Backfill KV (fire-and-forget)
+        kvCachePut(kvKey, komik, CACHE_TIMES.DETAIL);
+        return komik;
       }
       logger.debug("Komik cache miss", { mangaId });
+      trackEvent({ type: "cache_miss", contentType: "komik", contentId: mangaId });
     } catch (err) {
-      logger.warn("Komik cache read failed, falling back to API", {
+      logger.warn("Komik DB cache read failed, falling back to API", {
         mangaId,
         error: String(err),
       });
     }
   }
 
-  // Fallback to external API
+  // L3: External API
   try {
     const komik = await getKomikDetail(mangaId);
 
-    // Write back to cache (fire-and-forget)
-    if (komik && isDatabaseConfigured()) {
-      upsertCachedKomik(mapAppKomikToDb(komik)).catch((err) => {
-        logger.debug("Failed to write komik cache", { mangaId, error: String(err) });
-      });
+    // Write back to both caches (fire-and-forget)
+    if (komik) {
+      kvCachePut(kvKey, komik, CACHE_TIMES.DETAIL);
+      if (isDatabaseConfigured()) {
+        upsertCachedKomik(mapAppKomikToDb(komik)).catch((err) => {
+          logger.debug("Failed to write komik DB cache", { mangaId, error: String(err) });
+        });
+      }
     }
 
     return komik;

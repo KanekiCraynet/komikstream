@@ -69,6 +69,48 @@ export interface AnimeVideo {
   resolution?: string;
 }
 
+// ==================== GENRE & SCHEDULE TYPES ====================
+
+export interface AnimeGenre {
+  title: string;
+  genreId: string;
+  href?: string;
+  otakudesuUrl?: string;
+}
+
+export interface AnimeScheduleDay {
+  day: string;
+  animeList: Array<{
+    title: string;
+    slug: string;
+    url: string;
+    poster: string;
+  }>;
+}
+
+export interface AnimeBatchDownload {
+  title?: string;
+  batchList: Array<{
+    title: string;
+    qualities: Array<{
+      resolution: string;
+      urls: Array<{ host: string; url: string }>;
+    }>;
+  }>;
+}
+
+export interface KomikGenre {
+  name: string;
+  slug: string;
+  link?: string;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  hasNextPage: boolean;
+  totalPages: number;
+}
+
 // ==================== USER & BOOKMARK TYPES ====================
 
 export interface User {

@@ -2,6 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest, NextFetchEvent } from "next/server";
 import { isClerkConfigured } from "@/lib/auth-config";
+import { checkRateLimitKV } from "@/lib/kv-rate-limit";
+import { SEARCH_RATE_LIMIT, API_RATE_LIMIT } from "@/lib/rate-limit";
+import { trackEvent } from "@/lib/analytics";
 
 // Define protected routes that require authentication
 const isProtectedRoute = createRouteMatcher([
@@ -12,7 +15,15 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 // Define public routes that should skip Clerk middleware entirely
-const isPublicApiRoute = createRouteMatcher(["/api/webhooks(.*)", "/api/health"]);
+const isPublicApiRoute = createRouteMatcher([
+  "/api/webhooks(.*)",
+  "/api/health",
+  "/api/internal(.*)",
+]);
+
+// Define rate-limited public API routes
+const isSearchRoute = createRouteMatcher(["/api/search(.*)"]);
+const isPublicRateLimitedRoute = createRouteMatcher(["/api/search(.*)", "/api/anime/video(.*)"]);
 
 // Clerk middleware handler
 // Pass keys explicitly via lazy getters so they are read at request time
@@ -37,24 +48,65 @@ const clerkHandler = clerkMiddleware(
   }
 );
 
-// NOTE: In-memory rate limiting has been removed.
-// Cloudflare Workers are stateless (each request may hit a different isolate),
-// so in-memory Maps don't work for rate limiting.
-// Use Cloudflare WAF Rate Limiting Rules instead:
-//   Dashboard → Security → WAF → Rate limiting rules
-//   - API routes: 60 req/min per IP on /api/*
-//   - Search routes: 20 req/min per IP on /api/search*
+/**
+ * Check KV-backed rate limit for public API routes.
+ * Returns a 429 response if the limit is exceeded, otherwise null.
+ */
+async function checkPublicRateLimit(req: NextRequest): Promise<NextResponse | null> {
+  if (!isPublicRateLimitedRoute(req)) return null;
 
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for") ?? "unknown";
+  const config = isSearchRoute(req) ? SEARCH_RATE_LIMIT : API_RATE_LIMIT;
+  const routeKey = isSearchRoute(req) ? "search" : "video";
+
+  const result = await checkRateLimitKV(`${ip}:${routeKey}`, config);
+
+  if (!result.allowed) {
+    trackEvent({ type: "rate_limit_hit", contentType: routeKey });
+    return NextResponse.json(
+      { error: "Too Many Requests", code: "RATE_LIMIT_EXCEEDED" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(config.maxRequests),
+          "X-RateLimit-Remaining": "0",
+        },
+      }
+    );
+  }
+  return null;
+}
+
+export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+  // Generate a unique trace ID for request correlation across log entries.
+  // Downstream route handlers read it via request.headers.get("x-trace-id").
+  const traceId = crypto.randomUUID();
+  req.headers.set("x-trace-id", traceId);
+
   // Skip middleware for webhook routes (they have their own verification)
   if (isPublicApiRoute(req)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set("x-trace-id", traceId);
+    return response;
+  }
+
+  // KV-backed rate limiting for public API routes (search, anime/video)
+  const rateLimitResponse = await checkPublicRateLimit(req);
+  if (rateLimitResponse) {
+    rateLimitResponse.headers.set("x-trace-id", traceId);
+    return rateLimitResponse;
   }
 
   if (isClerkConfigured()) {
-    return clerkHandler(req, event);
+    const response = (await clerkHandler(req, event)) ?? NextResponse.next();
+    response.headers.set("x-trace-id", traceId);
+    return response;
   }
-  return NextResponse.next();
+
+  const response = NextResponse.next();
+  response.headers.set("x-trace-id", traceId);
+  return response;
 }
 
 export const config = {

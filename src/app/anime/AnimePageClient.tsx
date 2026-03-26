@@ -3,7 +3,7 @@
 import { Card, SearchBar, Pagination } from "@/components/ui";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { useAnimeLatest, useAnimeRecommended, useAnimeMovies } from "@/hooks/useAnime";
-import { Film, Sparkles, Clapperboard } from "lucide-react";
+import { Film, Sparkles, Clapperboard, Calendar, Tags } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Anime } from "@/types";
@@ -15,6 +15,8 @@ function AnimeHeader({ sort }: { sort: string }) {
     { label: "Terbaru", value: "latest", href: "/anime", icon: Sparkles },
     { label: "Rekomendasi", value: "recommended", href: "/anime?sort=recommended", icon: Sparkles },
     { label: "Movie", value: "movie", href: "/anime?sort=movie", icon: Clapperboard },
+    { label: "Jadwal", value: "schedule", href: "/anime/schedule", icon: Calendar },
+    { label: "Genre", value: "genre", href: "/anime/genre", icon: Tags },
   ];
 
   return (

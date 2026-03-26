@@ -21,6 +21,37 @@
     "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
     "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
   },
+  // KV namespaces for cross-instance rate limiting and API response caching.
+  // Create these via: wrangler kv namespace create RATE_LIMIT_KV
+  //                    wrangler kv namespace create API_CACHE_KV
+  // Then replace the IDs below with the output from those commands.
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "e89a9b449b1949deb8c54bfcd3ab6dab",
+    },
+    {
+      "binding": "API_CACHE_KV",
+      "id": "a4dc5febb4c54989be82402ea0bbabdf",
+    },
+  ],
+  // R2 bucket for Next.js Incremental Static Regeneration (ISR) cache.
+  // Shares ISR cache across all Worker isolates instead of per-isolate in-memory.
+  // Binding name must be NEXT_INC_CACHE_R2_BUCKET (expected by @opennextjs/cloudflare).
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "kuromanga-isr-cache",
+    },
+  ],
+  // Workers Analytics Engine for structured event tracking (cache metrics, API perf).
+  // Free tier: 100k events/day, 90-day retention, queryable via GraphQL.
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS",
+      "dataset": "kuromanga_events",
+    },
+  ],
   // Stub out @vercel/og to eliminate resvg.wasm (1.4MB) + yoga.wasm (87KB)
   // We don't use OG image generation in this project
   "alias": {

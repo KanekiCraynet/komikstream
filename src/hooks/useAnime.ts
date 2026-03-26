@@ -8,6 +8,10 @@ import {
   searchAnime,
   getAnimeDetail,
   getAnimeVideo,
+  getAnimeSchedule,
+  getAnimeGenres,
+  getAnimeByGenre,
+  getAnimeBatch,
 } from "@/lib/api-client";
 
 // Video resolution type
@@ -24,6 +28,10 @@ export const animeKeys = {
   detail: (urlId: string) => [...animeKeys.all, "detail", urlId] as const,
   video: (episodeId: string, resolution: VideoResolution) =>
     [...animeKeys.all, "video", episodeId, resolution] as const,
+  schedule: () => [...animeKeys.all, "schedule"] as const,
+  genres: () => [...animeKeys.all, "genres"] as const,
+  byGenre: (slug: string, page: number) => [...animeKeys.all, "genre", slug, page] as const,
+  batch: (slug: string) => [...animeKeys.all, "batch", slug] as const,
 };
 
 // Hook for fetching latest anime
@@ -96,5 +104,43 @@ export function useAnimeVideo(episodeId: string, resolution: VideoResolution = "
     queryFn: () => getAnimeVideo(episodeId, resolution),
     enabled: !!episodeId,
     staleTime: 60 * 60 * 1000, // 1 hour
+  });
+}
+
+// Hook for fetching anime schedule
+export function useAnimeSchedule() {
+  return useQuery({
+    queryKey: animeKeys.schedule(),
+    queryFn: getAnimeSchedule,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+  });
+}
+
+// Hook for fetching all anime genres
+export function useAnimeGenres() {
+  return useQuery({
+    queryKey: animeKeys.genres(),
+    queryFn: getAnimeGenres,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours — genres rarely change
+  });
+}
+
+// Hook for fetching anime by genre with pagination
+export function useAnimeByGenre(slug: string, page: number = 1) {
+  return useQuery({
+    queryKey: animeKeys.byGenre(slug, page),
+    queryFn: () => getAnimeByGenre(slug, page),
+    enabled: !!slug,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+// Hook for fetching anime batch download links
+export function useAnimeBatch(slug: string) {
+  return useQuery({
+    queryKey: animeKeys.batch(slug),
+    queryFn: () => getAnimeBatch(slug),
+    enabled: !!slug,
+    staleTime: 30 * 60 * 1000,
   });
 }

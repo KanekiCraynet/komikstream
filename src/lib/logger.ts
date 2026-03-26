@@ -69,9 +69,18 @@ function write(entry: LogEntry): void {
   }
 }
 
+// ─── Logger Interface ───────────────────────────────────────────────
+
+export interface Logger {
+  debug(message: string, meta?: Record<string, unknown>): void;
+  info(message: string, meta?: Record<string, unknown>): void;
+  warn(message: string, meta?: Record<string, unknown>): void;
+  error(message: string, error?: unknown, meta?: Record<string, unknown>): void;
+}
+
 // ─── Public API ─────────────────────────────────────────────────────
 
-export const logger = {
+export const logger: Logger = {
   debug(message: string, meta?: Record<string, unknown>): void {
     if (shouldLog("debug")) write(formatEntry("debug", message, meta));
   },
@@ -102,3 +111,25 @@ export const logger = {
     write(formatEntry("error", message, errorMeta));
   },
 };
+
+// ─── Trace Logger Factory ───────────────────────────────────────────
+
+/**
+ * Creates a child logger that injects a traceId (and optional context)
+ * into every log entry. Use in API route handlers:
+ *
+ *   const log = createTraceLogger(request.headers.get("x-trace-id"));
+ *   log.info("Search requested", { query });
+ */
+export function createTraceLogger(
+  traceId: string | null,
+  context?: Record<string, unknown>
+): Logger {
+  const base = { ...(traceId ? { traceId } : {}), ...context };
+  return {
+    debug: (message, meta) => logger.debug(message, { ...base, ...meta }),
+    info: (message, meta) => logger.info(message, { ...base, ...meta }),
+    warn: (message, meta) => logger.warn(message, { ...base, ...meta }),
+    error: (message, error, meta) => logger.error(message, error, { ...base, ...meta }),
+  };
+}

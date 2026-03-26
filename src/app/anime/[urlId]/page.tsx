@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { getCachedAnimeDetail } from "@/lib/api-cached";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
-import { Calendar, Clock, Film, Play, Star, Tv, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, Download, Film, Play, Star, Tv, AlertTriangle } from "lucide-react";
+import { getAnimeBatch } from "@/lib/api-client";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -234,6 +235,11 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
         </div>
       </div>
 
+      {/* Batch Download (separate Suspense so it doesn't block episode list) */}
+      <Suspense fallback={null}>
+        <AnimeBatchSection urlId={urlId} />
+      </Suspense>
+
       {/* Episode List */}
       <section>
         <div className="mb-6 flex items-center gap-2">
@@ -273,6 +279,49 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
         )}
       </section>
     </>
+  );
+}
+
+// ─── Batch Download Section ──────────────────────────────────────────
+
+async function AnimeBatchSection({ urlId }: { urlId: string }) {
+  const batch = await getAnimeBatch(urlId);
+  if (!batch || batch.batchList.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <div className="mb-4 flex items-center gap-2">
+        <Download className="text-primary h-5 w-5" />
+        <h2 className="text-xl font-bold">Download Batch</h2>
+      </div>
+      <div className="border-border bg-card space-y-4 rounded-lg border p-4">
+        {batch.batchList.map((item, i) => (
+          <div key={i}>
+            {item.title && <h3 className="mb-2 text-sm font-medium">{item.title}</h3>}
+            <div className="flex flex-wrap gap-2">
+              {item.qualities.map((q, qi) => (
+                <div key={qi} className="space-y-1">
+                  <span className="text-muted-foreground text-xs font-medium">{q.resolution}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {q.urls.map((u, ui) => (
+                      <a
+                        key={ui}
+                        href={u.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-secondary hover:bg-secondary/80 rounded px-2 py-1 text-xs font-medium transition-colors"
+                      >
+                        {u.host}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

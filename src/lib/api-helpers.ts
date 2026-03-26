@@ -10,13 +10,14 @@ import {
   FeatureNotConfiguredError,
   AuthError,
 } from "@/lib/errors";
-import { logger } from "@/lib/logger";
+import { createTraceLogger, type Logger } from "@/lib/logger";
 
 // ─── Authenticated Request Context ──────────────────────────────────
 
 export interface AuthenticatedContext {
   user: DbUser;
   request: NextRequest;
+  log: Logger;
 }
 
 // ─── withAuth Higher-Order Wrapper ──────────────────────────────────
@@ -34,6 +35,9 @@ export function withAuth(
   routeName: string
 ): (request: NextRequest) => Promise<NextResponse> {
   return async (request: NextRequest) => {
+    const log = createTraceLogger(request.headers.get("x-trace-id"), {
+      route: routeName,
+    });
     try {
       if (!isClerkConfigured()) {
         throw new FeatureNotConfiguredError("Authentication");
@@ -44,10 +48,9 @@ export function withAuth(
         throw new AuthError();
       }
 
-      return await handler({ user, request });
+      return await handler({ user, request, log });
     } catch (error) {
-      logger.error(`${routeName} error`, error, {
-        route: routeName,
+      log.error(`${routeName} error`, error, {
         method: request.method,
         url: request.url,
       });
@@ -62,9 +65,18 @@ export function withAuth(
  * Lightweight error handler for routes that don't need auth
  * (e.g. search, anime/video, health).
  */
-export function handleApiError(error: unknown, routeName: string): NextResponse {
-  logger.error(`${routeName} error`, error, { route: routeName });
+export function handleApiError(error: unknown, routeName: string, log?: Logger): NextResponse {
+  const l = log ?? createTraceLogger(null, { route: routeName });
+  l.error(`${routeName} error`, error);
   return errorToResponse(error);
+}
+
+/**
+ * Create a trace logger from a request's x-trace-id header.
+ * Convenience for non-auth route handlers.
+ */
+export function traceLoggerFromRequest(request: NextRequest, routeName: string): Logger {
+  return createTraceLogger(request.headers.get("x-trace-id"), { route: routeName });
 }
 
 // ─── Zod Validation Helpers ─────────────────────────────────────────

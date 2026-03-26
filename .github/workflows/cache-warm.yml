@@ -1,0 +1,26 @@
+name: Cache Warm
+
+on:
+  schedule:
+    # Every 30 minutes — keeps popular content fresh in KV + DB caches
+    - cron: "*/30 * * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Warm caches
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://kuromanga.me/api/internal/cache-warm" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json")
+          echo "Response status: $response"
+          if [ "$response" != "200" ]; then
+            echo "Cache warm failed with status $response"
+            exit 1
+          fi

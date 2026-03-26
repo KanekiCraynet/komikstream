@@ -4,7 +4,7 @@ import { Card, SearchBar, Pagination } from "@/components/ui";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { useKomikLatest, useKomikPopular, useKomikRecommended } from "@/hooks/useKomik";
 import type { KomikType } from "@/hooks/useKomik";
-import { Book, TrendingUp, Sparkles, Filter } from "lucide-react";
+import { Book, TrendingUp, Sparkles, Filter, Palette, Library } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -51,6 +51,24 @@ function KomikHeader({ type, sort }: { type?: string; sort: string }) {
             {t.label}
           </Link>
         ))}
+      </div>
+
+      {/* Quick Links */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/komik/berwarna"
+          className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        >
+          <Palette className="h-4 w-4" />
+          Berwarna
+        </Link>
+        <Link
+          href="/komik/pustaka"
+          className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        >
+          <Library className="h-4 w-4" />
+          Pustaka
+        </Link>
       </div>
 
       {/* Sort Tabs */}
