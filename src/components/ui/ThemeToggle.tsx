@@ -17,7 +17,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     return (
       <button
         className={cn(
-          "inline-flex h-10 w-10 items-center justify-center rounded-lg",
+          "inline-flex h-11 w-11 items-center justify-center rounded-lg",
           "bg-secondary hover:bg-secondary/80 transition-colors",
           className
         )}
@@ -31,7 +31,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       className={cn(
-        "inline-flex h-10 w-10 items-center justify-center rounded-lg",
+        "inline-flex h-11 w-11 items-center justify-center rounded-lg",
         "bg-secondary hover:bg-secondary/80 transition-colors",
         className
       )}

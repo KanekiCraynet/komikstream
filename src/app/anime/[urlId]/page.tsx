@@ -3,7 +3,8 @@ import { getCachedAnimeDetail } from "@/lib/api-cached";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Calendar, Clock, Download, Film, Play, Star, Tv, AlertTriangle } from "lucide-react";
-import { getAnimeBatch } from "@/lib/api-client";
+import { extractEpisodeNumber, getAnimeBatch, getAnimeLatest } from "@/lib/api-client";
+import { buildTVSeriesJsonLd } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,6 +13,18 @@ import { notFound } from "next/navigation";
 // ISR: regenerate detail pages every 30 minutes.
 // Keeps Worker CPU low (serves cached HTML) while staying reasonably fresh.
 export const revalidate = 1800;
+
+export async function generateStaticParams() {
+  try {
+    const latest = await getAnimeLatest();
+    return latest
+      .filter((a) => a.urlId)
+      .slice(0, 30)
+      .map((a) => ({ urlId: a.urlId }));
+  } catch {
+    return [];
+  }
+}
 
 interface DetailPageProps {
   params: Promise<{ urlId: string }>;
@@ -72,11 +85,13 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
   }
 
   const thumbnail = anime.thumbnail || anime.poster || anime.cover || "";
-  const episodes = Array.isArray(anime.episodes)
-    ? anime.episodes
-    : Array.isArray(anime.chapter)
-      ? anime.chapter
-      : [];
+  const episodes = (
+    Array.isArray(anime.episodes)
+      ? anime.episodes
+      : Array.isArray(anime.chapter)
+        ? anime.chapter
+        : []
+  ).sort((a, b) => extractEpisodeNumber(a.title || "") - extractEpisodeNumber(b.title || ""));
   const description = anime.description || anime.synopsis || "";
 
   const breadcrumbJsonLd = JSON.stringify({
@@ -107,6 +122,10 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildTVSeriesJsonLd(anime, episodes)) }}
+      />
       {/* Hero Section */}
       <div className="relative mb-8 overflow-hidden rounded-xl">
         {/* Background blur */}
@@ -195,12 +214,13 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
             {anime.genres && anime.genres.length > 0 && (
               <div className="mb-4 flex flex-wrap justify-center gap-2 md:justify-start">
                 {anime.genres.map((genre) => (
-                  <span
+                  <Link
                     key={genre}
-                    className="bg-secondary rounded-full px-3 py-1 text-xs font-medium"
+                    href={`/anime/genre/${genre.toLowerCase().replace(/\s+/g, "-")}`}
+                    className="bg-secondary hover:bg-secondary/80 rounded-full px-3 py-1 text-xs font-medium transition-colors"
                   >
                     {genre}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}

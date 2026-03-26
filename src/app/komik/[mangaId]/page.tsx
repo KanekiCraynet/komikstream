@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import { getCachedKomikDetail, getKomikChapterList } from "@/lib/api-cached";
+import { getKomikPopular } from "@/lib/api-client";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Book, BookOpen, Clock, Star, User, AlertTriangle } from "lucide-react";
+import { buildComicSeriesJsonLd } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +13,18 @@ import { notFound } from "next/navigation";
 // ISR: regenerate detail pages every 30 minutes.
 // Keeps Worker CPU low (serves cached HTML) while staying reasonably fresh.
 export const revalidate = 1800;
+
+export async function generateStaticParams() {
+  try {
+    const popular = await getKomikPopular(1);
+    return popular
+      .filter((k) => k.manga_id)
+      .slice(0, 30)
+      .map((k) => ({ mangaId: k.manga_id }));
+  } catch {
+    return [];
+  }
+}
 
 interface DetailPageProps {
   params: Promise<{ mangaId: string }>;
@@ -102,6 +116,12 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(buildComicSeriesJsonLd(komik, chapters)),
+        }}
+      />
       {/* Hero Section */}
       <div className="relative mb-8 overflow-hidden rounded-xl">
         {/* Background blur */}
@@ -169,12 +189,13 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
             {komik.genres && komik.genres.length > 0 && (
               <div className="mb-4 flex flex-wrap justify-center gap-2 md:justify-start">
                 {komik.genres.map((genre) => (
-                  <span
+                  <Link
                     key={genre}
-                    className="bg-secondary rounded-full px-3 py-1 text-xs font-medium"
+                    href={`/komik/genre/${genre.toLowerCase().replace(/\s+/g, "-")}`}
+                    className="bg-secondary hover:bg-secondary/80 rounded-full px-3 py-1 text-xs font-medium transition-colors"
                   >
                     {genre}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}

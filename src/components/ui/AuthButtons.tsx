@@ -10,10 +10,13 @@ interface AuthButtonsProps {
 }
 
 export function AuthButtons({ clerkEnabled }: AuthButtonsProps) {
-  // If Clerk is not enabled, show a simple login link (or nothing)
+  // If Clerk is not enabled, show a simple login link
   if (!clerkEnabled) {
     return (
       <Link href="/sign-in">
+        <Button variant="ghost" size="icon" className="flex md:hidden" aria-label="Masuk">
+          <LogIn className="h-5 w-5" />
+        </Button>
         <Button variant="outline" size="sm" className="hidden gap-2 md:flex">
           <LogIn className="h-4 w-4" />
           Masuk
@@ -26,6 +29,11 @@ export function AuthButtons({ clerkEnabled }: AuthButtonsProps) {
   return (
     <>
       <SignedOut>
+        <SignInButton mode="modal">
+          <Button variant="ghost" size="icon" className="flex md:hidden" aria-label="Masuk">
+            <LogIn className="h-5 w-5" />
+          </Button>
+        </SignInButton>
         <SignInButton mode="modal">
           <Button variant="default" size="sm" className="hidden md:flex">
             Masuk

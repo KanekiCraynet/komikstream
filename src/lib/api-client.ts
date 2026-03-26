@@ -333,7 +333,7 @@ function ensureArray<T>(data: T | T[] | null | undefined): T[] {
  * Extract episode number from a title string.
  * Handles "Episode 10", "Ep. 10.5", etc.
  */
-function extractEpisodeNumber(text: string): number {
+export function extractEpisodeNumber(text: string): number {
   const match = text.match(/(\d+(?:\.\d+)?)/);
   return match ? parseFloat(match[1]) : 0;
 }

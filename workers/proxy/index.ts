@@ -45,7 +45,8 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
 };
 
 const CACHE_TTLS: Record<string, number> = {
-  html: 300, // 5 min for public pages
+  html_listing: 300, // 5 min for homepage, listing, genre pages
+  html_detail: 1800, // 30 min for detail pages (matches ISR revalidate)
   search: 30, // 30s for /api/search
 };
 
@@ -94,9 +95,14 @@ function getCacheConfig(
   if (pathname.startsWith("/api/search")) {
     return { ttl: CACHE_TTLS.search, key: `search:${pathname}${search}` };
   }
-  // Public pages: /, /anime*, /komik*
+  // Detail pages: /anime/[id], /komik/[id] — longer TTL (matches ISR revalidate)
+  const DETAIL_RE = /^\/(anime|komik)\/[^/]+$/;
+  if (DETAIL_RE.test(pathname)) {
+    return { ttl: CACHE_TTLS.html_detail, key: `html:${pathname}` };
+  }
+  // Listing/genre/homepage — shorter TTL (content changes frequently)
   if (pathname === "/" || pathname.startsWith("/anime") || pathname.startsWith("/komik")) {
-    return { ttl: CACHE_TTLS.html, key: `html:${pathname}` };
+    return { ttl: CACHE_TTLS.html_listing, key: `html:${pathname}` };
   }
   return null;
 }
@@ -210,7 +216,7 @@ export default {
               "Content-Type": entry.contentType,
               "x-cache": "HIT",
               "x-trace-id": traceId,
-              "Cache-Control": `public, max-age=${cacheConfig.ttl}`,
+              "Cache-Control": `public, max-age=${cacheConfig.ttl}, stale-while-revalidate=${cacheConfig.ttl}`,
             },
           });
         }

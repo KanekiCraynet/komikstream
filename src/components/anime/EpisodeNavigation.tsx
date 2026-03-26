@@ -32,15 +32,19 @@ export default function EpisodeNavigation({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeEpisodeRef = useRef<HTMLAnchorElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking/tapping outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleOutsideInteraction(event: MouseEvent | TouchEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleOutsideInteraction);
+    document.addEventListener("touchstart", handleOutsideInteraction, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideInteraction);
+      document.removeEventListener("touchstart", handleOutsideInteraction);
+    };
   }, []);
 
   // Scroll active episode into view when dropdown opens
@@ -94,7 +98,7 @@ export default function EpisodeNavigation({
 
               {/* Dropdown list */}
               {isDropdownOpen && (
-                <div className="bg-popover border-border absolute left-1/2 z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-lg border shadow-xl">
+                <div className="bg-popover border-border absolute left-1/2 z-[60] mt-2 w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-lg border shadow-xl">
                   <div className="border-border border-b px-4 py-2">
                     <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                       Daftar Episode ({episodes.length})

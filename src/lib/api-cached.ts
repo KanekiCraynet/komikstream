@@ -17,6 +17,7 @@ import "server-only";
 import type { Anime, Komik } from "@/types";
 import { CACHE_TIMES } from "./cache-config";
 import {
+  extractEpisodeNumber,
   getAnimeDetail,
   getAnimeLatest,
   getAnimeRecommended,
@@ -46,11 +47,7 @@ function mapDbAnimeToApp(db: DbAnime): Anime {
         }))
         // Sort ascending by episode number so episodes[0] = first, episodes[last] = latest.
         // DB cache stores episodes in the same descending order as the external API.
-        .sort((a, b) => {
-          const numA = parseFloat(a.title.match(/(\d+(?:\.\d+)?)/)?.[1] || "0");
-          const numB = parseFloat(b.title.match(/(\d+(?:\.\d+)?)/)?.[1] || "0");
-          return numA - numB;
-        })
+        .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title))
     : [];
 
   return {
