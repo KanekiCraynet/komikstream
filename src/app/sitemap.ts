@@ -21,10 +21,11 @@ export async function generateSitemaps() {
 }
 
 export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+  const numId = Number(id); // Next.js passes id as string from URL param
   const baseUrl = siteConfig.url;
 
   // Static pages
-  if (id === 0) {
+  if (numId === 0) {
     return [
       { url: baseUrl, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
       {
@@ -71,7 +72,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
 
   try {
     // Komik pages
-    if (id === 1) {
+    if (numId === 1) {
       const komikList = await prisma.komik.findMany({
         select: { mangaId: true, lastScraped: true },
         orderBy: { lastScraped: "desc" },
@@ -85,7 +86,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     }
 
     // Anime pages
-    if (id === 2) {
+    if (numId === 2) {
       const animeList = await prisma.anime.findMany({
         select: { urlId: true, lastScraped: true },
         orderBy: { lastScraped: "desc" },
