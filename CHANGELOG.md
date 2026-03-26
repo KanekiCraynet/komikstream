@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.2] - 2026-03-26
+
+### Bug Fixes
+- fix: add try/catch to API calls for build-time resilience (dbf5383)
+
+
 ## [0.26.1] - 2026-03-26
 
 ### Bug Fixes
