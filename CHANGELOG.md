@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.26.0] - 2026-03-26
+
+### Features
+- feat: add Azure App Service deployment with CF Worker edge proxy (233b802)
+- feat: add anime/komik pages, KV caching, rate limiting, and analytics (1768dd2)
+
+### Bug Fixes
+- fix: exclude workers dir from root tsconfig typecheck (9f249ef)
+
+
 ## [0.25.0] - 2026-03-25
 
 ### Features
