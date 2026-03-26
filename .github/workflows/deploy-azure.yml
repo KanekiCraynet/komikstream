@@ -111,7 +111,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@2fdd5c3ebb4e540834b57a18cee6487dc5eedf32 # v3.0.2
+        uses: azure/webapps-deploy@45c7df8f6a4fe841b67ff88920b33f4f8328f8d9 # v3.0.8
         with:
           app-name: kuromanga
           package: deploy.zip
