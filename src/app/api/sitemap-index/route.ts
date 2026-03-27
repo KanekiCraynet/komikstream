@@ -17,7 +17,8 @@ export async function GET() {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...sitemaps.map(
-      (s) => `  <sitemap>\n    <loc>${baseUrl}/sitemap/${s.id}.xml</loc>\n  </sitemap>`
+      (s) =>
+        `  <sitemap>\n    <loc>${baseUrl}/sitemap/${s.id}.xml</loc>\n    <lastmod>${new Date().toISOString()}</lastmod>\n  </sitemap>`
     ),
     "</sitemapindex>",
   ].join("\n");

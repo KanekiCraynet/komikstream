@@ -19,6 +19,8 @@ const isPublicApiRoute = createRouteMatcher([
   "/api/webhooks(.*)",
   "/api/health",
   "/api/internal(.*)",
+  "/api/sitemap-index",
+  "/sitemap(.*)",
 ]);
 
 // Define rate-limited public API routes

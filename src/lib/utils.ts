@@ -29,7 +29,12 @@ export function slugify(str: string): string {
  * Whitelisted external image hostnames that are proxied through /cdn/
  * to bypass Indonesian ISP DNS blocking of upstream CDN domains.
  */
-const PROXIED_IMAGE_HOSTS = ["thumbnail.komiku.org", "img.komiku.org", "cdn.komiku.org"];
+const PROXIED_IMAGE_HOSTS = [
+  "thumbnail.komiku.org",
+  "img.komiku.org",
+  "cdn.komiku.org",
+  "otakudesu.blog",
+];
 
 export function getImageUrl(url: string): string {
   // Handle different image URL formats from API

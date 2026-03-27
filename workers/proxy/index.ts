@@ -43,7 +43,12 @@ const AZURE_ORIGIN = "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azu
  * Whitelisted hostnames for the /cdn/ image proxy.
  * Only these origins are proxied to prevent open-relay abuse.
  */
-const CDN_ALLOWED_HOSTS = new Set(["thumbnail.komiku.org", "img.komiku.org", "cdn.komiku.org"]);
+const CDN_ALLOWED_HOSTS = new Set([
+  "thumbnail.komiku.org",
+  "img.komiku.org",
+  "cdn.komiku.org",
+  "otakudesu.blog",
+]);
 
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
   search: { maxRequests: 20, windowSeconds: 60 },
