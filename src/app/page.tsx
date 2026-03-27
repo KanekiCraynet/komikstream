@@ -1,5 +1,5 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { makeQueryClient } from "@/components/providers/QueryProvider";
+import { makeQueryClient } from "@/lib/query-client";
 import {
   HeroSection,
   KomikLatestSection,
