@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.2] - 2026-03-27
+
+### Bug Fixes
+- fix: inline query keys in homepage to avoid "use client" import during build (89f158b)
+
+
 ## [0.27.1] - 2026-03-27
 
 ### Bug Fixes
