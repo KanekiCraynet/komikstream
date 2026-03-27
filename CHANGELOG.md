@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.1] - 2026-03-27
+
+### Bug Fixes
+- fix: extract makeQueryClient to server-safe module (c142fdf)
+
+### Other Changes
+- style: format public/offline.html and public/sw.js with prettier (f5c82b1)
+
+
 ## [0.27.0] - 2026-03-27
 
 ### Features
