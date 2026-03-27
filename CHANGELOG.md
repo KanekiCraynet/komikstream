@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.28.0] - 2026-03-27
+
+### Features
+- feat: comprehensive SEO optimization for better search rankings (d5f420f)
+
+
 ## [0.27.5] - 2026-03-27
 
 ### Bug Fixes
