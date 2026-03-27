@@ -1,3 +1,5 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { makeQueryClient } from "@/components/providers/QueryProvider";
 import {
   HeroSection,
   KomikLatestSection,
@@ -5,6 +7,14 @@ import {
   AnimeLatestSection,
   AnimeRecommendedSection,
 } from "@/components/home";
+import { komikKeys } from "@/hooks/useKomik";
+import { animeKeys } from "@/hooks/useAnime";
+import {
+  getKomikLatest,
+  getKomikPopular,
+  getAnimeLatest,
+  getAnimeRecommended,
+} from "@/lib/api-client";
 import type { Metadata } from "next";
 import { siteConfig } from "@/lib/site-config";
 
@@ -17,24 +27,44 @@ export const metadata: Metadata = {
   },
 };
 
-// ISR: regenerate the static shell every hour.
-// The actual data is fetched client-side via TanStack Query hooks,
-// so the Worker only serves a lightweight static HTML shell.
+// ISR: regenerate every hour.
+// Data is now server-fetched and hydrated into TanStack Query,
+// so the HTML contains full content for SEO crawlers.
 export const revalidate = 3600;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const queryClient = makeQueryClient();
+
+  // Prefetch all homepage data in parallel on the server
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: komikKeys.latest("mirror"),
+      queryFn: () => getKomikLatest("mirror"),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: komikKeys.popular(1),
+      queryFn: () => getKomikPopular(1),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: animeKeys.latest(),
+      queryFn: () => getAnimeLatest(),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: animeKeys.recommended(1),
+      queryFn: () => getAnimeRecommended(1),
+    }),
+  ]);
+
   return (
     <div className="flex flex-col">
       <HeroSection />
 
-      {/* All sections are "use client" components that fetch data
-          via TanStack Query hooks — no server-side data fetching,
-          no Suspense streaming needed. Each section renders its
-          own skeleton while loading. */}
-      <KomikLatestSection />
-      <AnimeLatestSection />
-      <KomikPopularSection />
-      <AnimeRecommendedSection />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <KomikLatestSection />
+        <AnimeLatestSection />
+        <KomikPopularSection />
+        <AnimeRecommendedSection />
+      </HydrationBoundary>
     </div>
   );
 }

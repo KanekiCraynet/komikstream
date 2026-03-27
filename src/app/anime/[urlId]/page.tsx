@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { RelatedAnime } from "@/components/ui/RelatedContent";
 import { getCachedAnimeDetail } from "@/lib/api-cached";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Calendar, Clock, Download, Film, Play, Star, Tv, AlertTriangle } from "lucide-react";
+import { ShareButtons } from "@/components/ui/ShareButtons";
 import { extractEpisodeNumber, getAnimeBatch, getAnimeLatest } from "@/lib/api-client";
 import { buildTVSeriesJsonLd } from "@/lib/structured-data";
 import type { Metadata } from "next";
@@ -47,6 +49,7 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
         160
       ),
       openGraph: {
+        type: "video.tv_show",
         images: anime.thumbnail || anime.poster ? [anime.thumbnail || anime.poster || ""] : [],
       },
       alternates: {
@@ -251,6 +254,11 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
                 )}
               </div>
             )}
+
+            {/* Share buttons */}
+            <div className="mt-4 flex justify-center md:justify-start">
+              <ShareButtons title={anime.title} />
+            </div>
           </div>
         </div>
       </div>
@@ -298,6 +306,11 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
           </div>
         )}
       </section>
+
+      {/* Related anime by genre */}
+      <Suspense fallback={null}>
+        <RelatedAnime genres={anime.genres ?? []} currentUrlId={urlId} />
+      </Suspense>
     </>
   );
 }

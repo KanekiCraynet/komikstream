@@ -15,6 +15,7 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
   return {
     title: query ? `Hasil pencarian: ${query}` : "Cari Anime",
     description: `Hasil pencarian anime untuk "${query}"`,
+    robots: { index: false, follow: false },
   };
 }
 

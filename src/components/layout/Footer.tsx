@@ -1,4 +1,4 @@
-import { Book } from "lucide-react";
+import { Book, MessageCircle, Send } from "lucide-react";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
 
@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <footer className="border-border bg-card/50 border-t backdrop-blur-sm">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 md:grid-cols-4">
+        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-5">
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/" className="mb-4 flex items-center gap-2">
@@ -71,6 +71,40 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
+          </div>
+
+          {/* Social */}
+          <div>
+            <h3 className="mb-4 font-semibold">Ikuti Kami</h3>
+            <div className="flex gap-3">
+              <a
+                href={siteConfig.links.telegram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+                aria-label="Telegram"
+              >
+                <Send className="h-5 w-5" />
+              </a>
+              <a
+                href={siteConfig.links.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+                aria-label="Instagram"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </a>
+              <a
+                href={siteConfig.links.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+                aria-label="GitHub"
+              >
+                <Book className="h-5 w-5" />
+              </a>
+            </div>
           </div>
         </div>
 

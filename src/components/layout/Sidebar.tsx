@@ -96,7 +96,7 @@ export function Sidebar({ isOpen, onClose, clerkEnabled = false }: SidebarProps)
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1 p-4">
+        <nav aria-label="Navigasi mobile" className="flex flex-col gap-1 p-4">
           {navigation.map((item) => {
             const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (

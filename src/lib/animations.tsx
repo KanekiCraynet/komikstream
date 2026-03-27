@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type Variants, type HTMLMotionProps } from "framer-motion";
+import { motion, useReducedMotion, type Variants, type HTMLMotionProps } from "framer-motion";
 import { type ReactNode } from "react";
 
 // Animation Variants
@@ -125,6 +125,7 @@ interface FadeInProps {
 }
 
 export function FadeIn({ children, className, delay = 0, direction = "up" }: FadeInProps) {
+  const shouldReduceMotion = useReducedMotion();
   const variants = {
     up: fadeInUp,
     down: fadeInDown,
@@ -132,6 +133,10 @@ export function FadeIn({ children, className, delay = 0, direction = "up" }: Fad
     right: fadeInRight,
     none: fadeIn,
   };
+
+  if (shouldReduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <motion.div
@@ -153,6 +158,12 @@ interface StaggerChildrenProps {
 }
 
 export function StaggerChildren({ children, className }: StaggerChildrenProps) {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       initial="hidden"
@@ -186,6 +197,12 @@ interface PageWrapperProps {
 }
 
 export function PageWrapper({ children, className }: PageWrapperProps) {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       initial="initial"
@@ -207,6 +224,12 @@ interface AnimateOnScrollProps {
 }
 
 export function AnimateOnScroll({ children, className, once = true }: AnimateOnScrollProps) {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       initial="hidden"

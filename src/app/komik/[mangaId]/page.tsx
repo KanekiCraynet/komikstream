@@ -1,9 +1,11 @@
 import { Suspense } from "react";
+import { RelatedKomik } from "@/components/ui/RelatedContent";
 import { getCachedKomikDetail, getKomikChapterList } from "@/lib/api-cached";
 import { getKomikPopular } from "@/lib/api-client";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Book, BookOpen, Clock, Star, User, AlertTriangle } from "lucide-react";
+import { ShareButtons } from "@/components/ui/ShareButtons";
 import { buildComicSeriesJsonLd } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -44,6 +46,7 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
       title: komik.title,
       description: truncate(komik.description || `Baca ${komik.title} secara gratis`, 160),
       openGraph: {
+        type: "book",
         images: komik.thumbnail ? [komik.thumbnail] : [],
       },
       alternates: {
@@ -226,6 +229,11 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
                 </Link>
               </div>
             )}
+
+            {/* Share buttons */}
+            <div className="mt-4 flex justify-center md:justify-start">
+              <ShareButtons title={komik.title} />
+            </div>
           </div>
         </div>
       </div>
@@ -268,6 +276,11 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
           </div>
         )}
       </section>
+
+      {/* Related komik by genre */}
+      <Suspense fallback={null}>
+        <RelatedKomik genres={komik.genres ?? []} currentMangaId={mangaId} />
+      </Suspense>
     </>
   );
 }

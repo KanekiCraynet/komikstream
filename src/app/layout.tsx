@@ -107,7 +107,7 @@ const structuredData = JSON.stringify({
           "@type": "SearchAction",
           target: {
             "@type": "EntryPoint",
-            urlTemplate: `${siteConfig.url}/komik/search?query={search_term_string}`,
+            urlTemplate: `${siteConfig.url}/komik/search?q={search_term_string}`,
           },
           "query-input": "required name=search_term_string",
         },
@@ -115,7 +115,7 @@ const structuredData = JSON.stringify({
           "@type": "SearchAction",
           target: {
             "@type": "EntryPoint",
-            urlTemplate: `${siteConfig.url}/anime/search?query={search_term_string}`,
+            urlTemplate: `${siteConfig.url}/anime/search?q={search_term_string}`,
           },
           "query-input": "required name=search_term_string",
         },
@@ -146,6 +146,11 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})}`,
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}

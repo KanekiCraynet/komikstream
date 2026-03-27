@@ -12,6 +12,25 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+/** Process IDs in batches with concurrency control. */
+async function warmBatch(
+  ids: string[],
+  fetcher: (id: string) => Promise<unknown>,
+  concurrency = 5
+): Promise<{ successes: number; errors: number }> {
+  let successes = 0;
+  let errors = 0;
+  for (let i = 0; i < ids.length; i += concurrency) {
+    const batch = ids.slice(i, i + concurrency);
+    const results = await Promise.allSettled(batch.map(fetcher));
+    for (const r of results) {
+      if (r.status === "fulfilled") successes++;
+      else errors++;
+    }
+  }
+  return { successes, errors };
+}
+
 /**
  * Internal cache warming endpoint.
  * Proactively refreshes the most popular content in KV + DB caches.
@@ -46,14 +65,9 @@ export async function POST(request: NextRequest) {
       .slice(0, 20)
       .map((a) => a.urlId);
 
-    for (const urlId of animeIds) {
-      try {
-        await getCachedAnimeDetail(urlId);
-        results.anime++;
-      } catch {
-        results.errors++;
-      }
-    }
+    const r = await warmBatch(animeIds, getCachedAnimeDetail);
+    results.anime += r.successes;
+    results.errors += r.errors;
   } catch (err) {
     logger.warn("Cache warm: failed to fetch anime list", { error: String(err) });
   }
@@ -66,14 +80,9 @@ export async function POST(request: NextRequest) {
       .slice(0, 20)
       .map((k) => k.manga_id);
 
-    for (const mangaId of komikIds) {
-      try {
-        await getCachedKomikDetail(mangaId);
-        results.komik++;
-      } catch {
-        results.errors++;
-      }
-    }
+    const r = await warmBatch(komikIds, getCachedKomikDetail);
+    results.komik += r.successes;
+    results.errors += r.errors;
   } catch (err) {
     logger.warn("Cache warm: failed to fetch komik list", { error: String(err) });
   }
@@ -87,14 +96,9 @@ export async function POST(request: NextRequest) {
         .slice(20, 50) // skip first 20 (already warmed above)
         .map((a) => a.urlId);
 
-      for (const urlId of extraAnimeIds) {
-        try {
-          await getCachedAnimeDetail(urlId);
-          results.anime++;
-        } catch {
-          results.errors++;
-        }
-      }
+      const r = await warmBatch(extraAnimeIds, getCachedAnimeDetail);
+      results.anime += r.successes;
+      results.errors += r.errors;
     } catch (err) {
       logger.warn("Cache warm: deep anime warm failed", { error: String(err) });
     }
@@ -106,14 +110,9 @@ export async function POST(request: NextRequest) {
         .slice(0, 30)
         .map((k) => k.manga_id);
 
-      for (const mangaId of extraKomikIds) {
-        try {
-          await getCachedKomikDetail(mangaId);
-          results.komik++;
-        } catch {
-          results.errors++;
-        }
-      }
+      const r = await warmBatch(extraKomikIds, getCachedKomikDetail);
+      results.komik += r.successes;
+      results.errors += r.errors;
     } catch (err) {
       logger.warn("Cache warm: deep komik warm failed", { error: String(err) });
     }

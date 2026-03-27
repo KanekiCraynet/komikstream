@@ -46,7 +46,7 @@ export function Navbar({ clerkEnabled = false }: NavbarProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Navigasi utama" className="hidden items-center gap-1 md:flex">
             {navigation.map((item) => {
               const isActive =
                 item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

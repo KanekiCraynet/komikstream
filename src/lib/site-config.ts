@@ -47,6 +47,8 @@ export const siteConfig = {
   /** Social / external links */
   links: {
     github: "https://github.com/KanekiCraynet/komikstream",
+    telegram: "https://t.me/kuromangame",
+    instagram: "https://instagram.com/kuromanga.me",
   },
 } as const;
 

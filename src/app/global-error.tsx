@@ -51,9 +51,11 @@ export default function GlobalError({
                 wordBreak: "break-word",
               }}
             >
-              {error.message}
+              {process.env.NODE_ENV !== "production"
+                ? error.message
+                : "Terjadi kesalahan pada aplikasi."}
             </p>
-            {error.stack && (
+            {process.env.NODE_ENV !== "production" && error.stack && (
               <pre
                 style={{
                   color: "#888",
@@ -69,7 +71,7 @@ export default function GlobalError({
             )}
             {error.digest && (
               <p style={{ color: "#666", fontSize: "0.75rem", marginTop: "0.5rem" }}>
-                Digest: {error.digest}
+                Kode Error: {error.digest}
               </p>
             )}
           </div>
