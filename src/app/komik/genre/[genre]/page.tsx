@@ -4,6 +4,7 @@ import { Card } from "@/components/ui";
 import { Pagination } from "@/components/ui/Pagination";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { Tags, SearchX } from "lucide-react";
+import { siteConfig } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 interface PageProps {
@@ -15,8 +16,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { genre } = await params;
   const title = genre.charAt(0).toUpperCase() + genre.slice(1).replace(/-/g, " ");
   return {
-    title: `Komik Genre: ${title}`,
-    description: `Daftar komik dengan genre ${title}`,
+    title: `Komik Genre ${title} - Baca Online Sub Indo`,
+    description: `Daftar komik genre ${title} terlengkap sub Indonesia. Baca manga, manhwa, dan manhua ${title} terbaru gratis di ${siteConfig.name}.`,
+    alternates: { canonical: `/komik/genre/${genre}` },
   };
 }
 
@@ -53,6 +55,7 @@ async function GenreResults({ genre, page }: { genre: string; page: number }) {
         )}
       </p>
 
+      <h2 className="sr-only">Daftar Komik Genre {title}</h2>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {result.items.map((komik) => (
           <Card key={komik.manga_id} item={komik} type="komik" />

@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import KomikPageClient from "./KomikPageClient";
 
 export const metadata: Metadata = {
-  title: "Komik",
-  description: "Baca komik manhwa, manhua, dan manga terlengkap dengan update terbaru",
+  title: "Baca Komik Manga, Manhwa & Manhua Sub Indo Terbaru",
+  description:
+    "Baca komik manga, manhwa, dan manhua sub Indonesia terlengkap. Update chapter terbaru setiap hari, gratis tanpa iklan pop-up. Koleksi 10.000+ judul populer.",
+  alternates: { canonical: "/komik" },
 };
 
 // ISR: regenerate the static shell every hour.

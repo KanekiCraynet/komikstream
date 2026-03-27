@@ -19,15 +19,24 @@ export async function generateMetadata({ params }: ReaderPageProps): Promise<Met
   const { mangaId, chapterId } = await params;
 
   try {
-    const komik = await getKomikDetail(mangaId);
+    const [komik, chapters] = await Promise.all([
+      getKomikDetail(mangaId),
+      getKomikChapterList(mangaId),
+    ]);
 
     if (!komik) {
       return { title: "Komik tidak ditemukan" };
     }
 
+    const chapter = chapters.find((ch) => ch.chapter_id === chapterId);
+    const chapterLabel = chapter?.title || `Chapter ${chapterId}`;
+
     return {
-      title: `Baca ${komik.title}`,
-      description: truncate(`Baca ${komik.title} secara gratis di ${siteConfig.name}`, 160),
+      title: `${komik.title} - ${chapterLabel}`,
+      description: truncate(
+        `Baca ${komik.title} ${chapterLabel} Bahasa Indonesia secara gratis di ${siteConfig.name}. Update terbaru!`,
+        160
+      ),
       alternates: {
         canonical: `/komik/${mangaId}/${chapterId}`,
       },
@@ -203,7 +212,11 @@ export default async function KomikReaderPage({ params }: ReaderPageProps) {
       <main className="flex flex-col items-center bg-black py-4">
         {imageUrls.map((url, index) => (
           <div key={index} className="relative w-full max-w-4xl">
-            <MangaImage src={url} alt={`Page ${index + 1}`} priority={index < 3} />
+            <MangaImage
+              src={url}
+              alt={`${komik.title} ${currentChapter?.title || `Chapter ${chapterId}`} - Halaman ${index + 1}`}
+              priority={index < 3}
+            />
           </div>
         ))}
       </main>

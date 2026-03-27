@@ -322,12 +322,22 @@ export default {
       }
     }
 
-    // ── 5. Return response with trace/cache headers ──
+    // ── 5. Return response with trace/cache/SEO headers ──
 
     const responseHeaders = new Headers(originResponse.headers);
     responseHeaders.set("x-trace-id", traceId);
     if (cacheConfig) {
       responseHeaders.set("x-cache", "MISS");
+    }
+
+    // SEO/performance: add Link preconnect header for API domain
+    // so browsers can start DNS+TLS handshake early for client-side fetches
+    const contentType = responseHeaders.get("Content-Type") ?? "";
+    if (contentType.includes("text/html")) {
+      responseHeaders.set(
+        "Link",
+        '</cdn/>; rel="preconnect", <https://www.sankavollerei.com>; rel="preconnect"; crossorigin'
+      );
     }
 
     return new Response(originResponse.body, {

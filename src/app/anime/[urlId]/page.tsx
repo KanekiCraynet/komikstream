@@ -7,6 +7,7 @@ import { Calendar, Clock, Download, Film, Play, Star, Tv, AlertTriangle } from "
 import { ShareButtons } from "@/components/ui/ShareButtons";
 import { extractEpisodeNumber, getAnimeBatch, getAnimeLatest } from "@/lib/api-client";
 import { buildTVSeriesJsonLd } from "@/lib/structured-data";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -42,15 +43,26 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
       return { title: "Anime tidak ditemukan" };
     }
 
+    const desc = truncate(
+      anime.description || anime.synopsis || `Nonton ${anime.title} sub Indonesia secara gratis`,
+      160
+    );
+    const img = anime.thumbnail || anime.poster || anime.cover || "";
+
     return {
       title: anime.title,
-      description: truncate(
-        anime.description || anime.synopsis || `Nonton ${anime.title} secara gratis`,
-        160
-      ),
+      description: desc,
       openGraph: {
         type: "video.tv_show",
-        images: anime.thumbnail || anime.poster ? [anime.thumbnail || anime.poster || ""] : [],
+        title: `${anime.title} | ${siteConfig.name}`,
+        description: desc,
+        images: img ? [{ url: img, alt: anime.title }] : [],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: anime.title,
+        description: desc,
+        images: img ? [img] : [],
       },
       alternates: {
         canonical: `/anime/${urlId}`,
@@ -128,6 +140,13 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildTVSeriesJsonLd(anime, episodes)) }}
+      />
+      <Breadcrumbs
+        items={[
+          { label: "Beranda", href: "/" },
+          { label: "Anime", href: "/anime" },
+          { label: anime.title },
+        ]}
       />
       {/* Hero Section */}
       <div className="relative mb-8 overflow-hidden rounded-xl">

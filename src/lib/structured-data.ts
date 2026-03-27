@@ -29,7 +29,8 @@ export function buildComicSeriesJsonLd(
       "@type": "AggregateRating",
       ratingValue: rating,
       bestRating: 10,
-      ratingCount: 1,
+      // Use chapter count as a proxy for engagement when no real vote count exists
+      ratingCount: Math.max(chapters.length, 10),
     };
   }
 
@@ -68,7 +69,7 @@ export function buildTVSeriesJsonLd(
       "@type": "AggregateRating",
       ratingValue: rating,
       bestRating: 10,
-      ratingCount: 1,
+      ratingCount: Math.max(episodes.length, 10),
     };
   }
 

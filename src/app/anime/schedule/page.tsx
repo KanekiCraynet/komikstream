@@ -8,8 +8,10 @@ import type { Metadata } from "next";
 export const revalidate = 900; // 15 minutes
 
 export const metadata: Metadata = {
-  title: "Jadwal Rilis Anime",
-  description: "Jadwal rilis anime per hari, update otomatis setiap minggu",
+  title: "Jadwal Rilis Anime Terbaru Hari Ini",
+  description:
+    "Jadwal rilis anime sub Indo terbaru per hari. Cek anime ongoing yang tayang hari ini, update otomatis setiap minggu. Jangan ketinggalan episode terbaru!",
+  alternates: { canonical: "/anime/schedule" },
 };
 
 const DAY_ORDER = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu", "Random"];

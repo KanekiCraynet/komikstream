@@ -7,6 +7,7 @@ import { getImageUrl, truncate } from "@/lib/utils";
 import { Book, BookOpen, Clock, Star, User, AlertTriangle } from "lucide-react";
 import { ShareButtons } from "@/components/ui/ShareButtons";
 import { buildComicSeriesJsonLd } from "@/lib/structured-data";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -42,12 +43,26 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
       return { title: "Komik tidak ditemukan" };
     }
 
+    const desc = truncate(
+      komik.description || `Baca ${komik.title} sub Indonesia secara gratis`,
+      160
+    );
+    const img = komik.thumbnail || komik.cover || "";
+
     return {
       title: komik.title,
-      description: truncate(komik.description || `Baca ${komik.title} secara gratis`, 160),
+      description: desc,
       openGraph: {
         type: "book",
-        images: komik.thumbnail ? [komik.thumbnail] : [],
+        title: `${komik.title} | ${siteConfig.name}`,
+        description: desc,
+        images: img ? [{ url: img, alt: komik.title }] : [],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: komik.title,
+        description: desc,
+        images: img ? [img] : [],
       },
       alternates: {
         canonical: `/komik/${mangaId}`,
@@ -124,6 +139,13 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(buildComicSeriesJsonLd(komik, chapters)),
         }}
+      />
+      <Breadcrumbs
+        items={[
+          { label: "Beranda", href: "/" },
+          { label: "Komik", href: "/komik" },
+          { label: komik.title },
+        ]}
       />
       {/* Hero Section */}
       <div className="relative mb-8 overflow-hidden rounded-xl">

@@ -12,8 +12,10 @@ interface PageProps {
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Komik Berwarna",
-  description: "Koleksi komik berwarna (full color) terlengkap",
+  title: "Komik Berwarna Full Color Sub Indo",
+  description:
+    "Baca komik berwarna (full color) manhwa dan manhua sub Indonesia terlengkap. Koleksi webtoon full color dengan update terbaru setiap hari.",
+  alternates: { canonical: "/komik/berwarna" },
 };
 
 async function BerwarnaResults({ page }: { page: number }) {

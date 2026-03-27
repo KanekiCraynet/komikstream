@@ -4,6 +4,7 @@ import { Card } from "@/components/ui";
 import { Pagination } from "@/components/ui/Pagination";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { Tags, SearchX } from "lucide-react";
+import { siteConfig } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 interface PageProps {
@@ -15,8 +16,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const title = slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ");
   return {
-    title: `Anime Genre: ${title}`,
-    description: `Daftar anime dengan genre ${title}`,
+    title: `Anime Genre ${title} - Nonton Sub Indo`,
+    description: `Daftar anime genre ${title} sub Indonesia terlengkap. Nonton anime ${title} terbaru streaming gratis di ${siteConfig.name}.`,
+    alternates: { canonical: `/anime/genre/${slug}` },
   };
 }
 
@@ -53,6 +55,7 @@ async function GenreResults({ slug, page }: { slug: string; page: number }) {
         )}
       </p>
 
+      <h2 className="sr-only">Daftar Anime Genre {title}</h2>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {result.items.map((anime) => (
           <Card key={anime.urlId} item={anime} type="anime" />

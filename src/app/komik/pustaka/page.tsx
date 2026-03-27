@@ -12,8 +12,10 @@ interface PageProps {
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Pustaka Komik",
-  description: "Pustaka lengkap koleksi komik",
+  title: "Pustaka Komik Lengkap - Manga, Manhwa & Manhua",
+  description:
+    "Jelajahi pustaka komik terlengkap: manga Jepang, manhwa Korea, dan manhua China. Semua judul tersedia sub Indonesia, baca gratis tanpa batas.",
+  alternates: { canonical: "/komik/pustaka" },
 };
 
 async function PustakaResults({ page }: { page: number }) {
