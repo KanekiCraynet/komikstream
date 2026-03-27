@@ -16,7 +16,7 @@ jobs:
       - name: Warm caches
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net/api/internal/cache-warm" \
+            -X POST "https://kuromanga.me/api/internal/cache-warm" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json")
           echo "Response status: $response"
