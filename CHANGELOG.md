@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.4] - 2026-03-27
+
+### Bug Fixes
+- fix: proxy CDN images through /cdn/ to bypass ISP blocking & fix sitemap 404 (87313e5)
+
+
 ## [0.27.3] - 2026-03-27
 
 ### Bug Fixes
