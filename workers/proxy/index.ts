@@ -39,6 +39,12 @@ interface RateLimitConfig {
 
 const AZURE_ORIGIN = "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net";
 
+/**
+ * Whitelisted hostnames for the /cdn/ image proxy.
+ * Only these origins are proxied to prevent open-relay abuse.
+ */
+const CDN_ALLOWED_HOSTS = new Set(["thumbnail.komiku.org", "img.komiku.org", "cdn.komiku.org"]);
+
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
   search: { maxRequests: 20, windowSeconds: 60 },
   video: { maxRequests: 60, windowSeconds: 60 },
@@ -149,6 +155,37 @@ export default {
     const { pathname, search } = url;
     const method = request.method;
     const traceId = crypto.randomUUID();
+
+    // ── 0. CDN image proxy (/cdn/{host}/{path}) ──
+    // Proxies images from whitelisted upstream CDNs through our domain
+    // to bypass Indonesian ISP DNS blocking of komiku.org domains.
+
+    if (pathname.startsWith("/cdn/")) {
+      const rest = pathname.slice(5); // strip "/cdn/"
+      const slashIdx = rest.indexOf("/");
+      if (slashIdx > 0) {
+        const host = rest.slice(0, slashIdx);
+        const path = rest.slice(slashIdx);
+        if (CDN_ALLOWED_HOSTS.has(host)) {
+          const originUrl = `https://${host}${path}${search}`;
+          const imgResp = await fetch(originUrl, {
+            headers: { Accept: request.headers.get("Accept") ?? "image/*" },
+            cf: { cacheTtl: 86400, cacheEverything: true },
+          });
+
+          if (!imgResp.ok) {
+            return new Response(null, { status: imgResp.status });
+          }
+
+          const headers = new Headers(imgResp.headers);
+          headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800");
+          headers.set("Access-Control-Allow-Origin", "*");
+          headers.delete("Set-Cookie");
+          return new Response(imgResp.body, { status: 200, headers });
+        }
+      }
+      return new Response("Forbidden", { status: 403 });
+    }
 
     // ── 1. Rate limiting (runs before cache check) ──
 

@@ -87,12 +87,24 @@ const nextConfig: NextConfig = {
 
   // Rewrites (migrated from vercel.json)
   async rewrites() {
-    return [
-      {
-        source: "/healthz",
-        destination: "/api/health",
-      },
-    ];
+    return {
+      // beforeFiles: checked before pages/public files — required for
+      // /sitemap.xml because Next.js standalone mode pre-renders a 404
+      // for that path instead of serving the built-in sitemap index.
+      beforeFiles: [
+        {
+          source: "/sitemap.xml",
+          destination: "/api/sitemap-index",
+        },
+      ],
+      afterFiles: [
+        {
+          source: "/healthz",
+          destination: "/api/health",
+        },
+      ],
+      fallback: [],
+    };
   },
 
   // Image optimization for performance
