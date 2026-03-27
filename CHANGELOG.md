@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.5] - 2026-03-27
+
+### Bug Fixes
+- fix: add otakudesu.blog to CDN proxy & improve sitemap for GSC (e0d22ae)
+
+
 ## [0.27.4] - 2026-03-27
 
 ### Bug Fixes
