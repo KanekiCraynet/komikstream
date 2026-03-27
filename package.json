@@ -1,6 +1,6 @@
 {
   "name": "KuroManga",
-  "version": "0.26.7",
+  "version": "0.27.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

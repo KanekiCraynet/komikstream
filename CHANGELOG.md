@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.0] - 2026-03-27
+
+### Features
+- feat: comprehensive SEO audit & optimization (7c19c39)
+
+
 ## [0.26.7] - 2026-03-26
 
 ### Bug Fixes
