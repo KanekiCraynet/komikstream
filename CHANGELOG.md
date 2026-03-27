@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.27.3] - 2026-03-27
+
+### Bug Fixes
+- fix: route cache-warm cron through Cloudflare domain (b7a7704)
+
+
 ## [0.27.2] - 2026-03-27
 
 ### Bug Fixes
