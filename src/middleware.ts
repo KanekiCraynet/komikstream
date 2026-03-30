@@ -2,9 +2,6 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest, NextFetchEvent } from "next/server";
 import { isClerkConfigured } from "@/lib/auth-config";
-import { checkRateLimitKV } from "@/lib/kv-rate-limit";
-import { SEARCH_RATE_LIMIT, API_RATE_LIMIT } from "@/lib/rate-limit";
-import { trackEvent } from "@/lib/analytics";
 
 // Define protected routes that require authentication
 const isProtectedRoute = createRouteMatcher([
@@ -22,10 +19,6 @@ const isPublicApiRoute = createRouteMatcher([
   "/api/sitemap-index",
   "/sitemap(.*)",
 ]);
-
-// Define rate-limited public API routes
-const isSearchRoute = createRouteMatcher(["/api/search(.*)"]);
-const isPublicRateLimitedRoute = createRouteMatcher(["/api/search(.*)", "/api/anime/video(.*)"]);
 
 // Clerk middleware handler
 // Pass keys explicitly via lazy getters so they are read at request time
@@ -50,34 +43,26 @@ const clerkHandler = clerkMiddleware(
   }
 );
 
+// Rate limiting is handled entirely at the CF Worker edge proxy layer.
+// Removing it from middleware eliminates redundant KV writes and reduces
+// KV budget consumption on the Free tier.
+
 /**
- * Check KV-backed rate limit for public API routes.
- * Returns a 429 response if the limit is exceeded, otherwise null.
+ * Verify that the request came through the CF Worker proxy by checking
+ * the shared secret token. This prevents direct access to the Azure origin
+ * which would bypass rate limiting and edge caching.
+ *
+ * Returns null if valid, or a 403 response if the token is missing/invalid.
+ * Skipped when WORKER_TOKEN is not configured (dev/CI environments).
  */
-async function checkPublicRateLimit(req: NextRequest): Promise<NextResponse | null> {
-  if (!isPublicRateLimitedRoute(req)) return null;
+function verifyWorkerToken(req: NextRequest): NextResponse | null {
+  const expectedToken = process.env.WORKER_TOKEN;
+  if (!expectedToken) return null; // Not configured — skip check (dev/CI)
 
-  const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for") ?? "unknown";
-  const config = isSearchRoute(req) ? SEARCH_RATE_LIMIT : API_RATE_LIMIT;
-  const routeKey = isSearchRoute(req) ? "search" : "video";
+  const requestToken = req.headers.get("x-worker-token");
+  if (requestToken === expectedToken) return null;
 
-  const result = await checkRateLimitKV(`${ip}:${routeKey}`, config);
-
-  if (!result.allowed) {
-    trackEvent({ type: "rate_limit_hit", contentType: routeKey });
-    return NextResponse.json(
-      { error: "Too Many Requests", code: "RATE_LIMIT_EXCEEDED" },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)),
-          "X-RateLimit-Limit": String(config.maxRequests),
-          "X-RateLimit-Remaining": "0",
-        },
-      }
-    );
-  }
-  return null;
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export default async function middleware(req: NextRequest, event: NextFetchEvent) {
@@ -86,18 +71,19 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   const traceId = req.headers.get("x-trace-id") ?? crypto.randomUUID();
   req.headers.set("x-trace-id", traceId);
 
+  // Verify request came through the CF Worker (structural security control).
+  // Azure IP allowlist is the first layer; this token is the second layer.
+  const tokenResponse = verifyWorkerToken(req);
+  if (tokenResponse) {
+    tokenResponse.headers.set("x-trace-id", traceId);
+    return tokenResponse;
+  }
+
   // Skip middleware for webhook routes (they have their own verification)
   if (isPublicApiRoute(req)) {
     const response = NextResponse.next();
     response.headers.set("x-trace-id", traceId);
     return response;
-  }
-
-  // KV-backed rate limiting for public API routes (search, anime/video)
-  const rateLimitResponse = await checkPublicRateLimit(req);
-  if (rateLimitResponse) {
-    rateLimitResponse.headers.set("x-trace-id", traceId);
-    return rateLimitResponse;
   }
 
   if (isClerkConfigured()) {

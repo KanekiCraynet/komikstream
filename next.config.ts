@@ -34,7 +34,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' https: data: blob:",
   "font-src 'self' data:",
-  "frame-src https: blob:",
+  "frame-src 'self' https: https://challenges.cloudflare.com",
   "connect-src 'self' https://www.sankavollerei.com https://clerk.kuromanga.me https://*.clerk.accounts.dev https://*.clerk.dev wss://*.clerk.dev",
   "media-src 'self' https: blob:",
   "worker-src 'self' blob:",
@@ -54,6 +54,13 @@ const securityHeaders = [
   },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   {
+    // HSTS: enforce HTTPS for 2 years, including subdomains.
+    // Do NOT add preload until ALL subdomains (img.kuromanga.me,
+    // clerk.kuromanga.me, etc.) are confirmed HTTPS-only.
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+  {
     key: "Content-Security-Policy",
     value: cspDirectives,
   },
@@ -66,7 +73,7 @@ const isAzureBuild = process.env.BUILD_TARGET === "azure";
 const nextConfig: NextConfig = {
   // Prisma client is always server-external — both CF Workers (OpenNext esbuild
   // rebundles with workerd condition) and Azure (Node.js resolves from node_modules).
-  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  serverExternalPackages: ["@prisma/client", ".prisma/client", "applicationinsights"],
 
   // Azure: standalone output for zip deploy (node .next/standalone/server.js).
   // CF/local: no output mode (OpenNext wraps the build, standalone not needed).
@@ -74,6 +81,12 @@ const nextConfig: NextConfig = {
 
   // Remove X-Powered-By header (information disclosure)
   poweredByHeader: false,
+
+  // Enable gzip compression at the Node.js level.
+  // Azure origin does not compress by default. Cloudflare adds Brotli on
+  // the edge-to-browser leg, but the Azure-to-CF Worker leg is uncompressed.
+  // This reduces bandwidth on that internal hop (~60-70% for HTML).
+  compress: true,
 
   // Security headers (defense-in-depth for Docker/standalone deployment)
   async headers() {

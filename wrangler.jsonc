@@ -14,17 +14,15 @@
       "zone_name": "kuromanga.me",
     },
   ],
-  // KV namespaces — reused from previous full-Worker deployment.
-  // RATE_LIMIT_KV: fixed-window rate limiting for /api/search and /api/anime/video
-  // API_CACHE_KV: response cache for public GET routes (HTML + search JSON)
+  // KV namespaces — RATE_LIMIT_KV only.
+  // Response caching now uses CF Cache API (caches.default) instead of KV
+  // to avoid KV write budget exhaustion on the Free tier (1000 writes/day).
+  // API_CACHE_KV is still used by the Next.js app code (src/lib/kv-cache.ts)
+  // but is no longer bound to the thin proxy Worker.
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
       "id": "e89a9b449b1949deb8c54bfcd3ab6dab",
-    },
-    {
-      "binding": "API_CACHE_KV",
-      "id": "a4dc5febb4c54989be82402ea0bbabdf",
     },
   ],
   // Workers Analytics Engine — rate_limit_hit events.

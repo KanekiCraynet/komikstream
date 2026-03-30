@@ -150,6 +150,29 @@ jobs:
           retry-delay: "10"
           initial-delay: "10"
 
+      - name: ISR Warmup (seed cache for top pages)
+        continue-on-error: true
+        env:
+          AZURE_ORIGIN: ${{ secrets.AZURE_ORIGIN }}
+          WORKER_TOKEN: ${{ secrets.WORKER_TOKEN }}
+        run: |
+          PAGES=(
+            "/"
+            "/anime"
+            "/komik"
+            "/anime/genre"
+            "/komik/genre"
+            "/komik/berwarna"
+          )
+          echo "Warming ${#PAGES[@]} pages on Azure origin..."
+          for page in "${PAGES[@]}"; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "x-worker-token: ${WORKER_TOKEN}" \
+              --max-time 15 \
+              "${AZURE_ORIGIN}${page}")
+            echo "  ${page} → ${status}"
+          done
+
       - name: Deployment Summary
         env:
           COMMIT_SHA: ${{ github.sha }}

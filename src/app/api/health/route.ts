@@ -5,13 +5,13 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 interface HealthStatus {
-  status: "healthy" | "unhealthy";
+  status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
   uptime: number;
   version: string;
   checks: {
     database: "connected" | "disconnected" | "skipped";
-    api: "operational";
+    externalApi: "operational" | "degraded" | "unreachable";
   };
 }
 
@@ -25,11 +25,14 @@ export async function GET() {
     version: packageJson.version,
     checks: {
       database: "skipped",
-      api: "operational",
+      externalApi: "operational",
     },
   };
 
-  // Check database connection if available
+  // Check database connection — CRITICAL dependency.
+  // Without DB: auth, bookmarks, history, and cached content are broken.
+  // On B1 single instance, Azure health probe will restart instance after
+  // consecutive 503 failures (default: 5). Don't make this too sensitive.
   try {
     const dbUrl = process.env.DATABASE_URL;
 
@@ -42,19 +45,38 @@ export async function GET() {
         health.checks.database = "connected";
       } else {
         health.checks.database = "disconnected";
+        health.status = "unhealthy";
       }
     }
   } catch (error) {
     health.checks.database = "disconnected";
+    health.status = "unhealthy";
     logger.warn("Health check: database connection failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-    // DB is optional (used only for caching + user features).
-    // Don't fail the health check for DB issues — the site works
-    // via external API fallback even without a database connection.
+  }
+
+  // Check external API — NON-CRITICAL dependency.
+  // Without it: UX degrades (no fresh content), but site serves cached data.
+  // Does NOT warrant 503 or instance restart.
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      const resp = await fetch(`${apiUrl}/anime/home`, {
+        signal: AbortSignal.timeout(2000),
+        headers: { Accept: "application/json" },
+      });
+      health.checks.externalApi = resp.ok ? "operational" : "degraded";
+    }
+  } catch {
+    health.checks.externalApi = "unreachable";
+    if (health.status === "healthy") {
+      health.status = "degraded";
+    }
   }
 
   const responseTime = Date.now() - startTime;
+  const httpStatus = health.status === "unhealthy" ? 503 : 200;
 
   return NextResponse.json(
     {
@@ -62,7 +84,7 @@ export async function GET() {
       responseTime: `${responseTime}ms`,
     },
     {
-      status: health.status === "healthy" ? 200 : 503,
+      status: httpStatus,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },

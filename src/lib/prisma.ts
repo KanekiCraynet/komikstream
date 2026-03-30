@@ -1,5 +1,16 @@
 /**
- * Prisma Client for Cloudflare Workers (via OpenNext)
+ * Prisma Client for dual-runtime (Azure Node.js + Cloudflare Workers)
+ *
+ * On Azure (Node.js): module-level singleton with a shared pg.Pool (max: 5).
+ * This avoids creating a new pool + connection per request, reducing
+ * connection churn to Supabase on the single-core B1 instance.
+ *
+ * On CF Workers: per-request PrismaClient via React `cache()`, required
+ * because Workers forbid I/O reuse across requests.
+ *
+ * Runtime detection uses `typeof EdgeRuntime`:
+ * - "string" on CF Workers (workerd sets globalThis.EdgeRuntime)
+ * - "undefined" on Node.js (Azure, dev, CI)
  *
  * Follows the official OpenNext pattern for Prisma + PostgreSQL:
  * https://opennext.js.org/cloudflare/howtos/db#postgresql-1
@@ -10,11 +21,7 @@
  *    split into a `pg-<hash>` external module that Workers can't resolve.
  *    (See: opennextjs/opennextjs-cloudflare #1091, #1153)
  *
- * 2. Per-request PrismaClient via React `cache()` — required by CF Workers
- *    which forbids I/O reuse across requests ("Cannot perform I/O on behalf
- *    of a different request").
- *
- * 3. Imports from `@prisma/client` (NOT `/edge`) — per Prisma maintainers,
+ * 2. Imports from `@prisma/client` (NOT `/edge`) — per Prisma maintainers,
  *    `/edge` must NOT be used with driver adapters. The standard import
  *    lets package export conditions route correctly:
  *    - OpenNext esbuild with `conditions: ["workerd"]` → edge.js (WASM)
@@ -22,11 +29,17 @@
  *    Combined with `serverExternalPackages` in next.config.ts.
  */
 
+// EdgeRuntime is set by CF Workers (workerd) on globalThis — not in Node.js
+declare const EdgeRuntime: string | undefined;
+
 import "server-only";
 
 import { cache } from "react";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+
+// Runtime detection — true on Node.js (Azure, dev), false on CF Workers
+const isNodeRuntime = typeof EdgeRuntime === "undefined";
 
 /**
  * Check if database is configured (DATABASE_URL exists).
@@ -36,38 +49,67 @@ export function isDatabaseConfigured(): boolean {
   return !!process.env.DATABASE_URL;
 }
 
-/**
- * Get a PrismaClient scoped to the current request via React `cache()`.
- *
- * - Each incoming request gets its own PrismaClient + pg Pool.
- * - `maxUses: 1` ensures the connection is not reused across requests.
- * - Returns `null` if DATABASE_URL is not set.
- *
- * Usage in server components / route handlers:
- *   const prisma = getDb();
- *   if (!prisma) return fallback;
- *   const data = await prisma.komik.findUnique({ ... });
- */
-export const getDb = cache((): PrismaClient | null => {
+// ─── Node.js singleton (Azure / dev) ─────────────────────────────────
+// Module-level singleton shared across all requests. Reduces Supabase
+// connection churn from O(concurrent-requests) to O(1).
+
+let _nodeSingleton: PrismaClient | null | undefined;
+
+function getNodeSingleton(): PrismaClient | null {
+  if (_nodeSingleton !== undefined) return _nodeSingleton;
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    _nodeSingleton = null;
+    return null;
+  }
+
+  try {
+    const adapter = new PrismaPg(
+      {
+        connectionString,
+        max: 5,
+        connectionTimeoutMillis: 10_000,
+        idleTimeoutMillis: 30_000,
+        ssl: { rejectUnauthorized: false },
+      },
+      {
+        onPoolError: (err) => {
+          console.error("[prisma:pool] Pool error:", err.message);
+        },
+      }
+    );
+
+    _nodeSingleton = new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === "production" ? ["error"] : ["error", "warn"],
+    });
+    return _nodeSingleton;
+  } catch (err) {
+    console.error("[prisma] Failed to create PrismaClient:", err);
+    _nodeSingleton = null;
+    return null;
+  }
+}
+
+// ─── CF Workers per-request client ───────────────────────────────────
+// Each request gets its own PrismaClient + pg Pool (max: 1).
+// Required because Workers forbid I/O reuse across requests.
+
+const getWorkerDb = cache((): PrismaClient | null => {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) return null;
 
   try {
-    // PrismaPg accepts pg.PoolConfig — no need to create a Pool manually.
-    // This lets @prisma/adapter-pg manage the pg dependency internally,
-    // avoiding the externalization issue with direct pg imports.
     const adapter = new PrismaPg(
       {
         connectionString,
-        // Don't reuse connections across requests (CF Workers requirement)
         max: 1,
-        // Supabase/Neon cold starts can take 3-7s
         connectionTimeoutMillis: 10_000,
         idleTimeoutMillis: 5_000,
         ssl: { rejectUnauthorized: false },
       },
       {
-        // Log pool errors instead of crashing
         onPoolError: (err) => {
           console.error("[prisma:pool] Pool error:", err.message);
         },
@@ -82,6 +124,19 @@ export const getDb = cache((): PrismaClient | null => {
     console.error("[prisma] Failed to create PrismaClient:", err);
     return null;
   }
+});
+
+// ─── Public API ──────────────────────────────────────────────────────
+
+/**
+ * Get a PrismaClient appropriate for the current runtime.
+ *
+ * - Node.js (Azure): returns module-level singleton (shared pg.Pool, max: 5)
+ * - CF Workers: returns per-request client (pg.Pool max: 1)
+ * - Returns `null` if DATABASE_URL is not set.
+ */
+export const getDb = cache((): PrismaClient | null => {
+  return isNodeRuntime ? getNodeSingleton() : getWorkerDb();
 });
 
 /**

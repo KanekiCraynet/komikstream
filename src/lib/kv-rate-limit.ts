@@ -33,7 +33,7 @@ export async function checkRateLimitKV(
     const existing = await kv.get<RateLimitEntry>(kvKey, "json");
 
     if (!existing || now > existing.resetAt) {
-      // New window
+      // New window — write to KV to establish the window
       const resetAt = now + config.windowSeconds * 1000;
       await kv.put(kvKey, JSON.stringify({ count: 1, resetAt }), {
         expirationTtl: config.windowSeconds + 5,
@@ -41,14 +41,20 @@ export async function checkRateLimitKV(
       return { allowed: true, remaining: config.maxRequests - 1, resetAt };
     }
 
+    // Within existing window — increment in-memory only.
+    // Only write back when limit is first exceeded (to persist rejection state).
+    // This reduces KV writes from 1/request to ~1/window.
     const newCount = existing.count + 1;
     const remaining = Math.max(0, config.maxRequests - newCount);
-    const ttlSeconds = Math.ceil((existing.resetAt - now) / 1000);
+    const hitsLimit = newCount === config.maxRequests + 1;
 
-    if (ttlSeconds > 0) {
-      await kv.put(kvKey, JSON.stringify({ count: newCount, resetAt: existing.resetAt }), {
-        expirationTtl: ttlSeconds,
-      });
+    if (hitsLimit) {
+      const ttlSeconds = Math.ceil((existing.resetAt - now) / 1000);
+      if (ttlSeconds > 0) {
+        await kv.put(kvKey, JSON.stringify({ count: newCount, resetAt: existing.resetAt }), {
+          expirationTtl: ttlSeconds,
+        });
+      }
     }
 
     return {
