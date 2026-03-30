@@ -152,10 +152,9 @@ jobs:
 
       - name: ISR Warmup (seed cache for top pages)
         continue-on-error: true
-        env:
-          AZURE_ORIGIN: ${{ secrets.AZURE_ORIGIN }}
-          WORKER_TOKEN: ${{ secrets.WORKER_TOKEN }}
         run: |
+          # Routes through CF Worker (Azure has IP restriction).
+          # Public pages don't need auth — Worker proxies normally.
           PAGES=(
             "/"
             "/anime"
@@ -164,12 +163,11 @@ jobs:
             "/komik/genre"
             "/komik/berwarna"
           )
-          echo "Warming ${#PAGES[@]} pages on Azure origin..."
+          echo "Warming ${#PAGES[@]} pages via kuromanga.me..."
           for page in "${PAGES[@]}"; do
             status=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "x-worker-token: ${WORKER_TOKEN}" \
               --max-time 15 \
-              "${AZURE_ORIGIN}${page}")
+              "https://kuromanga.me${page}")
             echo "  ${page} → ${status}"
           done
 

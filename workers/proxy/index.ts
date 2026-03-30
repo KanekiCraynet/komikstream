@@ -266,10 +266,15 @@ async function handleRequest(
   }
 
   // ── 0b. Block internal routes at the edge ──
-  // /api/internal/* should only be called from trusted sources (e.g. cache-warm cron).
-  // Returning 404 prevents external probing of internal endpoints.
+  // /api/internal/* is restricted to authenticated callers (e.g. cache-warm cron).
+  // Requests with valid Authorization header pass through to origin;
+  // unauthenticated requests get 404 to prevent external probing.
   if (pathname.startsWith("/api/internal/")) {
-    return new Response("Not Found", { status: 404 });
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response("Not Found", { status: 404 });
+    }
+    // Authenticated — fall through to proxy (origin validates the token)
   }
 
   // ── 1. Rate limiting (runs before cache check) ──

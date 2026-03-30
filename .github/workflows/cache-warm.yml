@@ -12,17 +12,14 @@ jobs:
     timeout-minutes: 5
     env:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      # Call Azure origin directly — /api/internal/* is blocked at the Worker edge.
-      # WORKER_TOKEN authenticates this request as a trusted source.
-      AZURE_ORIGIN: ${{ secrets.AZURE_ORIGIN }}
-      WORKER_TOKEN: ${{ secrets.WORKER_TOKEN }}
     steps:
       - name: Warm caches
         run: |
+          # Routes through CF Worker (Azure has IP restriction).
+          # Authorization header lets the request pass the edge /api/internal/* block.
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "${AZURE_ORIGIN}/api/internal/cache-warm" \
+            -X POST "https://kuromanga.me/api/internal/cache-warm" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            -H "x-worker-token: ${WORKER_TOKEN}" \
             -H "Content-Type: application/json")
           echo "Response status: $response"
           if [ "$response" != "200" ]; then
