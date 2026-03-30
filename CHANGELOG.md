@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.0] - 2026-03-30
+
+### Features
+- feat: comprehensive production optimization (KV budget, security, performance) (910f742)
+
+
 ## [0.28.0] - 2026-03-27
 
 ### Features
