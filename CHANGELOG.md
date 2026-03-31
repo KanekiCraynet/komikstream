@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.2] - 2026-03-31
+
+### Bug Fixes
+- fix: broken komik URLs and thumbnail display (aad7aa2)
+
+
 ## [0.31.1] - 2026-03-31
 
 ### Bug Fixes
