@@ -77,10 +77,10 @@ export async function GET() {
         health.checks.externalApi = "operational";
       } else {
         health.checks.externalApi = "degraded";
-        logger.warn("Health check: external API returned non-2xx", {
+        (health as unknown as Record<string, unknown>).externalApiDebug = {
           status: resp.status,
           statusText: resp.statusText,
-        });
+        };
       }
     }
   } catch (error) {
