@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.3] - 2026-03-31
+
+### Bug Fixes
+- fix: add logging to health check external API for debugging degraded status (894622e)
+
+
 ## [0.29.2] - 2026-03-31
 
 ### Bug Fixes
