@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.0] - 2026-03-31
+
+### Features
+- feat: add bulk seed endpoint and script for Azure DB population (fbd1ca6)
+
+### Bug Fixes
+- fix: resolve TypeScript errors in seed script filter chains (d8be858)
+
+
 ## [0.30.0] - 2026-03-31
 
 ### Features
