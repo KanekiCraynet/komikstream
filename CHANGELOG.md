@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.4] - 2026-03-31
+
+### Bug Fixes
+- fix: use full browser fingerprint headers for external API health check (56ddcfa)
+
+### Other Changes
+- debug: add externalApiDebug field to health response (43b7409)
+
+
 ## [0.29.3] - 2026-03-31
 
 ### Bug Fixes
