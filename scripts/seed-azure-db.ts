@@ -135,7 +135,8 @@ async function fetchAllAnime() {
     const existingIds = new Set(items.map((a) => a.urlId));
     const newIds = list
       .map((a) => a.animeId)
-      .filter((id): id is string => Boolean(id) && !existingIds.has(id));
+      .filter((id): id is string => Boolean(id))
+      .filter((id) => !existingIds.has(id));
     console.log(`  Unlimited: ${newIds.length} new anime IDs`);
 
     for (const urlId of newIds) {
@@ -234,7 +235,8 @@ async function fetchAllKomik() {
     const existingIds = new Set(items.map((k) => k.manga_id));
     const newSlugs = list
       .map((k) => k.slug)
-      .filter((s): s is string => Boolean(s) && !existingIds.has(s));
+      .filter((s): s is string => Boolean(s))
+      .filter((s) => !existingIds.has(s));
     console.log(`  Realtime: ${newSlugs.length} new komik IDs`);
 
     for (const slug of newSlugs) {
