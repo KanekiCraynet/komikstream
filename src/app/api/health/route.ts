@@ -59,12 +59,19 @@ export async function GET() {
   // Check external API — NON-CRITICAL dependency.
   // Without it: UX degrades (no fresh content), but site serves cached data.
   // Does NOT warrant 503 or instance restart.
+  // Uses browser-like headers to bypass sankavollerei.com's bot protection
+  // (same approach as api-client.ts ANIME_HEADERS).
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (apiUrl) {
       const resp = await fetch(`${apiUrl}/anime/home`, {
-        signal: AbortSignal.timeout(2000),
-        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(3000),
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          Accept: "application/json, text/plain, */*",
+          Referer: "https://www.sankavollerei.com/anime/",
+        },
       });
       health.checks.externalApi = resp.ok ? "operational" : "degraded";
     }
