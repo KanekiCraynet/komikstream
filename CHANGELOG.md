@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.5] - 2026-03-31
+
+### Bug Fixes
+- fix: add stale-on-error DB fallback to prevent 404 on detail pages (bfa1622)
+
+
 ## [0.29.4] - 2026-03-31
 
 ### Bug Fixes
