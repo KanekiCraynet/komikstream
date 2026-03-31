@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.2] - 2026-03-31
+
+### Bug Fixes
+- fix: health check uses browser-like headers for external API (a005cea)
+
+
 ## [0.29.1] - 2026-03-30
 
 ### Bug Fixes
