@@ -102,35 +102,41 @@ function transformAnimeDetail(data: RawAnimeDetail, urlId: string) {
   };
 }
 
+async function fetchAnimeDetailsBatch(
+  urlIds: string[],
+  items: ReturnType<typeof transformAnimeDetail>[]
+) {
+  for (const urlId of urlIds) {
+    try {
+      const detail = await fetchJson(`${API_BASE}/anime/anime/${urlId}`, ANIME_HEADERS);
+      if (detail?.data?.title) {
+        items.push(transformAnimeDetail(detail.data, urlId));
+      }
+      await sleep(200); // Be polite
+    } catch (err) {
+      console.log(`  Skip ${urlId}: ${(err as Error).message}`);
+    }
+  }
+}
+
 async function fetchAllAnime() {
   console.log("Fetching anime lists...");
   const items: ReturnType<typeof transformAnimeDetail>[] = [];
 
-  // Latest
+  // Ongoing anime
   try {
-    const res = await fetchJson(`${API_BASE}/anime/home`, ANIME_HEADERS);
-    const list: RawAnimeListItem[] = res?.data?.recentEpisodes || [];
+    const res = await fetchJson(`${API_BASE}/anime/ongoing-anime`, ANIME_HEADERS);
+    const list: RawAnimeListItem[] = res?.data?.animeList || [];
     const urlIds = list.map((a) => a.animeId).filter(Boolean) as string[];
-    console.log(`  Latest: ${urlIds.length} anime IDs`);
-
-    for (const urlId of urlIds) {
-      try {
-        const detail = await fetchJson(`${API_BASE}/anime/anime/${urlId}`, ANIME_HEADERS);
-        if (detail?.data?.title) {
-          items.push(transformAnimeDetail(detail.data, urlId));
-        }
-        await sleep(200); // Be polite
-      } catch (err) {
-        console.log(`  Skip ${urlId}: ${(err as Error).message}`);
-      }
-    }
+    console.log(`  Ongoing: ${urlIds.length} anime IDs`);
+    await fetchAnimeDetailsBatch(urlIds, items);
   } catch (err) {
-    console.log(`  Failed to fetch anime latest: ${(err as Error).message}`);
+    console.log(`  Failed to fetch anime ongoing: ${(err as Error).message}`);
   }
 
   // Unlimited (more anime)
   try {
-    const res = await fetchJson(`${API_BASE}/anime/anime?page=1&limit=50`, ANIME_HEADERS);
+    const res = await fetchJson(`${API_BASE}/anime/unlimited`, ANIME_HEADERS);
     const list: RawAnimeListItem[] = res?.data?.animeList || [];
     const existingIds = new Set(items.map((a) => a.urlId));
     const newIds = list
@@ -138,20 +144,25 @@ async function fetchAllAnime() {
       .filter((id): id is string => Boolean(id))
       .filter((id) => !existingIds.has(id));
     console.log(`  Unlimited: ${newIds.length} new anime IDs`);
-
-    for (const urlId of newIds) {
-      try {
-        const detail = await fetchJson(`${API_BASE}/anime/anime/${urlId}`, ANIME_HEADERS);
-        if (detail?.data?.title) {
-          items.push(transformAnimeDetail(detail.data, urlId));
-        }
-        await sleep(200);
-      } catch (err) {
-        console.log(`  Skip ${urlId}: ${(err as Error).message}`);
-      }
-    }
+    await fetchAnimeDetailsBatch(newIds, items);
   } catch (err) {
     console.log(`  Failed to fetch anime unlimited: ${(err as Error).message}`);
+  }
+
+  // Home (ongoing + completed)
+  try {
+    const res = await fetchJson(`${API_BASE}/anime/home`, ANIME_HEADERS);
+    const ongoing: RawAnimeListItem[] = res?.data?.ongoing?.animeList || [];
+    const completed: RawAnimeListItem[] = res?.data?.completed?.animeList || [];
+    const existingIds = new Set(items.map((a) => a.urlId));
+    const newIds = [...ongoing, ...completed]
+      .map((a) => a.animeId)
+      .filter((id): id is string => Boolean(id))
+      .filter((id) => !existingIds.has(id));
+    console.log(`  Home: ${newIds.length} new anime IDs`);
+    await fetchAnimeDetailsBatch(newIds, items);
+  } catch (err) {
+    console.log(`  Failed to fetch anime home: ${(err as Error).message}`);
   }
 
   return items;
@@ -163,6 +174,7 @@ interface RawKomikListItem {
   slug?: string;
   title?: string;
   image?: string;
+  link?: string; // e.g. "/manga/the-villain-of-destiny/"
 }
 
 interface RawKomikDetail {
@@ -202,54 +214,75 @@ function transformKomikDetail(data: RawKomikDetail) {
   };
 }
 
+/** Extract slug from link like "/manga/the-villain-of-destiny/" */
+function extractSlug(item: RawKomikListItem): string | undefined {
+  if (item.slug) return item.slug;
+  if (item.link) {
+    // "/manga/the-villain-of-destiny/" -> "the-villain-of-destiny"
+    const parts = item.link.replace(/\/+$/, "").split("/");
+    return parts[parts.length - 1] || undefined;
+  }
+  return undefined;
+}
+
+async function fetchKomikDetailsBatch(
+  slugs: string[],
+  items: ReturnType<typeof transformKomikDetail>[]
+) {
+  for (const slug of slugs) {
+    try {
+      const detail = await fetchJson(`${API_BASE}/comic/comic/${slug}`, COMIC_HEADERS);
+      if (detail?.title) {
+        items.push(transformKomikDetail(detail));
+      }
+      await sleep(200);
+    } catch (err) {
+      console.log(`  Skip ${slug}: ${(err as Error).message}`);
+    }
+  }
+}
+
 async function fetchAllKomik() {
   console.log("Fetching komik lists...");
   const items: ReturnType<typeof transformKomikDetail>[] = [];
 
-  // Popular
+  // Terbaru (latest)
   try {
-    const res = await fetchJson(`${API_BASE}/comic/popular?page=1`, COMIC_HEADERS);
-    const list: RawKomikListItem[] = Array.isArray(res) ? res : res?.data || [];
-    const slugs = list.map((k) => k.slug).filter(Boolean) as string[];
-    console.log(`  Popular: ${slugs.length} komik IDs`);
-
-    for (const slug of slugs) {
-      try {
-        const detail = await fetchJson(`${API_BASE}/comic/comic/${slug}`, COMIC_HEADERS);
-        if (detail?.title) {
-          items.push(transformKomikDetail(detail));
-        }
-        await sleep(200);
-      } catch (err) {
-        console.log(`  Skip ${slug}: ${(err as Error).message}`);
-      }
-    }
+    const res = await fetchJson(`${API_BASE}/comic/terbaru`, COMIC_HEADERS);
+    const list: RawKomikListItem[] = res?.comics || [];
+    const slugs = list.map(extractSlug).filter(Boolean) as string[];
+    console.log(`  Terbaru: ${slugs.length} komik IDs`);
+    await fetchKomikDetailsBatch(slugs, items);
   } catch (err) {
-    console.log(`  Failed to fetch komik popular: ${(err as Error).message}`);
+    console.log(`  Failed to fetch komik terbaru: ${(err as Error).message}`);
   }
 
-  // Realtime / latest
+  // Populer
   try {
-    const res = await fetchJson(`${API_BASE}/comic/realtime?count=48`, COMIC_HEADERS);
-    const list: RawKomikListItem[] = Array.isArray(res) ? res : res?.data || [];
+    const res = await fetchJson(`${API_BASE}/comic/populer`, COMIC_HEADERS);
+    const list: RawKomikListItem[] = res?.comics || [];
     const existingIds = new Set(items.map((k) => k.manga_id));
     const newSlugs = list
-      .map((k) => k.slug)
+      .map(extractSlug)
+      .filter((s): s is string => Boolean(s))
+      .filter((s) => !existingIds.has(s));
+    console.log(`  Populer: ${newSlugs.length} new komik IDs`);
+    await fetchKomikDetailsBatch(newSlugs, items);
+  } catch (err) {
+    console.log(`  Failed to fetch komik populer: ${(err as Error).message}`);
+  }
+
+  // Realtime
+  try {
+    const res = await fetchJson(`${API_BASE}/comic/realtime?count=48`, COMIC_HEADERS);
+    const list: RawKomikListItem[] = res?.comics || [];
+    const existingIds = new Set(items.map((k) => k.manga_id));
+    const newSlugs = list
+      .map(extractSlug)
       .filter((s): s is string => Boolean(s))
       .filter((s) => !existingIds.has(s));
     console.log(`  Realtime: ${newSlugs.length} new komik IDs`);
-
-    for (const slug of newSlugs) {
-      try {
-        const detail = await fetchJson(`${API_BASE}/comic/comic/${slug}`, COMIC_HEADERS);
-        if (detail?.title) {
-          items.push(transformKomikDetail(detail));
-        }
-        await sleep(200);
-      } catch (err) {
-        console.log(`  Skip ${slug}: ${(err as Error).message}`);
-      }
-    }
+    await fetchKomikDetailsBatch(newSlugs, items);
   } catch (err) {
     console.log(`  Failed to fetch komik realtime: ${(err as Error).message}`);
   }
