@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.30.0] - 2026-03-31
+
+### Features
+- feat: add temporary migration endpoint for Azure PostgreSQL (2525418)
+
+
 ## [0.29.5] - 2026-03-31
 
 ### Bug Fixes
