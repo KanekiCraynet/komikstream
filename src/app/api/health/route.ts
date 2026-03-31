@@ -59,9 +59,12 @@ export async function GET() {
   // Check external API — NON-CRITICAL dependency.
   // Without it: UX degrades (no fresh content), but site serves cached data.
   // Does NOT warrant 503 or instance restart.
-  // Uses full browser-like headers (identical to api-client.ts ANIME_HEADERS)
-  // because sankavollerei.com's bot protection (Plana AI Detector) blocks
-  // requests from Azure datacenter IPs without complete browser fingerprint.
+  //
+  // NOTE: sankavollerei.com's bot protection (Plana AI Detector) blocks
+  // Azure datacenter IPs with 403 regardless of headers. This check may
+  // permanently show "degraded" from Azure, which is expected and harmless.
+  // The actual API client works via ISR cache + Next.js server-side fetches
+  // through different code paths that are not blocked.
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (apiUrl) {

@@ -256,6 +256,22 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
     return anime;
   } catch (err) {
     logger.warn("Anime API fallback failed", { urlId, error: String(err) });
+
+    // L4: Stale DB fallback — serve expired data rather than 404.
+    // sankavollerei.com intermittently blocks Azure IPs with 403;
+    // returning stale content is far better than showing "not found".
+    if (isDatabaseConfigured()) {
+      try {
+        const stale = await findCachedAnime(urlId);
+        if (stale) {
+          logger.info("Anime serving stale DB cache after API failure", { urlId });
+          return mapDbAnimeToApp(stale);
+        }
+      } catch {
+        // DB also failed — truly nothing to serve
+      }
+    }
+
     return null;
   }
 }
@@ -318,6 +334,22 @@ export async function getCachedKomikDetail(mangaId: string): Promise<Komik | nul
     return komik;
   } catch (err) {
     logger.warn("Komik API fallback failed", { mangaId, error: String(err) });
+
+    // L4: Stale DB fallback — serve expired data rather than 404.
+    // sankavollerei.com intermittently blocks Azure IPs with 403;
+    // returning stale content is far better than showing "not found".
+    if (isDatabaseConfigured()) {
+      try {
+        const stale = await findCachedKomik(mangaId);
+        if (stale) {
+          logger.info("Komik serving stale DB cache after API failure", { mangaId });
+          return mapDbKomikToApp(stale);
+        }
+      } catch {
+        // DB also failed — truly nothing to serve
+      }
+    }
+
     return null;
   }
 }
