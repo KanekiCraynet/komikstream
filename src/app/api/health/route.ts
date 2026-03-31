@@ -73,13 +73,24 @@ export async function GET() {
           Referer: "https://www.sankavollerei.com/anime/",
         },
       });
-      health.checks.externalApi = resp.ok ? "operational" : "degraded";
+      if (resp.ok) {
+        health.checks.externalApi = "operational";
+      } else {
+        health.checks.externalApi = "degraded";
+        logger.warn("Health check: external API returned non-2xx", {
+          status: resp.status,
+          statusText: resp.statusText,
+        });
+      }
     }
-  } catch {
+  } catch (error) {
     health.checks.externalApi = "unreachable";
     if (health.status === "healthy") {
       health.status = "degraded";
     }
+    logger.warn("Health check: external API unreachable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const responseTime = Date.now() - startTime;
