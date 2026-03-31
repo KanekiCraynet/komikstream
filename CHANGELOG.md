@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.1] - 2026-03-31
+
+### Bug Fixes
+- fix: correct API endpoints and field mappings in seed script (ff62fed)
+
+
 ## [0.31.0] - 2026-03-31
 
 ### Features
