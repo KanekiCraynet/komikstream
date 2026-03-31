@@ -220,6 +220,14 @@ export async function POST(request: NextRequest) {
       results.push("SyncLog table exists");
     }
 
+    // Cleanup: delete Komik entries where mangaId is a full URL (corrupted by old slug extraction bug)
+    if (existingTables.has("Komik")) {
+      const deleted = await prisma.$executeRawUnsafe(
+        `DELETE FROM "Komik" WHERE "mangaId" LIKE 'http%'`
+      );
+      results.push(`Cleaned ${deleted} corrupted Komik entries (mangaId containing URLs)`);
+    }
+
     logger.info("Migration completed", { results });
     return NextResponse.json({ success: true, results });
   } catch (error) {

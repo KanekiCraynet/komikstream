@@ -46,8 +46,13 @@ export function getImageUrl(url: string): string {
     try {
       const parsed = new URL(url);
       if (PROXIED_IMAGE_HOSTS.includes(parsed.hostname)) {
+        // Convert landscape resize params to portrait for card display
+        let search = parsed.search;
+        if (/[?&]resize=\d+,\d+/.test(search)) {
+          search = search.replace(/([?&]resize=)\d+,\d+/, "$1300,450");
+        }
         // Proxy through our domain: /cdn/hostname/path?query
-        return `/cdn/${parsed.hostname}${parsed.pathname}${parsed.search}`;
+        return `/cdn/${parsed.hostname}${parsed.pathname}${search}`;
       }
     } catch {
       // Invalid URL — return as-is

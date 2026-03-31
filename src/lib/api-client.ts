@@ -858,13 +858,14 @@ function transformAnimeDetail(raw: RawAnimeDetailData, urlId: string): Anime {
  * We extract the slug from the link to use as manga_id.
  */
 function transformComicListItem(raw: RawComicListItem): Komik {
-  // Extract slug from link like "/manga/sewayaki-danshi-to-gutara-osananajimi/"
-  const slug = raw.link
-    ? raw.link
-        .replace(/^\/manga\//, "")
-        .replace(/^\//, "")
-        .replace(/\/$/, "")
-    : "";
+  // Extract slug from link — handles both:
+  //   "/manga/some-slug/"  (from /comic/terbaru)
+  //   "https://komiku.org/manga/some-slug/"  (from /comic/populer)
+  let slug = "";
+  if (raw.link) {
+    const match = raw.link.match(/\/manga\/([^/?#]+)/);
+    slug = match ? match[1] : "";
+  }
 
   return {
     manga_id: slug,
