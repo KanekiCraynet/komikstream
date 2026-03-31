@@ -59,38 +59,35 @@ export async function GET() {
   // Check external API — NON-CRITICAL dependency.
   // Without it: UX degrades (no fresh content), but site serves cached data.
   // Does NOT warrant 503 or instance restart.
-  // Uses browser-like headers to bypass sankavollerei.com's bot protection
-  // (same approach as api-client.ts ANIME_HEADERS).
+  // Uses full browser-like headers (identical to api-client.ts ANIME_HEADERS)
+  // because sankavollerei.com's bot protection (Plana AI Detector) blocks
+  // requests from Azure datacenter IPs without complete browser fingerprint.
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (apiUrl) {
       const resp = await fetch(`${apiUrl}/anime/home`, {
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(5000),
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
           Accept: "application/json, text/plain, */*",
+          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
           Referer: "https://www.sankavollerei.com/anime/",
+          "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": '"Windows"',
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "same-origin",
         },
       });
-      if (resp.ok) {
-        health.checks.externalApi = "operational";
-      } else {
-        health.checks.externalApi = "degraded";
-        (health as unknown as Record<string, unknown>).externalApiDebug = {
-          status: resp.status,
-          statusText: resp.statusText,
-        };
-      }
+      health.checks.externalApi = resp.ok ? "operational" : "degraded";
     }
-  } catch (error) {
+  } catch {
     health.checks.externalApi = "unreachable";
     if (health.status === "healthy") {
       health.status = "degraded";
     }
-    logger.warn("Health check: external API unreachable", {
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
 
   const responseTime = Date.now() - startTime;
