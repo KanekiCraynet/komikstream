@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.7] - 2026-04-01
+
+### Bug Fixes
+- fix: resolve multiple production data loading failures (87425aa)
+
+
 ## [0.31.6] - 2026-04-01
 
 ### Bug Fixes
