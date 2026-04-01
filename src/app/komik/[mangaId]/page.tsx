@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { RelatedKomik } from "@/components/ui/RelatedContent";
-import { getCachedKomikDetail, getKomikChapterList } from "@/lib/api-cached";
+import { getCachedKomikDetail, getCachedKomikChapterList } from "@/lib/api-cached";
 import { getKomikPopular } from "@/lib/api-client";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
@@ -81,12 +81,12 @@ export async function generateMetadata({ params }: DetailPageProps): Promise<Met
 
 async function KomikDetailContent({ mangaId }: { mangaId: string }) {
   let komik;
-  let chapters: Awaited<ReturnType<typeof getKomikChapterList>> = [];
+  let chapters: Awaited<ReturnType<typeof getCachedKomikChapterList>> = [];
 
   try {
     [komik, chapters] = await Promise.all([
       getCachedKomikDetail(mangaId),
-      getKomikChapterList(mangaId),
+      getCachedKomikChapterList(mangaId),
     ]);
   } catch (error) {
     console.error("Error fetching komik detail:", error);

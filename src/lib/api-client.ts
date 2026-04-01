@@ -618,7 +618,9 @@ export async function getKomikChapterList(mangaId: string): Promise<KomikChapter
       COMIC_HEADERS
     );
 
-    const chapters = ensureArray(res?.chapters).map(transformComicChapter);
+    const chapters = ensureArray(res?.chapters)
+      .map(transformComicChapter)
+      .filter((ch) => ch.chapter_id !== "");
 
     // Sort ascending by chapter number
     return chapters.sort((a, b) => {
@@ -849,13 +851,19 @@ function transformAnimeDetail(raw: RawAnimeDetailData, urlId: string): Anime {
 
   // Sort ascending by episode number
   const episodes = ensureArray(raw.episodeList)
-    .map((ep) => ({
-      episodeId: ep.episodeId || "",
-      title: ep.title || `Episode ${ep.eps}`,
-      episode: ep.eps,
-      url: ep.episodeId || "",
-      date: ep.date || undefined,
-    }))
+    .map((ep) => {
+      // The upstream API may return episodeId as a full path like
+      // "/anime/episode/sdhm-episode-1-sub-indo" — extract only the bare slug
+      // to avoid broken URLs when interpolated into /anime/watch/{animeUrlId}/{slug}
+      const epSlug = (ep.episodeId || "").split("/").filter(Boolean).pop() || "";
+      return {
+        episodeId: epSlug,
+        title: ep.title || `Episode ${ep.eps}`,
+        episode: ep.eps,
+        url: epSlug,
+        date: ep.date || undefined,
+      };
+    })
     .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title));
 
   return {
@@ -938,6 +946,7 @@ function transformComicSearchItem(raw: RawComicSearchItem): Komik {
 function transformComicDetail(raw: RawComicDetailData): Komik {
   const chapters = ensureArray(raw.chapters)
     .map(transformComicChapter)
+    .filter((ch) => ch.chapter_id !== "")
     .sort((a, b) => {
       const numA = typeof a.chapter === "number" ? a.chapter : parseFloat(String(a.chapter)) || 0;
       const numB = typeof b.chapter === "number" ? b.chapter : parseFloat(String(b.chapter)) || 0;
