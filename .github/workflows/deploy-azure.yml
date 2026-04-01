@@ -152,6 +152,8 @@ jobs:
           for page in "${PAGES[@]}"; do
             status=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 \
+              -H "User-Agent: Mozilla/5.0 (compatible; GitHubActions/2.0; +https://github.com/features/actions)" \
+              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
               "https://kuromanga.me${page}")
             if [ "$status" = "200" ]; then
               echo "  ✅ ${page} → ${status}"

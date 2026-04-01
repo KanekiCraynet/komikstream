@@ -33,7 +33,11 @@ runs:
         sleep "${INITIAL_DELAY}"
         RETRY_COUNT=0
         while [ "$RETRY_COUNT" -lt "$MAX_RETRIES" ]; do
-          response=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 10 "${HEALTH_URL}" || echo "000")
+          # Use proper headers to avoid being blocked by Cloudflare/bot protection
+          response=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 \
+            -H "User-Agent: Mozilla/5.0 (compatible; GitHubActions/2.0; +https://github.com/features/actions)" \
+            -H "Accept: application/json" \
+            "${HEALTH_URL}" || echo "000")
           # Accept any 2xx or 3xx as healthy (3xx means app is running but redirecting, e.g. auth)
           if [ "$response" -ge 200 ] 2>/dev/null && [ "$response" -lt 400 ] 2>/dev/null; then
             echo "Health check passed (HTTP $response)"
