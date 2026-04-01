@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.3] - 2026-04-01
+
+### Performance
+- perf: optimize API endpoints and CI/CD workflow (9ea8f3b)
+
+### Chores
+- chore: error boundaries, SW versioning, and misc improvements (2ea6891)
+
+
 ## [0.31.2] - 2026-03-31
 
 ### Bug Fixes
