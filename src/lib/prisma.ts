@@ -42,10 +42,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const isNodeRuntime = typeof EdgeRuntime === "undefined";
 
 /**
- * Check if database is configured (DATABASE_URL exists).
- * Used to gracefully degrade when DB is unavailable.
+ * Check if database is configured and not explicitly skipped.
+ * SKIP_DB_CONNECTION is set in CI/Docker builds where the DB is unreachable
+ * (e.g. Azure PostgreSQL behind VNet). Without this check, Prisma attempts
+ * connections that always fail, producing noisy errors during SSG.
  */
 export function isDatabaseConfigured(): boolean {
+  if (process.env.SKIP_DB_CONNECTION === "true") return false;
   return !!process.env.DATABASE_URL;
 }
 
