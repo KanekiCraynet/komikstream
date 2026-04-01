@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.12] - 2026-04-01
+
+### Bug Fixes
+- fix: broken anime stream URLs and missing manga chapters (d1f5bba)
+
+
 ## [0.31.11] - 2026-04-01
 
 ### Bug Fixes
