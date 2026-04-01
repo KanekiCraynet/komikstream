@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.8] - 2026-04-01
+
+### Bug Fixes
+- fix(build): prevent API rate-limit crashes during SSG pre-rendering (2bf8ac2)
+
+
 ## [0.31.7] - 2026-04-01
 
 ### Bug Fixes
