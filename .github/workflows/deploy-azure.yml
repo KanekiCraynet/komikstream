@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
   id-token: write # Required for OIDC federated credentials
+  issues: write # Required for creating issues on failure
 
 concurrency:
   group: azure-production
@@ -26,49 +27,29 @@ concurrency:
 
 jobs:
   # ==================== CI CHECKS ====================
+  # Runs full CI pipeline including security audit via ci.yml
   ci:
     name: CI Checks
     if: ${{ github.event.inputs.skip_tests != 'true' }}
     uses: ./.github/workflows/ci.yml
     with:
-      skip-security: true
-
-  # ==================== SECURITY ====================
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0
-
-      - name: Setup project
-        uses: ./.github/actions/setup
-
-      - name: Run npm audit (critical)
-        run: npm audit --audit-level=critical
-
-      - name: Gitleaks - Check for secrets
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
+      # ci.yml already includes security checks, no need to duplicate
+      skip-security: false
 
   # ==================== BUILD & DEPLOY TO AZURE ====================
   deploy:
     name: Deploy to Azure App Service
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [ci, security]
+    needs: [ci]
     if: |
       always() &&
-      needs.security.result == 'success' &&
       (needs.ci.result == 'success' || github.event.inputs.skip_tests == 'true')
     environment:
       name: production
       url: "https://kuromanga.me"
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.webapp-url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -111,6 +92,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure App Service
+        id: deploy
         uses: azure/webapps-deploy@45c7df8f6a4fe841b67ff88920b33f4f8328f8d9 # v3.0.8
         with:
           app-name: kuromanga
@@ -118,12 +100,58 @@ jobs:
           clean: true
           restart: true
 
-      - name: Wait for App Service restart
-        run: sleep 30
+      - name: Wait for App Service restart (polling)
+        id: health-poll
+        env:
+          HEALTH_URL: "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net/api/health"
+          MAX_ATTEMPTS: 12
+          POLL_INTERVAL: 10
+        run: |
+          echo "Waiting for Azure App Service to become healthy..."
+          echo "Health URL: $HEALTH_URL"
+          echo "Max attempts: $MAX_ATTEMPTS (${MAX_ATTEMPTS}0 seconds timeout)"
+
+          # Initial delay to allow cold start
+          sleep 15
+
+          attempt=1
+          while [ $attempt -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $attempt/$MAX_ATTEMPTS..."
+            
+            # Use curl with timeout and capture both status and body
+            HTTP_CODE=$(curl -s -o /tmp/health_response.json -w "%{http_code}" \
+              --max-time 10 \
+              "$HEALTH_URL" 2>/dev/null || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Health check passed (HTTP $HTTP_CODE)"
+              cat /tmp/health_response.json
+              echo ""
+              echo "health_status=healthy" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            
+            echo "❌ Health check returned HTTP $HTTP_CODE"
+            if [ -f /tmp/health_response.json ]; then
+              cat /tmp/health_response.json 2>/dev/null || true
+              echo ""
+            fi
+            
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "Retrying in ${POLL_INTERVAL}s..."
+              sleep $POLL_INTERVAL
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+          echo "health_status=unhealthy" >> "$GITHUB_OUTPUT"
+          exit 1
 
   # ==================== POST-DEPLOYMENT ====================
   post-deploy:
-    name: Post-Deployment Health Check
+    name: Post-Deployment Verification
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [deploy]
@@ -132,26 +160,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - name: Health Check (Azure origin)
-        continue-on-error: true
-        uses: ./.github/actions/health-check
-        with:
-          url: "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net/api/health"
-          max-retries: "5"
-          retry-delay: "20"
-          initial-delay: "60"
-
       - name: Health Check (via Cloudflare)
-        continue-on-error: true
         uses: ./.github/actions/health-check
         with:
           url: "https://kuromanga.me/api/health"
           max-retries: "3"
           retry-delay: "10"
-          initial-delay: "10"
+          initial-delay: "5"
 
       - name: ISR Warmup (seed cache for top pages)
-        continue-on-error: true
         run: |
           # Routes through CF Worker (Azure has IP restriction).
           # Public pages don't need auth — Worker proxies normally.
@@ -164,12 +181,21 @@ jobs:
             "/komik/berwarna"
           )
           echo "Warming ${#PAGES[@]} pages via kuromanga.me..."
+          FAILED=0
           for page in "${PAGES[@]}"; do
             status=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 15 \
               "https://kuromanga.me${page}")
-            echo "  ${page} → ${status}"
+            if [ "$status" = "200" ]; then
+              echo "  ✅ ${page} → ${status}"
+            else
+              echo "  ⚠️ ${page} → ${status}"
+              FAILED=$((FAILED + 1))
+            fi
           done
+          if [ $FAILED -gt 0 ]; then
+            echo "Warning: $FAILED pages did not return 200"
+          fi
 
       - name: Deployment Summary
         env:
@@ -186,3 +212,79 @@ jobs:
           echo "| Commit | \`${COMMIT_SHA}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Branch | \`${BRANCH_NAME}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Triggered by | ${ACTOR} |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ==================== FAILURE NOTIFICATION ====================
+  notify-failure:
+    name: Create Issue on Failure
+    runs-on: ubuntu-latest
+    needs: [ci, deploy, post-deploy]
+    if: failure()
+    steps:
+      - name: Determine failed job
+        id: failed-job
+        run: |
+          if [ "${{ needs.ci.result }}" = "failure" ]; then
+            echo "job=CI Checks" >> "$GITHUB_OUTPUT"
+            echo "stage=pre-deployment" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.deploy.result }}" = "failure" ]; then
+            echo "job=Deploy to Azure" >> "$GITHUB_OUTPUT"
+            echo "stage=deployment" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.post-deploy.result }}" = "failure" ]; then
+            echo "job=Post-Deployment Verification" >> "$GITHUB_OUTPUT"
+            echo "stage=post-deployment" >> "$GITHUB_OUTPUT"
+          else
+            echo "job=Unknown" >> "$GITHUB_OUTPUT"
+            echo "stage=unknown" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
+            const shortSha = context.sha.substring(0, 7);
+
+            const failedJob = '${{ steps.failed-job.outputs.job }}';
+            const stage = '${{ steps.failed-job.outputs.stage }}';
+
+            const title = `🚨 Azure Deployment Failed: ${failedJob}`;
+
+            const body = [
+              '## Deployment Failure Report',
+              '',
+              '| Property | Value |',
+              '|----------|-------|',
+              `| **Failed Job** | ${failedJob} |`,
+              `| **Stage** | ${stage} |`,
+              `| **Commit** | [\`${shortSha}\`](${commitUrl}) |`,
+              '| **Branch** | `${{ github.ref_name }}` |',
+              '| **Triggered by** | @${{ github.actor }} |',
+              `| **Workflow Run** | [View Logs](${runUrl}) |`,
+              `| **Timestamp** | ${new Date().toISOString()} |`,
+              '',
+              '### Next Steps',
+              '',
+              `1. Check the [workflow logs](${runUrl}) for details`,
+              '2. Fix the issue and push a new commit, or',
+              '3. Re-run the workflow manually if it was a transient failure',
+              '',
+              '### Quick Links',
+              '',
+              '- [Azure Portal](https://portal.azure.com)',
+              '- [Production Site](https://kuromanga.me)',
+              '- [Azure Origin](https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net)',
+              '',
+              '---',
+              '*This issue was automatically created by the deployment workflow.*'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['deployment-failure', 'automated']
+            });
+
+            console.log(`Created issue: ${title}`);

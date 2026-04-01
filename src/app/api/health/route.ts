@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import packageJson from "../../../../package.json";
 import { logger } from "@/lib/logger";
 
@@ -11,12 +11,32 @@ interface HealthStatus {
   version: string;
   checks: {
     database: "connected" | "disconnected" | "skipped";
-    externalApi: "operational" | "degraded" | "unreachable";
+    externalApi?: "operational" | "degraded" | "unreachable" | "skipped";
   };
 }
 
-export async function GET() {
+/**
+ * GET /api/health
+ *
+ * Health check endpoint for monitoring and load balancers.
+ *
+ * Query parameters:
+ * - full=true: Include external API check (slower, may be blocked by bot detection)
+ *
+ * Default behavior (no ?full=true):
+ * - Only checks database connection
+ * - Fast response suitable for Azure health probes
+ * - Returns 200 if DB is connected, 503 if DB is down
+ *
+ * With ?full=true:
+ * - Also checks external API reachability
+ * - Useful for manual diagnostics
+ * - Note: External API may block Azure datacenter IPs (expected)
+ */
+export async function GET(request: NextRequest) {
   const startTime = Date.now();
+  const searchParams = request.nextUrl.searchParams;
+  const fullCheck = searchParams.get("full") === "true";
 
   const health: HealthStatus = {
     status: "healthy",
@@ -25,7 +45,6 @@ export async function GET() {
     version: packageJson.version,
     checks: {
       database: "skipped",
-      externalApi: "operational",
     },
   };
 
@@ -57,39 +76,42 @@ export async function GET() {
   }
 
   // Check external API — NON-CRITICAL dependency.
-  // Without it: UX degrades (no fresh content), but site serves cached data.
-  // Does NOT warrant 503 or instance restart.
+  // Only run when ?full=true is specified.
   //
   // NOTE: sankavollerei.com's bot protection (Plana AI Detector) blocks
   // Azure datacenter IPs with 403 regardless of headers. This check may
   // permanently show "degraded" from Azure, which is expected and harmless.
   // The actual API client works via ISR cache + Next.js server-side fetches
   // through different code paths that are not blocked.
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (apiUrl) {
-      const resp = await fetch(`${apiUrl}/anime/home`, {
-        signal: AbortSignal.timeout(5000),
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-          Accept: "application/json, text/plain, */*",
-          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-          Referer: "https://www.sankavollerei.com/anime/",
-          "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": '"Windows"',
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "same-origin",
-        },
-      });
-      health.checks.externalApi = resp.ok ? "operational" : "degraded";
-    }
-  } catch {
-    health.checks.externalApi = "unreachable";
-    if (health.status === "healthy") {
-      health.status = "degraded";
+  if (fullCheck) {
+    health.checks.externalApi = "skipped";
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (apiUrl) {
+        const resp = await fetch(`${apiUrl}/anime/home`, {
+          signal: AbortSignal.timeout(5000),
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            Accept: "application/json, text/plain, */*",
+            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+            Referer: "https://www.sankavollerei.com/anime/",
+            "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+          },
+        });
+        health.checks.externalApi = resp.ok ? "operational" : "degraded";
+      }
+    } catch {
+      health.checks.externalApi = "unreachable";
+      // External API failure is non-critical - only degrade, don't mark unhealthy
+      if (health.status === "healthy") {
+        health.status = "degraded";
+      }
     }
   }
 
