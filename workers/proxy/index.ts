@@ -22,6 +22,7 @@ interface Env {
   ANALYTICS: AnalyticsEngineDataset;
   WORKER_TOKEN: string;
   AZURE_ORIGIN: string;
+  API_PROXY_TOKEN: string;
 }
 
 interface RateLimitEntry {
@@ -264,6 +265,57 @@ async function handleRequest(
       }
     }
     return new Response("Forbidden", { status: 403 });
+  }
+
+  // ── 0a2. API proxy for upstream sankavollerei.com (/api-proxy/{path}) ──
+  // Azure IPs are blocked by Plana AI Detector. CF Worker edge IPs
+  // are not blocked, so we proxy API requests through the Worker.
+  // Protected by a shared secret to prevent open-relay abuse.
+
+  if (pathname.startsWith("/api-proxy/")) {
+    const proxyToken = request.headers.get("x-api-proxy-token");
+    if (!env.API_PROXY_TOKEN || proxyToken !== env.API_PROXY_TOKEN) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const apiPath = pathname.slice("/api-proxy".length); // keeps leading /
+    const apiUrl = `https://www.sankavollerei.com${apiPath}${search}`;
+
+    const apiHeaders: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+      Referer: "https://www.sankavollerei.com/",
+      "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+    };
+
+    try {
+      const apiResp = await fetch(apiUrl, {
+        headers: apiHeaders,
+        cf: { cacheTtl: 300, cacheEverything: true },
+      });
+
+      const respHeaders = new Headers();
+      respHeaders.set("Content-Type", apiResp.headers.get("Content-Type") ?? "application/json");
+      respHeaders.set("Cache-Control", "no-store");
+      respHeaders.set("x-trace-id", traceId);
+
+      return new Response(apiResp.body, {
+        status: apiResp.status,
+        headers: respHeaders,
+      });
+    } catch {
+      return new Response(JSON.stringify({ error: "upstream_error" }), {
+        status: 502,
+        headers: { "Content-Type": "application/json", "x-trace-id": traceId },
+      });
+    }
   }
 
   // ── 0b. Block internal routes at the edge ──

@@ -40,9 +40,13 @@
   // ─── Secrets ────────────────────────────────────────────────────────
   // Secrets MUST NOT be stored in this file. Set them via:
   //   wrangler secret put WORKER_TOKEN
+  //   wrangler secret put API_PROXY_TOKEN
   //
   // Required secrets:
-  //   WORKER_TOKEN — shared secret between CF Worker and Azure origin.
-  //                  Validated by Next.js middleware to ensure requests
-  //                  only arrive through the Worker proxy.
+  //   WORKER_TOKEN     — shared secret between CF Worker and Azure origin.
+  //                      Validated by Next.js middleware to ensure requests
+  //                      only arrive through the Worker proxy.
+  //   API_PROXY_TOKEN  — shared secret for /api-proxy/ route. Azure uses
+  //                      this to authenticate API calls routed through the
+  //                      Worker to bypass sankavollerei.com IP blocking.
 }

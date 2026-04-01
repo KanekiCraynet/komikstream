@@ -39,12 +39,29 @@ type DbKomik = NonNullable<Awaited<ReturnType<typeof findCachedKomik>>>;
 function mapDbAnimeToApp(db: DbAnime): Anime {
   const genres = Array.isArray(db.genres) ? (db.genres as string[]) : [];
   const episodes = Array.isArray(db.episodes)
-    ? (db.episodes as Array<{ title?: string; url?: string; date?: string }>)
-        .map((ep) => ({
-          title: ep.title || "",
-          url: ep.url,
-          date: ep.date,
-        }))
+    ? (
+        db.episodes as Array<{
+          title?: string;
+          episodeId?: string;
+          url?: string;
+          date?: string;
+        }>
+      )
+        .map((ep) => {
+          // Sanitize: old DB records may contain full paths like
+          // "/anime/episode/slug" — extract only the bare slug.
+          const rawUrl = ep.url || ep.episodeId || "";
+          const slug = rawUrl.includes("/")
+            ? rawUrl.split("/").filter(Boolean).pop() || ""
+            : rawUrl;
+          return {
+            episodeId: slug,
+            title: ep.title || "",
+            url: slug,
+            date: ep.date,
+          };
+        })
+        .filter((ep) => ep.url !== "")
         // Sort ascending by episode number so episodes[0] = first, episodes[last] = latest.
         // DB cache stores episodes in the same descending order as the external API.
         .sort((a, b) => extractEpisodeNumber(a.title) - extractEpisodeNumber(b.title))
@@ -80,12 +97,14 @@ function mapDbKomikToApp(db: DbKomik): Komik {
           date?: string;
           created_at?: string;
         }>
-      ).map((ch) => ({
-        chapter_id: ch.chapter_id || ch.id || "",
-        title: ch.title || `Chapter ${ch.chapter || ch.chapter_number}`,
-        chapter: ch.chapter || ch.chapter_number,
-        date: ch.date || ch.created_at,
-      }))
+      )
+        .map((ch) => ({
+          chapter_id: ch.chapter_id || ch.id || "",
+          title: ch.title || `Chapter ${ch.chapter || ch.chapter_number}`,
+          chapter: ch.chapter || ch.chapter_number,
+          date: ch.date || ch.created_at,
+        }))
+        .filter((ch) => ch.chapter_id !== "")
     : [];
 
   return {
