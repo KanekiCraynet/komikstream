@@ -17,12 +17,20 @@ jobs:
         run: |
           # Routes through CF Worker (Azure has IP restriction).
           # Authorization header lets the request pass the edge /api/internal/* block.
+          #
+          # NOTE: Cloudflare Bot Fight Mode may block GitHub Actions IPs with 403.
+          # To fix: add a WAF exception rule in CF Dashboard for /api/internal/*
+          # from known CI IPs or with a custom header bypass.
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "https://kuromanga.me/api/internal/cache-warm" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json")
           echo "Response status: $response"
-          if [ "$response" != "200" ]; then
+          if [ "$response" = "200" ]; then
+            echo "Cache warm succeeded"
+          elif [ "$response" = "403" ]; then
+            echo "::warning::Cache warm blocked by Cloudflare Bot Fight Mode (HTTP 403). Add WAF exception rule for /api/internal/* paths."
+          else
             echo "Cache warm failed with status $response"
             exit 1
           fi
