@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.6] - 2026-04-01
+
+### Bug Fixes
+- fix(ci): skip direct Azure health polling due to IP restrictions (2360017)
+
+### Other Changes
+- style: fix prettier formatting in inject-sw-version script (e6a788f)
+
+
 ## [0.31.5] - 2026-04-01
 
 ### Bug Fixes
