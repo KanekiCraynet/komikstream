@@ -100,54 +100,21 @@ jobs:
           clean: true
           restart: true
 
-      - name: Wait for App Service restart (polling)
+      # Note: Direct Azure URL health check is skipped because Azure App Service
+      # has IP access restrictions that block GitHub Actions runners.
+      # Health verification is done in the post-deploy job via Cloudflare URL.
+      - name: Wait for App Service restart
         id: health-poll
-        env:
-          HEALTH_URL: "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net/api/health"
-          MAX_ATTEMPTS: 12
-          POLL_INTERVAL: 10
         run: |
-          echo "Waiting for Azure App Service to become healthy..."
-          echo "Health URL: $HEALTH_URL"
-          echo "Max attempts: $MAX_ATTEMPTS (${MAX_ATTEMPTS}0 seconds timeout)"
+          echo "Waiting for Azure App Service to restart..."
+          echo "Note: Direct health polling skipped due to Azure IP restrictions."
+          echo "Post-deployment health check will verify via Cloudflare URL."
 
-          # Initial delay to allow cold start
-          sleep 15
+          # Give the app time to restart after deployment
+          sleep 30
 
-          attempt=1
-          while [ $attempt -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $attempt/$MAX_ATTEMPTS..."
-            
-            # Use curl with timeout and capture both status and body
-            HTTP_CODE=$(curl -s -o /tmp/health_response.json -w "%{http_code}" \
-              --max-time 10 \
-              "$HEALTH_URL" 2>/dev/null || echo "000")
-            
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ Health check passed (HTTP $HTTP_CODE)"
-              cat /tmp/health_response.json
-              echo ""
-              echo "health_status=healthy" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            
-            echo "❌ Health check returned HTTP $HTTP_CODE"
-            if [ -f /tmp/health_response.json ]; then
-              cat /tmp/health_response.json 2>/dev/null || true
-              echo ""
-            fi
-            
-            if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Retrying in ${POLL_INTERVAL}s..."
-              sleep $POLL_INTERVAL
-            fi
-            
-            attempt=$((attempt + 1))
-          done
-
-          echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
-          echo "health_status=unhealthy" >> "$GITHUB_OUTPUT"
-          exit 1
+          echo "health_status=pending" >> "$GITHUB_OUTPUT"
+          echo "✅ Deployment complete - health verification delegated to post-deploy job"
 
   # ==================== POST-DEPLOYMENT ====================
   post-deploy:
