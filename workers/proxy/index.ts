@@ -21,6 +21,7 @@ interface Env {
   RATE_LIMIT_KV: KVNamespace;
   ANALYTICS: AnalyticsEngineDataset;
   WORKER_TOKEN: string;
+  AZURE_ORIGIN: string;
 }
 
 interface RateLimitEntry {
@@ -34,8 +35,6 @@ interface RateLimitConfig {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
-
-const AZURE_ORIGIN = "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net";
 
 /**
  * Whitelisted hostnames for the /cdn/ image proxy.
@@ -349,12 +348,12 @@ async function handleRequest(
   // NEVER fetch kuromanga.me — always use Azure hostname to avoid loop.
 
   const originUrl = new URL(url.toString());
-  originUrl.hostname = new URL(AZURE_ORIGIN).hostname;
+  originUrl.hostname = new URL(env.AZURE_ORIGIN).hostname;
   originUrl.protocol = "https:";
   originUrl.port = "";
 
   const proxyHeaders = new Headers(request.headers);
-  proxyHeaders.set("Host", new URL(AZURE_ORIGIN).hostname);
+  proxyHeaders.set("Host", new URL(env.AZURE_ORIGIN).hostname);
   proxyHeaders.set("X-Forwarded-Host", url.hostname); // kuromanga.me
   proxyHeaders.set("X-Forwarded-Proto", "https");
   proxyHeaders.set("x-trace-id", traceId);

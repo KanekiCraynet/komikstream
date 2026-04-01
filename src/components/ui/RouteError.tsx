@@ -32,10 +32,13 @@ export function RouteError({
       </div>
       <h2 className="mb-4 text-2xl font-bold">{title}</h2>
       <p className="text-muted-foreground mb-4 max-w-md text-lg">{description}</p>
-      {error.message && (
+      {process.env.NODE_ENV !== "production" && error.message && (
         <div className="bg-destructive/10 border-destructive/20 mb-8 rounded-lg border px-4 py-3">
           <p className="text-destructive font-mono text-sm">Error: {error.message}</p>
         </div>
+      )}
+      {process.env.NODE_ENV === "production" && error.digest && (
+        <p className="text-muted-foreground mb-8 text-xs">Kode error: {error.digest}</p>
       )}
       <div className="flex flex-wrap items-center justify-center gap-4">
         <button

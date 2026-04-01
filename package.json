@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
-    "build:azure": "prisma generate && BUILD_TARGET=azure next build",
+    "build:azure": "prisma generate && BUILD_TARGET=azure next build && node scripts/inject-sw-version.mjs",
     "build:cf": "prisma generate && opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare deploy",
@@ -39,7 +39,6 @@
     "applicationinsights": "^3.14.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.30.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.7",
     "next-themes": "^0.4.6",

@@ -33,4 +33,16 @@
       "dataset": "kuromanga_events",
     },
   ],
+  // ─── Environment Variables ─────────────────────────────────────────
+  "vars": {
+    "AZURE_ORIGIN": "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net",
+  },
+  // ─── Secrets ────────────────────────────────────────────────────────
+  // Secrets MUST NOT be stored in this file. Set them via:
+  //   wrangler secret put WORKER_TOKEN
+  //
+  // Required secrets:
+  //   WORKER_TOKEN — shared secret between CF Worker and Azure origin.
+  //                  Validated by Next.js middleware to ensure requests
+  //                  only arrive through the Worker proxy.
 }

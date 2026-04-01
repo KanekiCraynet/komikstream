@@ -1,4 +1,4 @@
-const CACHE_NAME = "kuromanga-v1";
+const CACHE_NAME = "kuromanga-__BUILD_ID__";
 const STATIC_ASSETS = ["/", "/offline.html", "/logo.svg", "/og-image.png", "/favicon.ico"];
 
 // Install: pre-cache static assets

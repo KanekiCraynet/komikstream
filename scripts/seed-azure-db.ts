@@ -20,6 +20,16 @@
 
 import "dotenv/config";
 
+// Proxy support: set HTTPS_PROXY or HTTP_PROXY env var to route API calls through a proxy
+// Usage: HTTPS_PROXY=http://host:port npx tsx scripts/seed-azure-db.ts
+const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.ALL_PROXY;
+if (PROXY_URL) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ProxyAgent, setGlobalDispatcher } = require("undici");
+  setGlobalDispatcher(new ProxyAgent(PROXY_URL));
+  console.log(`Using proxy: ${PROXY_URL}\n`);
+}
+
 const SEED_URL = "https://kuromanga.me/api/internal/seed";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://www.sankavollerei.com";
 const CRON_SECRET = process.env.CRON_SECRET;

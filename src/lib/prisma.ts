@@ -68,6 +68,7 @@ function getNodeSingleton(): PrismaClient | null {
     const adapter = new PrismaPg(
       {
         connectionString,
+        min: 1,
         max: 5,
         connectionTimeoutMillis: 10_000,
         idleTimeoutMillis: 30_000,
