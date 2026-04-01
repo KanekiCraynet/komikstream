@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.4] - 2026-04-01
+
+### Bug Fixes
+- fix: resolve ESLint unused variable warnings (8fa4422)
+
+
 ## [0.31.3] - 2026-04-01
 
 ### Performance
