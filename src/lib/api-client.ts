@@ -538,7 +538,10 @@ export async function getAnimeUnlimited(): Promise<Anime[]> {
 
 // ==================== KOMIK API ====================
 
-export async function getKomikLatest(_type?: "project" | "mirror"): Promise<Komik[]> {
+export async function getKomikLatest(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- legacy API signature
+  _type?: "project" | "mirror"
+): Promise<Komik[]> {
   // The new API doesn't differentiate project/mirror — just returns latest
   const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
     `${BASE_URL}/comic/terbaru`,
@@ -559,7 +562,10 @@ export async function getKomikPopular(page: number = 1): Promise<Komik[]> {
   return ensureArray(res.comics).map(transformComicListItem);
 }
 
-export async function getKomikRecommended(_type?: "manhwa" | "manhua" | "manga"): Promise<Komik[]> {
+export async function getKomikRecommended(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- legacy API signature
+  _type?: "manhwa" | "manhua" | "manga"
+): Promise<Komik[]> {
   // The new API has /comic/recommendations without type filter
   const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
     `${BASE_URL}/comic/recommendations`,

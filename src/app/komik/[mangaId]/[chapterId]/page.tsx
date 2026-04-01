@@ -1,6 +1,6 @@
 import { getKomikChapterList, getKomikDetail, getKomikImages } from "@/lib/api-client";
 import { siteConfig } from "@/lib/site-config";
-import { getImageUrl, truncate } from "@/lib/utils";
+import { truncate } from "@/lib/utils";
 import { MangaImage } from "@/components/ui/MangaImage";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, Home, List } from "lucide-react";
 import type { Metadata } from "next";
