@@ -1,4 +1,5 @@
-import { getKomikChapterList, getKomikDetail, getKomikImages } from "@/lib/api-client";
+import { getCachedKomikDetail, getCachedKomikChapterList } from "@/lib/api-cached";
+import { getKomikImages } from "@/lib/api-client";
 import { siteConfig } from "@/lib/site-config";
 import { truncate } from "@/lib/utils";
 import { MangaImage } from "@/components/ui/MangaImage";
@@ -20,8 +21,8 @@ export async function generateMetadata({ params }: ReaderPageProps): Promise<Met
 
   try {
     const [komik, chapters] = await Promise.all([
-      getKomikDetail(mangaId),
-      getKomikChapterList(mangaId),
+      getCachedKomikDetail(mangaId),
+      getCachedKomikChapterList(mangaId),
     ]);
 
     if (!komik) {
@@ -52,8 +53,8 @@ export default async function KomikReaderPage({ params }: ReaderPageProps) {
   let komik, chapters, images;
   try {
     [komik, chapters, images] = await Promise.all([
-      getKomikDetail(mangaId),
-      getKomikChapterList(mangaId),
+      getCachedKomikDetail(mangaId),
+      getCachedKomikChapterList(mangaId),
       getKomikImages(chapterId),
     ]);
   } catch {

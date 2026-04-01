@@ -68,12 +68,7 @@ function ScheduleCard({ title, slug, poster }: { title: string; slug: string; po
 }
 
 export default async function AnimeSchedulePage() {
-  let schedule: Awaited<ReturnType<typeof getAnimeSchedule>>;
-  try {
-    schedule = await getAnimeSchedule();
-  } catch {
-    schedule = [];
-  }
+  const schedule = await getAnimeSchedule();
   const today = getTodayIndonesian();
 
   // Sort days by DAY_ORDER

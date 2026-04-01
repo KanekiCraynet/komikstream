@@ -14,7 +14,7 @@
 
 import "server-only";
 
-import type { Anime, Komik } from "@/types";
+import type { Anime, Komik, KomikChapter } from "@/types";
 import { CACHE_TIMES } from "./cache-config";
 import {
   extractEpisodeNumber,
@@ -379,6 +379,18 @@ export async function getCachedHomepageData() {
     animeLatest,
     animeRecommended,
   };
+}
+
+// ─── Cached Chapter List ───────────────────────────────────────────
+
+/**
+ * Get chapter list from cached detail data.
+ * Avoids a separate uncached API call when the detail is already in DB/KV.
+ * Falls back to the direct API via getCachedKomikDetail's 4-tier strategy.
+ */
+export async function getCachedKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
+  const komik = await getCachedKomikDetail(mangaId);
+  return komik?.chapters ?? [];
 }
 
 // ─── Re-exports for convenience ─────────────────────────────────────

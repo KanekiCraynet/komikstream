@@ -263,6 +263,22 @@ interface RawBatchData {
   }>;
 }
 
+// --- Comic Catalog Items (berwarna, pustaka) ---
+// These endpoints return a different shape than the list endpoints.
+
+interface RawComicCatalogItem {
+  title?: string;
+  thumbnail?: string;
+  type?: string;
+  genre?: string;
+  url?: string;
+  detailUrl?: string;
+  description?: string;
+  stats?: string;
+  firstChapter?: { title?: string; url?: string };
+  latestChapter?: { title?: string; url?: string };
+}
+
 // --- Comic Genre/Advanced Search (new endpoints) ---
 
 interface RawComicPaginatedResponse {
@@ -566,14 +582,15 @@ export async function getKomikRecommended(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- legacy API signature
   _type?: "manhwa" | "manhua" | "manga"
 ): Promise<Komik[]> {
-  // The new API has /comic/recommendations without type filter
-  const res = await fetchWithCache<{ comics?: RawComicListItem[] }>(
+  // The new API has /comic/recommendations without type filter.
+  // Response shape: { recommendations: RawComicListItem[] }
+  const res = await fetchWithCache<{ recommendations?: RawComicListItem[] }>(
     `${BASE_URL}/comic/recommendations`,
     CACHE_TIMES.POPULAR,
     1,
     COMIC_HEADERS
   );
-  return ensureArray(res.comics).map(transformComicListItem);
+  return ensureArray(res.recommendations).map(transformComicListItem);
 }
 
 export async function getKomikDetail(mangaId: string): Promise<Komik | null> {
@@ -643,24 +660,26 @@ export async function getKomikImages(chapterId: string): Promise<KomikImage[]> {
 
 export async function getKomikBerwarna(page: number = 1): Promise<Komik[]> {
   const url = page > 1 ? `${BASE_URL}/comic/berwarna/${page}` : `${BASE_URL}/comic/berwarna`;
-  const res = await fetchWithCache<RawComicPaginatedResponse>(
+  // Response shape: { data: { results: RawComicCatalogItem[] } }
+  const res = await fetchWithCache<{ data?: { results?: RawComicCatalogItem[] } }>(
     url,
     CACHE_TIMES.POPULAR,
     1,
     COMIC_HEADERS
   );
-  return ensureArray(res.comics).map(transformComicListItem);
+  return ensureArray(res.data?.results).map(transformComicCatalogItem);
 }
 
 export async function getKomikPustaka(page: number = 1): Promise<Komik[]> {
   const url = page > 1 ? `${BASE_URL}/comic/pustaka/${page}` : `${BASE_URL}/comic/pustaka`;
-  const res = await fetchWithCache<RawComicPaginatedResponse>(
+  // Response shape: { results: RawComicCatalogItem[] }
+  const res = await fetchWithCache<{ results?: RawComicCatalogItem[] }>(
     url,
     CACHE_TIMES.POPULAR,
     1,
     COMIC_HEADERS
   );
-  return ensureArray(res.comics).map(transformComicListItem);
+  return ensureArray(res.results).map(transformComicCatalogItem);
 }
 
 export async function getKomikByGenre(
@@ -879,6 +898,29 @@ function transformComicListItem(raw: RawComicListItem): Komik {
     thumbnail: raw.image || "",
     latestChapter: raw.chapter || undefined,
     updatedAt: raw.time_ago || undefined,
+  };
+}
+
+/**
+ * Transform a catalog item (from /comic/berwarna, /comic/pustaka).
+ * These use `url` (full komiku.org URL) instead of `link`, and include
+ * type/genre/description metadata.
+ */
+function transformComicCatalogItem(raw: RawComicCatalogItem): Komik {
+  let slug = "";
+  if (raw.url) {
+    const match = raw.url.match(/\/manga\/([^/?#]+)/);
+    slug = match ? match[1] : "";
+  }
+
+  return {
+    manga_id: slug,
+    title: raw.title || "",
+    thumbnail: raw.thumbnail || "",
+    type: raw.type || undefined,
+    genres: raw.genre ? [raw.genre] : [],
+    description: raw.description || undefined,
+    latestChapter: raw.latestChapter?.title || undefined,
   };
 }
 
