@@ -68,7 +68,18 @@ function ScheduleCard({ title, slug, poster }: { title: string; slug: string; po
 }
 
 export default async function AnimeSchedulePage() {
-  const schedule = await getAnimeSchedule();
+  let schedule: Awaited<ReturnType<typeof getAnimeSchedule>>;
+  try {
+    schedule = await getAnimeSchedule();
+  } catch (err) {
+    // During build, return empty so the build succeeds — ISR will populate on first request.
+    // At runtime, re-throw so the error boundary shows a retry UI instead of caching empty state.
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      schedule = [];
+    } else {
+      throw err;
+    }
+  }
   const today = getTodayIndonesian();
 
   // Sort days by DAY_ORDER

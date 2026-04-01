@@ -18,11 +18,15 @@ import { notFound } from "next/navigation";
 export const revalidate = 1800;
 
 export async function generateStaticParams() {
+  // Skip SSG pre-rendering during CI builds — the external API rate-limits
+  // bulk requests from datacenter IPs. ISR will render pages on first request.
+  if (process.env.BUILD_TARGET === "azure") return [];
+
   try {
     const popular = await getKomikPopular(1);
     return popular
       .filter((k) => k.manga_id)
-      .slice(0, 30)
+      .slice(0, 10)
       .map((k) => ({ mangaId: k.manga_id }));
   } catch {
     return [];

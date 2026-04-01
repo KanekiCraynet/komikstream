@@ -19,7 +19,16 @@ export const metadata: Metadata = {
 };
 
 async function BerwarnaResults({ page }: { page: number }) {
-  const items = await getKomikBerwarna(page);
+  let items: Awaited<ReturnType<typeof getKomikBerwarna>>;
+  try {
+    items = await getKomikBerwarna(page);
+  } catch (err) {
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      items = [];
+    } else {
+      throw err;
+    }
+  }
 
   if (items.length === 0) {
     return (

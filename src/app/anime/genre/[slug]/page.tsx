@@ -23,7 +23,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 async function GenreResults({ slug, page }: { slug: string; page: number }) {
-  const result = await getAnimeByGenre(slug, page);
+  let result: Awaited<ReturnType<typeof getAnimeByGenre>>;
+  try {
+    result = await getAnimeByGenre(slug, page);
+  } catch (err) {
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      result = { items: [], hasNextPage: false, totalPages: 0 };
+    } else {
+      throw err;
+    }
+  }
   const title = slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ");
 
   if (result.items.length === 0) {
