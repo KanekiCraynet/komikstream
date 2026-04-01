@@ -228,6 +228,22 @@ export async function POST(request: NextRequest) {
       results.push(`Cleaned ${deleted} corrupted Komik entries (mangaId containing URLs)`);
     }
 
+    // Cleanup: delete bookmark/history records where itemId is a UUID instead of a slug.
+    // These were created by an older code version that stored Komik.id (UUID) instead
+    // of Komik.mangaId (slug) as the itemId.
+    if (existingTables.has("Bookmark")) {
+      const deletedBookmarks = await prisma.$executeRawUnsafe(
+        `DELETE FROM "Bookmark" WHERE type = 'komik' AND "itemId" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-'`
+      );
+      results.push(`Cleaned ${deletedBookmarks} UUID-based komik bookmarks`);
+    }
+    if (existingTables.has("History")) {
+      const deletedHistory = await prisma.$executeRawUnsafe(
+        `DELETE FROM "History" WHERE type = 'komik' AND "itemId" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-'`
+      );
+      results.push(`Cleaned ${deletedHistory} UUID-based komik history entries`);
+    }
+
     logger.info("Migration completed", { results });
     return NextResponse.json({ success: true, results });
   } catch (error) {

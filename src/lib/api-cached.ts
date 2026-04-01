@@ -295,11 +295,19 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
   }
 }
 
+// Reject IDs that are clearly not valid API slugs — UUIDs from stale
+// bookmark/history records and reserved route segments that leak into [mangaId].
+const INVALID_SLUG_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-|^(genre|search|berwarna|pustaka)$/;
+
 /**
  * Get komik detail with three-tier caching: KV -> DB -> External API.
  * TTL = CACHE_TIMES.DETAIL (30 minutes).
  */
 export async function getCachedKomikDetail(mangaId: string): Promise<Komik | null> {
+  if (INVALID_SLUG_RE.test(mangaId)) {
+    logger.debug("Komik skipped — invalid slug", { mangaId });
+    return null;
+  }
   // L1: KV cache (fastest, cross-instance)
   const kvKey = `komik:${mangaId}`;
   const kvHit = await kvCacheGet<Komik>(kvKey);
