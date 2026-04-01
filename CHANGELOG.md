@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.10] - 2026-04-01
+
+### Bug Fixes
+- fix(ci): skip direct Azure health polling due to IP restrictions (8dc877e)
+
+
 ## [0.31.9] - 2026-04-01
 
 ### Bug Fixes
