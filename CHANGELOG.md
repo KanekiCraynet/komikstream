@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.11] - 2026-04-01
+
+### Bug Fixes
+- fix(build): respect SKIP_DB_CONNECTION in isDatabaseConfigured() (1030e20)
+
+
 ## [0.31.10] - 2026-04-01
 
 ### Bug Fixes
