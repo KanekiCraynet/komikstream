@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.5] - 2026-04-01
+
+### Bug Fixes
+- fix: resolve remaining ESLint warnings in test setup and worker (bda870f)
+
+
 ## [0.31.4] - 2026-04-01
 
 ### Bug Fixes
