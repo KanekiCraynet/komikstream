@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.14] - 2026-04-01
+
+### Bug Fixes
+- fix: reject UUID mangaIds and clean stale bookmark/history records (03f9f89)
+
+
 ## [0.31.13] - 2026-04-01
 
 ### Bug Fixes
