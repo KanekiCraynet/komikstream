@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.13] - 2026-04-01
+
+### Bug Fixes
+- fix: proxy API calls through CF Worker to bypass Plana AI Detector (881b25b)
+
+
 ## [0.31.12] - 2026-04-01
 
 ### Bug Fixes
