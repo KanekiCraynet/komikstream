@@ -203,7 +203,7 @@ async function checkRateLimit(
 
 // ─── Main Fetch Handler ──────────────────────────────────────────────
 
-export default {
+const worker: ExportedHandler<Env> = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const traceId = crypto.randomUUID();
 
@@ -222,6 +222,8 @@ export default {
     }
   },
 };
+
+export default worker;
 
 async function handleRequest(
   request: Request,

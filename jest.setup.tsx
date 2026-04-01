@@ -17,17 +17,29 @@ jest.mock("next/navigation", () => ({
 // Mock next/image
 jest.mock("next/image", () => ({
   __esModule: true,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   default: ({
-    fill,
-    priority,
-    unoptimized,
-    blurDataURL,
-    placeholder,
-    quality,
-    loader,
+    fill: _fill,
+    priority: _priority,
+    unoptimized: _unoptimized,
+    blurDataURL: _blurDataURL,
+    placeholder: _placeholder,
+    quality: _quality,
+    loader: _loader,
     ...props
-  }: any) => {
+  }: {
+    fill?: boolean;
+    priority?: boolean;
+    unoptimized?: boolean;
+    blurDataURL?: string;
+    placeholder?: string;
+    quality?: number;
+    loader?: unknown;
+    src: string;
+    alt: string;
+    [key: string]: unknown;
+  }) => {
+    // These Next.js Image props are intentionally stripped - they don't apply to native <img>
+    void [_fill, _priority, _unoptimized, _blurDataURL, _placeholder, _quality, _loader];
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
     return <img {...props} />;
   },
