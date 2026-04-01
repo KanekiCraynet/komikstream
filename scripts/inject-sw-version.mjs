@@ -28,7 +28,9 @@ const buildId = readFileSync(BUILD_ID_PATH, "utf8").trim();
 const sw = readFileSync(SW_PATH, "utf8");
 
 if (!sw.includes(PLACEHOLDER)) {
-  console.warn(`[inject-sw-version] Placeholder "${PLACEHOLDER}" not found in sw.js — already injected?`);
+  console.warn(
+    `[inject-sw-version] Placeholder "${PLACEHOLDER}" not found in sw.js — already injected?`
+  );
   process.exit(0);
 }
 
