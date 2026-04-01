@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.9] - 2026-04-01
+
+### Bug Fixes
+- fix(ci): add HTTP headers to bypass Cloudflare bot protection (52ab82e)
+
+
 ## [0.31.8] - 2026-04-01
 
 ### Bug Fixes
