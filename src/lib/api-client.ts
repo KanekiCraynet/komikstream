@@ -17,6 +17,7 @@ import type {
   AnimeBatchDownload,
   Komik,
   KomikChapter,
+  KomikChapterData,
   KomikImage,
   PaginatedResult,
 } from "@/types";
@@ -667,6 +668,66 @@ export async function getKomikImages(chapterId: string): Promise<KomikImage[]> {
     url,
     page: index + 1,
   }));
+}
+
+/**
+ * Fetches full chapter data including manga info and navigation.
+ * Used for the new /chapter/[chapterId] route where mangaId is not in the URL.
+ */
+export async function getKomikChapterData(chapterId: string): Promise<KomikChapterData | null> {
+  try {
+    const res = await fetchWithCache<RawComicChapterData>(
+      `${BASE_URL}/comic/chapter/${chapterId}`,
+      CACHE_TIMES.IMAGES,
+      1,
+      COMIC_HEADERS
+    );
+
+    if (!res || !res.manga_title) {
+      return null;
+    }
+
+    // Extract manga slug from chapter_id (e.g., "manga-name-chapter-1" -> "manga-name")
+    // The chapter slug format is: {manga-slug}-chapter-{number}
+    const mangaSlug = extractMangaSlugFromChapter(chapterId, res.manga_title);
+
+    const imageUrls = ensureArray(res?.images);
+    return {
+      mangaTitle: res.manga_title,
+      mangaSlug,
+      chapterTitle: res.chapter_title || `Chapter`,
+      navigation: {
+        previousChapter: res.navigation?.previousChapter || null,
+        nextChapter: res.navigation?.nextChapter || null,
+      },
+      images: imageUrls.map((url: string, index: number) => ({
+        url,
+        page: index + 1,
+      })),
+    };
+  } catch (err) {
+    console.warn(`[api-client] getKomikChapterData failed for ${chapterId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Extracts manga slug from chapter ID.
+ * Chapter IDs follow format: {manga-slug}-chapter-{number}
+ * Falls back to slugifying the manga title if pattern doesn't match.
+ */
+function extractMangaSlugFromChapter(chapterId: string, mangaTitle: string): string {
+  // Try to extract from chapter ID by removing "-chapter-{number}" suffix
+  const chapterMatch = chapterId.match(/^(.+)-chapter-\d+$/i);
+  if (chapterMatch) {
+    return chapterMatch[1];
+  }
+
+  // Fallback: slugify the manga title
+  return mangaTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 // ==================== KOMIK — NEW ENDPOINTS ====================

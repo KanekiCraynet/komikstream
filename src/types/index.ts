@@ -30,6 +30,17 @@ export interface KomikImage {
   page?: number;
 }
 
+export interface KomikChapterData {
+  mangaTitle: string;
+  mangaSlug: string;
+  chapterTitle: string;
+  navigation: {
+    previousChapter: string | null;
+    nextChapter: string | null;
+  };
+  images: KomikImage[];
+}
+
 // ==================== ANIME TYPES ====================
 
 export interface Anime {

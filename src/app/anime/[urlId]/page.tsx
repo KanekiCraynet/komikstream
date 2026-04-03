@@ -260,7 +260,7 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
             {episodes.length > 0 && (
               <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
                 <Link
-                  href={`/anime/watch/${urlId}/${episodes[0].url || episodes[0].episodeId}`}
+                  href={`/watch/${urlId}/${episodes[0].url || episodes[0].episodeId}`}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-colors"
                 >
                   <Play className="h-4 w-4 fill-current" />
@@ -268,7 +268,7 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
                 </Link>
                 {episodes.length > 1 && (
                   <Link
-                    href={`/anime/watch/${urlId}/${episodes[episodes.length - 1].url || episodes[episodes.length - 1].episodeId}`}
+                    href={`/watch/${urlId}/${episodes[episodes.length - 1].url || episodes[episodes.length - 1].episodeId}`}
                     className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-colors"
                   >
                     <Film className="h-4 w-4" />
@@ -304,7 +304,7 @@ async function AnimeDetailContent({ urlId }: { urlId: string }) {
             {episodes.map((episode, index) => (
               <Link
                 key={episode.url || episode.episodeId || index}
-                href={`/anime/watch/${urlId}/${episode.url || episode.episodeId}`}
+                href={`/watch/${urlId}/${episode.url || episode.episodeId}`}
                 className="border-border bg-card hover:border-primary/50 hover:bg-accent group flex items-center justify-between rounded-lg border p-4 transition-colors"
               >
                 <div className="flex items-center gap-3">

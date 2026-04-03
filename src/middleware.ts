@@ -20,6 +20,35 @@ const isPublicApiRoute = createRouteMatcher([
   "/sitemap(.*)",
 ]);
 
+/**
+ * Handle 301 redirects for old URL structures to new SEO-friendly URLs.
+ * - Old: /komik/{mangaId}/{chapterId} -> New: /chapter/{chapterId}
+ * - Old: /anime/watch/{animeUrlId}/{episodeId} -> New: /watch/{animeUrlId}/{episodeId}
+ */
+function handleUrlRedirects(req: NextRequest): NextResponse | null {
+  const { pathname, search } = req.nextUrl;
+
+  // Redirect old chapter URLs: /komik/{mangaId}/{chapterId} -> /chapter/{chapterId}
+  // Only match paths with exactly 3 segments under /komik/ (the chapter reader)
+  // Don't redirect /komik/{mangaId} (detail page)
+  const chapterMatch = pathname.match(/^\/komik\/[^/]+\/([^/]+)$/);
+  if (chapterMatch) {
+    const chapterId = chapterMatch[1];
+    const newUrl = new URL(`/chapter/${chapterId}${search}`, req.url);
+    return NextResponse.redirect(newUrl, 301);
+  }
+
+  // Redirect old anime watch URLs: /anime/watch/{animeUrlId}/{episodeId} -> /watch/{animeUrlId}/{episodeId}
+  const watchMatch = pathname.match(/^\/anime\/watch\/([^/]+)\/([^/]+)$/);
+  if (watchMatch) {
+    const [, animeUrlId, episodeId] = watchMatch;
+    const newUrl = new URL(`/watch/${animeUrlId}/${episodeId}${search}`, req.url);
+    return NextResponse.redirect(newUrl, 301);
+  }
+
+  return null;
+}
+
 // Clerk middleware handler
 // Pass keys explicitly via lazy getters so they are read at request time
 // (after CF Workers' populateProcessEnv runs), not at module init time
@@ -70,6 +99,13 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   // If no Worker trace ID is present (e.g. direct Azure access), generate one.
   const traceId = req.headers.get("x-trace-id") ?? crypto.randomUUID();
   req.headers.set("x-trace-id", traceId);
+
+  // Handle 301 redirects for old URL structures (before other checks)
+  const redirectResponse = handleUrlRedirects(req);
+  if (redirectResponse) {
+    redirectResponse.headers.set("x-trace-id", traceId);
+    return redirectResponse;
+  }
 
   // Verify request came through the CF Worker (structural security control).
   // Azure IP allowlist is the first layer; this token is the second layer.

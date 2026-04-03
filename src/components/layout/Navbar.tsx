@@ -32,16 +32,16 @@ export function Navbar({ clerkEnabled = false }: NavbarProps) {
 
   return (
     <>
-      <header className="border-border/40 bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b shadow-sm backdrop-blur-xl">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-700/50 bg-slate-900/95 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-900/80">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="bg-primary shadow-primary/25 flex h-9 w-9 items-center justify-center rounded-xl shadow-lg">
-              <Book className="text-primary-foreground h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+              <Book className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold">
-              <span className="text-primary">{siteConfig.logoParts[0]}</span>
-              <span>{siteConfig.logoParts[1]}</span>
+              <span className="text-blue-400">{siteConfig.logoParts[0]}</span>
+              <span className="text-white">{siteConfig.logoParts[1]}</span>
             </span>
           </Link>
 
@@ -57,8 +57,8 @@ export function Navbar({ clerkEnabled = false }: NavbarProps) {
                   className={cn(
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      ? "bg-blue-500/10 text-blue-400"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   )}
                 >
                   <item.icon className="h-4 w-4" />

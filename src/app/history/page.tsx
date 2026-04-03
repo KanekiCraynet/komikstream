@@ -144,8 +144,8 @@ export default function HistoryPage() {
                 <Link
                   href={
                     item.type === "komik"
-                      ? `/komik/${item.itemId}/${item.progress}`
-                      : `/anime/watch/${item.itemId}/${item.progress}`
+                      ? `/chapter/${item.progress}`
+                      : `/watch/${item.itemId}/${item.progress}`
                   }
                   className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
                 >

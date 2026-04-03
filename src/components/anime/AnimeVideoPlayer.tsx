@@ -112,7 +112,7 @@ export default function AnimeVideoPlayer({ episodeId, animeUrlId, reso }: AnimeV
               {availableResolutions.map((r) => (
                 <Link
                   key={r}
-                  href={`/anime/watch/${animeUrlId}/${episodeId}?reso=${r}`}
+                  href={`/watch/${animeUrlId}/${episodeId}?reso=${r}`}
                   className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
                     reso === r
                       ? "bg-primary text-primary-foreground"

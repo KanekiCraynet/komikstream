@@ -16,7 +16,7 @@ interface EpisodeNavigationProps {
 }
 
 function getEpisodeUrl(animeUrlId: string, episode: AnimeEpisode): string {
-  return `/anime/watch/${animeUrlId}/${episode.url || episode.episodeId}`;
+  return `/watch/${animeUrlId}/${episode.url || episode.episodeId}`;
 }
 
 export default function EpisodeNavigation({

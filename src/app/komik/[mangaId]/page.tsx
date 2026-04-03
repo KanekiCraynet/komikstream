@@ -240,14 +240,14 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
             {chapters.length > 0 && (
               <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
                 <Link
-                  href={`/komik/${mangaId}/${chapters[0].chapter_id}`}
+                  href={`/chapter/${chapters[0].chapter_id}`}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-colors"
                 >
                   <BookOpen className="h-4 w-4" />
                   Baca Chapter Pertama
                 </Link>
                 <Link
-                  href={`/komik/${mangaId}/${chapters[chapters.length - 1].chapter_id}`}
+                  href={`/chapter/${chapters[chapters.length - 1].chapter_id}`}
                   className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-colors"
                 >
                   <Book className="h-4 w-4" />
@@ -277,7 +277,7 @@ async function KomikDetailContent({ mangaId }: { mangaId: string }) {
             {chapters.map((chapter) => (
               <Link
                 key={chapter.chapter_id}
-                href={`/komik/${mangaId}/${chapter.chapter_id}`}
+                href={`/chapter/${chapter.chapter_id}`}
                 className="border-border bg-card hover:border-primary/50 hover:bg-accent group flex items-center justify-between rounded-lg border p-4 transition-colors"
               >
                 <div className="flex items-center gap-3">

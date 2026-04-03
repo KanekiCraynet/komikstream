@@ -107,7 +107,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       }));
     }
 
-    // Komik chapter pages
+    // Komik chapter pages (new URL structure: /chapter/{chapterId})
     if (numId === 3) {
       const komikList = await prisma.komik.findMany({
         select: { mangaId: true, chapters: true, lastScraped: true },
@@ -121,7 +121,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
         for (const ch of chapters) {
           if (!ch.chapter_id) continue;
           entries.push({
-            url: `${baseUrl}/komik/${k.mangaId}/${ch.chapter_id}`,
+            url: `${baseUrl}/chapter/${ch.chapter_id}`,
             lastModified: k.lastScraped,
             changeFrequency: "monthly" as const,
             priority: 0.6,
@@ -133,7 +133,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       return entries;
     }
 
-    // Anime episode pages
+    // Anime episode pages (new URL structure: /watch/{animeUrlId}/{episodeId})
     if (numId === 4) {
       const animeList = await prisma.anime.findMany({
         select: { urlId: true, episodes: true, lastScraped: true },
@@ -148,7 +148,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
           const epId = ep.url || ep.episodeId;
           if (!epId) continue;
           entries.push({
-            url: `${baseUrl}/anime/watch/${a.urlId}/${epId}`,
+            url: `${baseUrl}/watch/${a.urlId}/${epId}`,
             lastModified: a.lastScraped,
             changeFrequency: "monthly" as const,
             priority: 0.6,

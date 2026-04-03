@@ -424,6 +424,6 @@ export async function getCachedKomikChapterList(mangaId: string): Promise<KomikC
 // These don't need DB caching (too dynamic or already ISR-cached)
 
 export { getKomikChapterList } from "./api-client";
-export { searchAnime, searchKomik, getKomikImages } from "./api-client";
+export { searchAnime, searchKomik, getKomikImages, getKomikChapterData } from "./api-client";
 export { getAnimeMovie, getAnimeLatest, getAnimeRecommended } from "./api-client";
 export { getKomikLatest, getKomikPopular, getKomikRecommended } from "./api-client";

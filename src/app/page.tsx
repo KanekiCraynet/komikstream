@@ -1,12 +1,6 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/query-client";
-import {
-  HeroSection,
-  KomikLatestSection,
-  KomikPopularSection,
-  AnimeLatestSection,
-  AnimeRecommendedSection,
-} from "@/components/home";
+import { HomePageContent } from "@/components/home";
 import {
   getKomikLatest,
   getKomikPopular,
@@ -64,15 +58,8 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="flex flex-col">
-      <HeroSection />
-
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <KomikLatestSection />
-        <AnimeLatestSection />
-        <KomikPopularSection />
-        <AnimeRecommendedSection />
-      </HydrationBoundary>
-    </div>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <HomePageContent />
+    </HydrationBoundary>
   );
 }
