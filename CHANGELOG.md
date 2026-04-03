@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.32.0] - 2026-04-03
+
+### Features
+- feat: redesign homepage with MihariNovel-inspired UI and SEO-friendly URLs (4b60025)
+
+
 ## [0.31.14] - 2026-04-01
 
 ### Bug Fixes
