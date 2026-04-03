@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.33.0] - 2026-04-03
+
+### Features
+- feat(homepage): improve sidebar, genre filter, and completed section (fe56c4b)
+
+### Tests
+- test: add tests for HeroCarousel, CategoryFilter, and HomeSidebar (af5288d)
+
+
 ## [0.32.0] - 2026-04-03
 
 ### Features
