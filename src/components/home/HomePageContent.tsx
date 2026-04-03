@@ -6,6 +6,7 @@ import { UpdateTerbaruSection, OngoingSection, CompletedSection } from "./sectio
 import { useKomikLatest, useKomikPopular } from "@/hooks/useKomik";
 import { useAnimeLatest, useAnimeRecommended } from "@/hooks/useAnime";
 import type { Komik, Anime } from "@/types";
+import { cn } from "@/lib/utils";
 
 // Type for featured items in the hero carousel
 type FeaturedItem = (Komik | Anime) & { itemType: "komik" | "anime" };
@@ -108,12 +109,17 @@ export function HomePageContent() {
             />
           </main>
 
-          {/* Sidebar - Hidden on mobile, shown on lg+ */}
-          <aside className="hidden lg:block lg:w-80 lg:shrink-0">
+          {/* Sidebar - Hidden on mobile, vertical on lg+ */}
+          <aside className="hidden lg:block lg:w-64 lg:shrink-0">
             <div className="sticky top-24">
               <HomeSidebar rankingItems={rankingItems} />
             </div>
           </aside>
+        </div>
+
+        {/* Tablet Sidebar - Horizontal layout at md breakpoint */}
+        <div className="mt-8 hidden md:block lg:hidden">
+          <HomeSidebar rankingItems={rankingItems} variant="horizontal" />
         </div>
       </div>
     </div>

@@ -290,8 +290,8 @@ export function CompletedSection({ title, items, type, href, isLoading }: Comple
     return (
       <section className="py-6">
         <SectionHeader title={title} icon={icon} href={href} />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-muted h-64 animate-pulse rounded-lg" />
           ))}
         </div>
@@ -305,8 +305,8 @@ export function CompletedSection({ title, items, type, href, isLoading }: Comple
     <section className="py-6">
       <SectionHeader title={title} icon={icon} href={`${href}?status=completed`} />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        {finalItems.slice(0, 6).map((item, index) => (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        {finalItems.slice(0, 8).map((item, index) => (
           <Card
             key={type === "komik" ? (item as Komik).manga_id : (item as Anime).urlId}
             item={item}

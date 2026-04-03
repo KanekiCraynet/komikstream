@@ -20,6 +20,8 @@ type RankingPeriod = "daily" | "weekly" | "monthly";
 interface HomeSidebarProps {
   rankingItems?: RankingItem[];
   className?: string;
+  /** Layout variant: vertical (default) or horizontal (for tablet) */
+  variant?: "vertical" | "horizontal";
 }
 
 // ─── Top Readers Card ───────────────────────────────────────────────
@@ -271,7 +273,23 @@ function RankingsSection({ items }: RankingsSectionProps) {
 
 // ─── Main Sidebar Component ─────────────────────────────────────────
 
-export function HomeSidebar({ rankingItems = [], className }: HomeSidebarProps) {
+export function HomeSidebar({
+  rankingItems = [],
+  className,
+  variant = "vertical",
+}: HomeSidebarProps) {
+  if (variant === "horizontal") {
+    // Horizontal layout for tablet (md breakpoint)
+    return (
+      <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-3", className)}>
+        <TopReadersCard />
+        <AnnouncementsCard />
+        <RankingsSection items={rankingItems} />
+      </div>
+    );
+  }
+
+  // Default vertical layout for desktop sidebar
   return (
     <aside className={cn("space-y-4", className)}>
       <TopReadersCard />

@@ -25,7 +25,14 @@ import {
   getKomikLatest,
   getKomikPopular,
 } from "./api-client";
-import { findCachedAnime, upsertCachedAnime, findCachedKomik, upsertCachedKomik } from "./db";
+import {
+  findCachedAnime,
+  upsertCachedAnime,
+  findCachedKomik,
+  upsertCachedKomik,
+  getKomikGenresBatch,
+  getAnimeGenresBatch,
+} from "./db";
 import { isDatabaseConfigured } from "./prisma";
 import { logger } from "./logger";
 import { kvCacheGet, kvCachePut } from "./kv-cache";
@@ -382,6 +389,48 @@ export async function getCachedKomikDetail(mangaId: string): Promise<Komik | nul
 }
 
 // ─── Cached List Endpoints (API-first + background cache warming) ───
+
+/**
+ * Enrich komik list items with genres from DB cache.
+ * Items without cached genres will have empty genres array.
+ */
+export async function enrichKomikWithGenres(items: Komik[]): Promise<Komik[]> {
+  if (!isDatabaseConfigured() || items.length === 0) return items;
+
+  try {
+    const mangaIds = items.map((k) => k.manga_id);
+    const genresMap = await getKomikGenresBatch(mangaIds);
+
+    return items.map((item) => ({
+      ...item,
+      genres: genresMap.get(item.manga_id) ?? item.genres ?? [],
+    }));
+  } catch (err) {
+    logger.debug("Failed to enrich komik with genres", { error: String(err) });
+    return items;
+  }
+}
+
+/**
+ * Enrich anime list items with genres from DB cache.
+ * Items without cached genres will have empty genres array.
+ */
+export async function enrichAnimeWithGenres(items: Anime[]): Promise<Anime[]> {
+  if (!isDatabaseConfigured() || items.length === 0) return items;
+
+  try {
+    const urlIds = items.map((a) => a.urlId);
+    const genresMap = await getAnimeGenresBatch(urlIds);
+
+    return items.map((item) => ({
+      ...item,
+      genres: genresMap.get(item.urlId) ?? item.genres ?? [],
+    }));
+  } catch (err) {
+    logger.debug("Failed to enrich anime with genres", { error: String(err) });
+    return items;
+  }
+}
 
 /**
  * Homepage data with background cache warming.

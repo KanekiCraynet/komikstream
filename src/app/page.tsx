@@ -7,6 +7,7 @@ import {
   getAnimeLatest,
   getAnimeRecommended,
 } from "@/lib/api-client";
+import { enrichKomikWithGenres, enrichAnimeWithGenres } from "@/lib/api-cached";
 import type { Metadata } from "next";
 import { siteConfig } from "@/lib/site-config";
 
@@ -38,22 +39,35 @@ export default async function HomePage() {
   const queryClient = makeQueryClient();
 
   // Prefetch all homepage data in parallel on the server
+  // Enrich list items with genres from DB cache for filter functionality
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.komikLatest,
-      queryFn: () => getKomikLatest("mirror"),
+      queryFn: async () => {
+        const data = await getKomikLatest("mirror");
+        return enrichKomikWithGenres(data);
+      },
     }),
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.komikPopular,
-      queryFn: () => getKomikPopular(1),
+      queryFn: async () => {
+        const data = await getKomikPopular(1);
+        return enrichKomikWithGenres(data);
+      },
     }),
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.animeLatest,
-      queryFn: () => getAnimeLatest(),
+      queryFn: async () => {
+        const data = await getAnimeLatest();
+        return enrichAnimeWithGenres(data);
+      },
     }),
     queryClient.prefetchQuery({
       queryKey: QUERY_KEYS.animeRecommended,
-      queryFn: () => getAnimeRecommended(1),
+      queryFn: async () => {
+        const data = await getAnimeRecommended(1);
+        return enrichAnimeWithGenres(data);
+      },
     }),
   ]);
 

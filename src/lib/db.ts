@@ -470,6 +470,64 @@ export async function upsertCachedKomik(data: {
   }
 }
 
+// ─── DB Service: Batch Genre Fetch ──────────────────────────────────
+
+/**
+ * Fetch genres for multiple komik items by their mangaIds.
+ * Returns a Map of mangaId -> string[] (genres).
+ * Items not found in DB cache will not be in the returned map.
+ */
+export async function getKomikGenresBatch(mangaIds: string[]): Promise<Map<string, string[]>> {
+  if (mangaIds.length === 0) return new Map();
+
+  const db = await getDb();
+  try {
+    const records = await db.komik.findMany({
+      where: { mangaId: { in: mangaIds } },
+      select: { mangaId: true, genres: true },
+    });
+
+    const result = new Map<string, string[]>();
+    for (const record of records) {
+      const genres = Array.isArray(record.genres) ? (record.genres as string[]) : [];
+      if (genres.length > 0) {
+        result.set(record.mangaId, genres);
+      }
+    }
+    return result;
+  } catch (error) {
+    mapPrismaError(error);
+  }
+}
+
+/**
+ * Fetch genres for multiple anime items by their urlIds.
+ * Returns a Map of urlId -> string[] (genres).
+ * Items not found in DB cache will not be in the returned map.
+ */
+export async function getAnimeGenresBatch(urlIds: string[]): Promise<Map<string, string[]>> {
+  if (urlIds.length === 0) return new Map();
+
+  const db = await getDb();
+  try {
+    const records = await db.anime.findMany({
+      where: { urlId: { in: urlIds } },
+      select: { urlId: true, genres: true },
+    });
+
+    const result = new Map<string, string[]>();
+    for (const record of records) {
+      const genres = Array.isArray(record.genres) ? (record.genres as string[]) : [];
+      if (genres.length > 0) {
+        result.set(record.urlId, genres);
+      }
+    }
+    return result;
+  } catch (error) {
+    mapPrismaError(error);
+  }
+}
+
 // ─── DB Service: SyncLog ────────────────────────────────────────────
 
 /**
