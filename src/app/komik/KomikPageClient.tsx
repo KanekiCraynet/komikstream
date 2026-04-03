@@ -1,115 +1,22 @@
 "use client";
 
-import { Card, SearchBar, Pagination } from "@/components/ui";
+import { Card, Pagination } from "@/components/ui";
 import { GridSkeleton } from "@/components/ui/Skeleton";
+import {
+  FeaturedSpotlight,
+  StickyFilterBar,
+  DiscoveryPanel,
+  RecommendationRow,
+} from "@/components/listing";
 import { useKomikLatest, useKomikPopular, useKomikRecommended } from "@/hooks/useKomik";
 import type { KomikType } from "@/hooks/useKomik";
-import { Book, TrendingUp, Sparkles, Filter, Palette, Library } from "lucide-react";
-import Link from "next/link";
+import { Book, TrendingUp, Sparkles, Filter } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-// ─── Static Shell (renders immediately) ─────────────────────────────
-
-function KomikHeader({ type, sort }: { type?: string; sort: string }) {
-  const types = [
-    { label: "Semua", value: undefined, href: "/komik" },
-    { label: "Manhwa", value: "manhwa", href: "/komik?type=manhwa" },
-    { label: "Manhua", value: "manhua", href: "/komik?type=manhua" },
-    { label: "Manga", value: "manga", href: "/komik?type=manga" },
-  ];
-
-  return (
-    <div className="mb-8 flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <Book className="text-primary h-8 w-8" />
-        <div>
-          <h1 className="text-3xl font-bold">Komik</h1>
-          <p className="text-muted-foreground">Baca koleksi manhwa, manhua, dan manga terlengkap</p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <SearchBar
-        placeholder="Cari judul komik..."
-        searchPath="/komik/search"
-        className="max-w-xl"
-      />
-
-      {/* Type Filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Filter className="text-muted-foreground h-4 w-4" />
-        {types.map((t) => (
-          <Link
-            key={t.label}
-            href={t.href}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              type === t.value || (!type && t.value === undefined)
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Quick Links */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href="/komik/berwarna"
-          className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-        >
-          <Palette className="h-4 w-4" />
-          Berwarna
-        </Link>
-        <Link
-          href="/komik/pustaka"
-          className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-        >
-          <Library className="h-4 w-4" />
-          Pustaka
-        </Link>
-      </div>
-
-      {/* Sort Tabs */}
-      {!type && (
-        <div className="border-border flex items-center gap-2 border-b pb-2">
-          <Link
-            href="/komik"
-            className={`-mb-[9px] border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              sort === "latest"
-                ? "border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground border-transparent"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Terbaru
-            </span>
-          </Link>
-          <Link
-            href="/komik?sort=popular"
-            className={`-mb-[9px] border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              sort === "popular"
-                ? "border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground border-transparent"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Populer
-            </span>
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Client Data Grid (fetches via TanStack Query) ──────────────────
+// ─── Main Grid Component ─────────────────────────────────────────────
 
 function KomikMainGrid({ type, sort, page }: { type?: KomikType; sort: string; page: number }) {
-  // Only fetch what's needed based on current filters
+  // Fetch data based on filters
   const { data: latestKomik, isLoading: loadingLatest } = useKomikLatest("mirror");
   const { data: popularKomik, isLoading: loadingPopular } = useKomikPopular(page);
   const { data: recommendedKomik, isLoading: loadingRecommended } = useKomikRecommended(
@@ -119,7 +26,7 @@ function KomikMainGrid({ type, sort, page }: { type?: KomikType; sort: string; p
   const isLoading = type ? loadingRecommended : sort === "popular" ? loadingPopular : loadingLatest;
 
   if (isLoading) {
-    return <KomikGridSkeleton />;
+    return <GridSkeleton count={18} />;
   }
 
   // Determine display data based on filters
@@ -134,103 +41,70 @@ function KomikMainGrid({ type, sort, page }: { type?: KomikType; sort: string; p
     const urlParams = new URLSearchParams();
     if (type) urlParams.set("type", type);
     if (sort !== "latest") urlParams.set("sort", sort);
-    return `/komik?${urlParams.toString()}`;
+    const queryString = urlParams.toString();
+    return queryString ? `/komik?${queryString}` : "/komik";
   };
 
   const estimatedTotalPages = sort === "popular" ? 10 : 1;
 
+  if (displayKomik.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Book className="mb-4 h-16 w-16 text-slate-600" />
+        <p className="text-lg font-medium text-slate-300">Tidak ada komik ditemukan</p>
+        <p className="text-sm text-slate-500">Coba filter atau pencarian yang berbeda</p>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Main Grid */}
-      <section className="mb-12">
-        <div className="mb-6 flex items-center gap-2">
+      {/* Section header */}
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {sort === "popular" ? (
-            <TrendingUp className="text-primary h-5 w-5" />
+            <TrendingUp className="h-5 w-5 text-amber-400" />
+          ) : type ? (
+            <Filter className="h-5 w-5 text-amber-400" />
           ) : (
-            <Sparkles className="text-primary h-5 w-5" />
+            <Sparkles className="h-5 w-5 text-amber-400" />
           )}
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-white">
             {type
               ? `Rekomendasi ${type.charAt(0).toUpperCase() + type.slice(1)}`
               : sort === "popular"
                 ? "Komik Populer"
                 : "Komik Terbaru"}
           </h2>
-          {sort === "popular" && (
-            <span className="text-muted-foreground ml-2 text-sm">Halaman {page}</span>
-          )}
         </div>
-
-        {displayKomik.length > 0 ? (
-          <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {displayKomik.map((komik, index) => (
-                <Card key={komik.manga_id} item={komik} type="komik" index={index} />
-              ))}
-            </div>
-
-            {/* Pagination for popular sort */}
-            {sort === "popular" && (
-              <Pagination
-                currentPage={page}
-                totalPages={estimatedTotalPages}
-                baseUrl={buildPaginationUrl()}
-                className="mt-8"
-              />
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Book className="text-muted-foreground/50 mb-4 h-16 w-16" />
-            <p className="text-lg font-medium">Tidak ada komik ditemukan</p>
-            <p className="text-muted-foreground text-sm">Coba filter atau pencarian yang berbeda</p>
-          </div>
+        {(sort === "popular" || type) && (
+          <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-400">
+            Halaman {page}
+          </span>
         )}
-      </section>
+      </div>
 
-      {/* Popular Section (if not already showing popular) */}
-      {sort !== "popular" && !type && (popularKomik ?? []).length > 0 && (
-        <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="text-primary h-5 w-5" />
-              <h2 className="text-xl font-bold">Komik Populer</h2>
-            </div>
-            <Link href="/komik?sort=popular" className="text-primary text-sm hover:underline">
-              Lihat Semua
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {(popularKomik ?? []).slice(0, 6).map((komik, index) => (
-              <Card key={komik.manga_id} item={komik} type="komik" index={index} />
-            ))}
-          </div>
-        </section>
+      {/* Main grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5">
+        {displayKomik.map((komik, index) => (
+          <Card key={komik.manga_id} item={komik} type="komik" index={index} />
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {(sort === "popular" || type) && (
+        <Pagination
+          currentPage={page}
+          totalPages={estimatedTotalPages}
+          baseUrl={buildPaginationUrl()}
+          className="mt-10"
+        />
       )}
     </>
   );
 }
 
-// ─── Loading Skeleton ────────────────────────────────────────────────
-
-function KomikGridSkeleton() {
-  return (
-    <div className="space-y-8">
-      <section className="mb-12">
-        <div className="mb-6 flex items-center gap-2">
-          <div className="bg-muted h-5 w-5 animate-pulse rounded" />
-          <div className="bg-muted h-7 w-40 animate-pulse rounded" />
-        </div>
-        <GridSkeleton count={12} />
-      </section>
-    </div>
-  );
-}
-
 // ─── Page Component ─────────────────────────────────────────────────
-// This is now a client component. The page shell with metadata is
-// handled by the layout; this component reads searchParams client-side
-// via useSearchParams() and fetches data via TanStack Query hooks.
 
 export default function KomikPageClient() {
   const searchParams = useSearchParams();
@@ -238,13 +112,67 @@ export default function KomikPageClient() {
   const sort = searchParams.get("sort") || "latest";
   const page = parseInt(searchParams.get("page") || "1", 10) || 1;
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Static header renders instantly */}
-      <KomikHeader type={type ?? undefined} sort={sort} />
+  // Data for spotlight and recommendations
+  const { data: latestKomik } = useKomikLatest("mirror");
+  const { data: popularKomik } = useKomikPopular(1);
+  const { data: recommendedKomik } = useKomikRecommended("manhwa");
 
-      {/* Data grid fetches client-side via TanStack Query hooks */}
-      <KomikMainGrid type={type ?? undefined} sort={sort} page={page} />
+  // Spotlight items - use popular or latest
+  const spotlightItems = (popularKomik ?? latestKomik ?? []).slice(0, 5);
+
+  // Trending items for sidebar - prioritize popular
+  const trendingItems = (popularKomik ?? []).slice(0, 5);
+
+  // Recommendation items - different from main grid
+  const recommendationItems = (recommendedKomik ?? latestKomik ?? []).slice(0, 12);
+
+  return (
+    <div className="min-h-screen bg-slate-950">
+      {/* Featured Spotlight - Full width, no container */}
+      <FeaturedSpotlight items={spotlightItems} variant="komik" autoRotateInterval={8000} />
+
+      {/* Sticky Filter Bar */}
+      <StickyFilterBar variant="komik" />
+
+      {/* Main Content */}
+      <div className="mx-auto max-w-screen-2xl px-4 py-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
+          {/* Main Content Area */}
+          <main className="min-w-0 flex-1">
+            {/* Main Grid */}
+            <KomikMainGrid type={type ?? undefined} sort={sort} page={page} />
+
+            {/* Recommendation Row - Show when not filtered */}
+            {!type && sort === "latest" && recommendationItems.length > 0 && (
+              <div className="mt-12 border-t border-slate-800/50 pt-8">
+                <RecommendationRow
+                  title="Rekomendasi Untukmu"
+                  items={recommendationItems}
+                  variant="komik"
+                />
+              </div>
+            )}
+
+            {/* Popular Section - Show when viewing latest */}
+            {sort !== "popular" && !type && (popularKomik ?? []).length > 0 && (
+              <div className="mt-12 border-t border-slate-800/50 pt-8">
+                <RecommendationRow
+                  title="Komik Populer"
+                  items={(popularKomik ?? []).slice(0, 12)}
+                  variant="komik"
+                />
+              </div>
+            )}
+          </main>
+
+          {/* Sidebar - Discovery Panel */}
+          <aside className="w-full shrink-0 lg:w-72 xl:w-80">
+            <div className="sticky top-20">
+              <DiscoveryPanel variant="komik" trendingItems={trendingItems} />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

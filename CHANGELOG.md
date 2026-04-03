@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.33.1] - 2026-04-04
+
+### Features
+- feat: redesign /komik and /anime listing pages with app-like mobile-first design
+  - Add FeaturedSpotlight component with auto-rotate (8s), swipe gestures, and dot indicators
+  - Add StickyFilterBar component with glassmorphism, hide on scroll down/show on scroll up
+  - Add DiscoveryPanel component with trending list, realtime stats, and quick access links
+  - Add RecommendationRow component with horizontal scroll and fade gradients
+  - Add useScrollDirection hook for scroll behavior detection
+  - Add useListingStats hooks (useKomikStats, useAnimeStats) for deriving stats from API
+  - Add formatNumber utility for displaying stats like "12.5K"
+  - Komik page: amber/orange accent colors
+  - Anime page: blue/indigo accent colors
+  - Both pages: dark slate-950 background, sidebar layout, page-based pagination
+
+
 ## [0.33.0] - 2026-04-03
 
 ### Features
