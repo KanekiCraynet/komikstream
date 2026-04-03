@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.33.1] - 2026-04-03
+
+### Refactoring
+- refactor(listing): add modular listing components and improve page clients (884236c)
+
+
 ## [0.33.1] - 2026-04-04
 
 ### Features
