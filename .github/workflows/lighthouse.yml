@@ -33,7 +33,7 @@ jobs:
           next-cache: "true"
 
       - name: Build application
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
@@ -41,7 +41,7 @@ jobs:
           SKIP_DB_CONNECTION: "true"
 
       - name: Start server
-        run: npm start &
+        run: pnpm start &
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"

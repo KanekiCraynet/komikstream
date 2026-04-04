@@ -22,29 +22,34 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+      with:
+        run_install: false
+
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version-file: ${{ inputs.node-version-file }}
-        cache: "npm"
+        cache: "pnpm"
 
     - name: Install dependencies
       shell: bash
-      run: npm ci
+      run: pnpm install --frozen-lockfile
 
     - name: Generate Prisma Client
       if: inputs.prisma-generate == 'true'
       shell: bash
-      run: npx prisma generate
+      run: pnpm exec prisma generate
 
     - name: Cache Next.js build
       if: inputs.next-cache == 'true'
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: .next/cache
-        key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**/*.[jt]s', 'src/**/*.[jt]sx') }}
+        key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.[jt]s', 'src/**/*.[jt]sx') }}
         restore-keys: |
-          nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+          nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
           nextjs-${{ runner.os }}-
 
     - name: Cache Playwright browsers
@@ -53,14 +58,14 @@ runs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ inputs.playwright-browsers }}
+        key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ inputs.playwright-browsers }}
 
     - name: Install Playwright Browsers
       if: inputs.playwright-browsers != '' && steps.playwright-cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npx playwright install --with-deps ${{ inputs.playwright-browsers }}
+      run: pnpm exec playwright install --with-deps ${{ inputs.playwright-browsers }}
 
     - name: Install Playwright system dependencies (cache hit)
       if: inputs.playwright-browsers != '' && steps.playwright-cache.outputs.cache-hit == 'true'
       shell: bash
-      run: npx playwright install-deps ${{ inputs.playwright-browsers }}
+      run: pnpm exec playwright install-deps ${{ inputs.playwright-browsers }}

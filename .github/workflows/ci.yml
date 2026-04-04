@@ -38,22 +38,22 @@ jobs:
           prisma-generate: "true"
 
       - name: Run ESLint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Check Prettier formatting
-        run: npm run format:check
+        run: pnpm run format:check
 
       - name: Run TypeScript type check
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Validate Prisma schema
-        run: npx prisma validate
+        run: pnpm exec prisma validate
 
       - name: Check Prisma schema formatting
         run: |
-          npx prisma format
+          pnpm exec prisma format
           if ! git diff --exit-code --quiet prisma/schema.prisma; then
-            echo "::error::Prisma schema is not formatted. Run 'npx prisma format' locally and commit."
+            echo "::error::Prisma schema is not formatted. Run 'pnpm exec prisma format' locally and commit."
             git diff prisma/schema.prisma
             exit 1
           fi
@@ -74,7 +74,7 @@ jobs:
           prisma-generate: "true"
 
       - name: Run tests with coverage
-        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text
+        run: pnpm test -- --coverage --coverageReporters=lcov --coverageReporters=text
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0561704f0f02c16a585d4c7555e57fa2e44cf909 # v5.5.2
@@ -115,7 +115,7 @@ jobs:
         # DATABASE_URL uses a dummy value so Prisma doesn't throw during
         # module load; no actual DB connection is made at build time.
         # Real values are injected only in the production deploy workflow.
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
@@ -151,11 +151,11 @@ jobs:
       - name: Setup project
         uses: ./.github/actions/setup
 
-      - name: Run npm audit (critical)
-        run: npm audit --audit-level=critical
+      - name: Run pnpm audit (critical)
+        run: pnpm audit --audit-level=critical
 
-      - name: Run npm audit (high — advisory)
-        run: npm audit --audit-level=high
+      - name: Run pnpm audit (high — advisory)
+        run: pnpm audit --audit-level=high
         continue-on-error: true
 
       - name: Gitleaks - Check for secrets

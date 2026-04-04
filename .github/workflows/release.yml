@@ -128,11 +128,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          run_install: false
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: ".node-version"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Configure Git
         run: |
@@ -143,7 +148,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
         run: |
-          npm version "${RELEASE_VERSION}" --no-git-tag-version
+          pnpm version "${RELEASE_VERSION}" --no-git-tag-version
 
       - name: Generate Changelog
         id: changelog
@@ -282,7 +287,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
         run: |
-          git add package.json package-lock.json CHANGELOG.md
+          git add package.json CHANGELOG.md
           git commit -m "chore(release): v${RELEASE_VERSION} [skip ci]"
 
       - name: Create and push tag
