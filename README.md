@@ -306,6 +306,105 @@ npm start
 
 ## 📈 Monitoring (Optional)
 
+### Production Architecture
+
+KuroManga uses a **dual-environment architecture** for optimal performance and reliability:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        User Request                             │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Cloudflare Worker (Edge Proxy)                     │
+│  • Global edge locations (low latency)                          │
+│  • L1 Cache: CF Cache API (5-15 min TTL)                        │
+│  • API Proxy: Bypasses origin IP blocks                         │
+│  • Analytics: CF Analytics Engine                               │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               Azure App Service (Origin)                        │
+│  • Next.js SSR with full Node.js runtime                        │
+│  • L2 Cache: PostgreSQL (Supabase) with TTL                     │
+│  • L3: External API (sankavollerei.com)                         │
+│  • L4: Stale fallback (expired DB cache)                        │
+│  • Observability: Azure Application Insights                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Caching tiers:**
+| Tier | Location | TTL | Purpose |
+|------|----------|-----|---------|
+| L1 | CF Cache API | 5-15 min | Edge caching, reduces origin load |
+| L2 | PostgreSQL | 30 min | DB cache with structured data |
+| L3 | External API | ISR | Fresh data from source |
+| L4 | Stale DB | ∞ | Fallback when API is blocked/down |
+
+### Azure Application Insights
+
+The app tracks comprehensive metrics via Azure App Insights:
+
+**Events tracked:**
+- `cache_hit` / `cache_miss` / `cache_stale` — Per-tier cache performance
+- `api_success` / `api_error` / `api_retry` / `api_timeout` — External API health
+- `rate_limit_hit` — 429 responses from external API
+- `db_error` — Database connection/query failures
+
+**KQL Queries for App Insights:**
+
+```kusto
+// Cache hit rate by tier (last 24h)
+customEvents
+| where timestamp > ago(24h)
+| where name in ("cache_hit", "cache_miss", "cache_stale")
+| summarize count() by name, tostring(customDimensions.cacheTier)
+| render piechart
+
+// API latency percentiles (last 1h)
+customMetrics
+| where timestamp > ago(1h)
+| where name endswith "_duration_ms"
+| summarize 
+    p50=percentile(value, 50),
+    p95=percentile(value, 95),
+    p99=percentile(value, 99)
+  by name
+| order by p95 desc
+
+// External API error rate (last 6h)
+customEvents
+| where timestamp > ago(6h)
+| where name in ("api_success", "api_error", "api_timeout", "rate_limit_hit")
+| summarize count() by name, bin(timestamp, 15m)
+| render timechart
+
+// Stale fallback usage (indicates API issues)
+customEvents
+| where timestamp > ago(24h)
+| where name == "cache_stale"
+| summarize count() by tostring(customDimensions.contentType), bin(timestamp, 1h)
+| render timechart
+
+// Slowest endpoints (last 1h)
+customEvents
+| where timestamp > ago(1h)
+| where name == "api_success"
+| extend durationMs = toint(customMeasurements.durationMs)
+| summarize avg(durationMs), max(durationMs), count() by tostring(customDimensions.context)
+| order by avg_durationMs desc
+| take 10
+```
+
+**Recommended Alerts:**
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| High API error rate | `api_error` count > 50 in 15 min | Warning |
+| Stale fallback spike | `cache_stale` count > 20 in 15 min | Warning |
+| Rate limiting | `rate_limit_hit` count > 10 in 5 min | Critical |
+| Slow API response | P95 latency > 3000ms | Warning |
+
 ### UptimeRobot Setup
 
 1. Buat akun di [UptimeRobot](https://uptimerobot.com) (free)

@@ -1,12 +1,17 @@
 /**
  * Cached API Layer (Server-only)
  *
- * DB-first caching strategy:
+ * DB-first caching strategy with observability:
  *  1. Check DB cache (with TTL via lastScraped)
  *  2. If fresh cache hit -> return mapped data
  *  3. If miss/stale -> fetch from external API
  *  4. Upsert result to DB cache (fire-and-forget for lists)
  *  5. Return data
+ *
+ * Metrics tracked via Azure App Insights:
+ *  - Cache hit/miss per tier (DB, API, stale)
+ *  - Per-tier latency (durationMs)
+ *  - API errors and stale fallback usage
  *
  * For detail pages: full DB-first caching with TTL
  * For list pages: fetch from API, warm DB cache in background
@@ -35,8 +40,7 @@ import {
 } from "./db";
 import { isDatabaseConfigured } from "./prisma";
 import { logger } from "./logger";
-import { kvCacheGet, kvCachePut } from "./kv-cache";
-import { trackEvent } from "./analytics";
+import { trackCacheEvent, trackEvent } from "./analytics";
 
 // ─── Type Mappers: DB -> App Types ──────────────────────────────────
 
@@ -230,67 +234,106 @@ function warmKomikCacheInBackground(items: Komik[]) {
 // ─── Cached Detail Endpoints ────────────────────────────────────────
 
 /**
- * Get anime detail with three-tier caching: KV -> DB -> External API.
+ * Get anime detail with two-tier caching: DB -> External API.
  * TTL = CACHE_TIMES.DETAIL (30 minutes).
+ *
+ * Metrics tracked:
+ * - cache_hit (db tier): DB cache was fresh
+ * - cache_miss: Neither cache had fresh data
+ * - cache_stale: API failed, served expired DB cache
+ * - api_error: External API call failed
  */
 export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null> {
-  // L1: KV cache (fastest, cross-instance)
-  const kvKey = `anime:${urlId}`;
-  const kvHit = await kvCacheGet<Anime>(kvKey);
-  if (kvHit) {
-    logger.debug("Anime KV cache hit", { urlId });
-    trackEvent({ type: "cache_hit", cacheTier: "kv", contentType: "anime", contentId: urlId });
-    return kvHit;
-  }
+  const requestStart = Date.now();
 
-  // L2: Supabase DB cache
+  // L1: Supabase DB cache
   if (isDatabaseConfigured()) {
+    const dbStart = Date.now();
     try {
       const cached = await findCachedAnime(urlId, CACHE_TIMES.DETAIL);
       if (cached) {
-        logger.debug("Anime DB cache hit", { urlId });
-        trackEvent({ type: "cache_hit", cacheTier: "db", contentType: "anime", contentId: urlId });
-        const anime = mapDbAnimeToApp(cached);
-        // Backfill KV (fire-and-forget)
-        kvCachePut(kvKey, anime, CACHE_TIMES.DETAIL);
-        return anime;
+        logger.debug("Anime DB cache hit", { urlId, durationMs: Date.now() - dbStart });
+        trackCacheEvent("cache_hit", "db", "anime", urlId, dbStart);
+        return mapDbAnimeToApp(cached);
       }
-      logger.debug("Anime cache miss", { urlId });
-      trackEvent({ type: "cache_miss", contentType: "anime", contentId: urlId });
+      logger.debug("Anime cache miss", { urlId, durationMs: Date.now() - dbStart });
+      trackCacheEvent("cache_miss", "db", "anime", urlId, dbStart);
     } catch (err) {
       logger.warn("Anime DB cache read failed, falling back to API", {
         urlId,
         error: String(err),
+        durationMs: Date.now() - dbStart,
+      });
+      trackEvent({
+        type: "db_error",
+        contentType: "anime",
+        contentId: urlId,
+        durationMs: Date.now() - dbStart,
+        context: "findCachedAnime",
       });
     }
   }
 
-  // L3: External API
+  // L2: External API
+  const apiStart = Date.now();
   try {
     const anime = await getAnimeDetail(urlId);
 
-    // Write back to both caches (fire-and-forget)
-    if (anime) {
-      kvCachePut(kvKey, anime, CACHE_TIMES.DETAIL);
-      if (isDatabaseConfigured()) {
-        upsertCachedAnime(mapAppAnimeToDb(anime)).catch((err) => {
-          logger.debug("Failed to write anime DB cache", { urlId, error: String(err) });
-        });
-      }
+    // Track successful API call
+    trackEvent({
+      type: "api_success",
+      cacheTier: "api",
+      contentType: "anime",
+      contentId: urlId,
+      durationMs: Date.now() - apiStart,
+    });
+
+    // Write back to DB cache (fire-and-forget)
+    if (anime && isDatabaseConfigured()) {
+      upsertCachedAnime(mapAppAnimeToDb(anime)).catch((err) => {
+        logger.debug("Failed to write anime DB cache", { urlId, error: String(err) });
+      });
     }
+
+    logger.debug("Anime fetched from API", {
+      urlId,
+      durationMs: Date.now() - apiStart,
+      totalMs: Date.now() - requestStart,
+    });
 
     return anime;
   } catch (err) {
-    logger.warn("Anime API fallback failed", { urlId, error: String(err) });
+    const apiDuration = Date.now() - apiStart;
+    logger.warn("Anime API fallback failed", {
+      urlId,
+      error: String(err),
+      durationMs: apiDuration,
+    });
 
-    // L4: Stale DB fallback — serve expired data rather than 404.
+    // Track API error
+    trackEvent({
+      type: "api_error",
+      cacheTier: "api",
+      contentType: "anime",
+      contentId: urlId,
+      durationMs: apiDuration,
+      context: String(err),
+    });
+
+    // L3: Stale DB fallback — serve expired data rather than 404.
     // sankavollerei.com intermittently blocks Azure IPs with 403;
     // returning stale content is far better than showing "not found".
     if (isDatabaseConfigured()) {
+      const staleStart = Date.now();
       try {
         const stale = await findCachedAnime(urlId);
         if (stale) {
-          logger.info("Anime serving stale DB cache after API failure", { urlId });
+          logger.info("Anime serving stale DB cache after API failure", {
+            urlId,
+            durationMs: Date.now() - staleStart,
+            totalMs: Date.now() - requestStart,
+          });
+          trackCacheEvent("cache_stale", "stale", "anime", urlId, staleStart);
           return mapDbAnimeToApp(stale);
         }
       } catch {
@@ -307,76 +350,111 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
 const INVALID_SLUG_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-|^(genre|search|berwarna|pustaka)$/;
 
 /**
- * Get komik detail with three-tier caching: KV -> DB -> External API.
+ * Get komik detail with two-tier caching: DB -> External API.
  * TTL = CACHE_TIMES.DETAIL (30 minutes).
+ *
+ * Metrics tracked:
+ * - cache_hit (db tier): DB cache was fresh
+ * - cache_miss: Neither cache had fresh data
+ * - cache_stale: API failed, served expired DB cache
+ * - api_error: External API call failed
  */
 export async function getCachedKomikDetail(mangaId: string): Promise<Komik | null> {
   if (INVALID_SLUG_RE.test(mangaId)) {
     logger.debug("Komik skipped — invalid slug", { mangaId });
     return null;
   }
-  // L1: KV cache (fastest, cross-instance)
-  const kvKey = `komik:${mangaId}`;
-  const kvHit = await kvCacheGet<Komik>(kvKey);
-  if (kvHit) {
-    logger.debug("Komik KV cache hit", { mangaId });
-    trackEvent({ type: "cache_hit", cacheTier: "kv", contentType: "komik", contentId: mangaId });
-    return kvHit;
-  }
 
-  // L2: Supabase DB cache
+  const requestStart = Date.now();
+
+  // L1: Supabase DB cache
   if (isDatabaseConfigured()) {
+    const dbStart = Date.now();
     try {
       const cached = await findCachedKomik(mangaId, CACHE_TIMES.DETAIL);
       if (cached) {
-        logger.debug("Komik DB cache hit", { mangaId });
-        trackEvent({
-          type: "cache_hit",
-          cacheTier: "db",
-          contentType: "komik",
-          contentId: mangaId,
-        });
-        const komik = mapDbKomikToApp(cached);
-        // Backfill KV (fire-and-forget)
-        kvCachePut(kvKey, komik, CACHE_TIMES.DETAIL);
-        return komik;
+        logger.debug("Komik DB cache hit", { mangaId, durationMs: Date.now() - dbStart });
+        trackCacheEvent("cache_hit", "db", "komik", mangaId, dbStart);
+        return mapDbKomikToApp(cached);
       }
-      logger.debug("Komik cache miss", { mangaId });
-      trackEvent({ type: "cache_miss", contentType: "komik", contentId: mangaId });
+      logger.debug("Komik cache miss", { mangaId, durationMs: Date.now() - dbStart });
+      trackCacheEvent("cache_miss", "db", "komik", mangaId, dbStart);
     } catch (err) {
       logger.warn("Komik DB cache read failed, falling back to API", {
         mangaId,
         error: String(err),
+        durationMs: Date.now() - dbStart,
+      });
+      trackEvent({
+        type: "db_error",
+        contentType: "komik",
+        contentId: mangaId,
+        durationMs: Date.now() - dbStart,
+        context: "findCachedKomik",
       });
     }
   }
 
-  // L3: External API
+  // L2: External API
+  const apiStart = Date.now();
   try {
     const komik = await getKomikDetail(mangaId);
 
-    // Write back to both caches (fire-and-forget)
-    if (komik) {
-      kvCachePut(kvKey, komik, CACHE_TIMES.DETAIL);
-      if (isDatabaseConfigured()) {
-        upsertCachedKomik(mapAppKomikToDb(komik)).catch((err) => {
-          logger.debug("Failed to write komik DB cache", { mangaId, error: String(err) });
-        });
-      }
+    // Track successful API call
+    trackEvent({
+      type: "api_success",
+      cacheTier: "api",
+      contentType: "komik",
+      contentId: mangaId,
+      durationMs: Date.now() - apiStart,
+    });
+
+    // Write back to DB cache (fire-and-forget)
+    if (komik && isDatabaseConfigured()) {
+      upsertCachedKomik(mapAppKomikToDb(komik)).catch((err) => {
+        logger.debug("Failed to write komik DB cache", { mangaId, error: String(err) });
+      });
     }
+
+    logger.debug("Komik fetched from API", {
+      mangaId,
+      durationMs: Date.now() - apiStart,
+      totalMs: Date.now() - requestStart,
+    });
 
     return komik;
   } catch (err) {
-    logger.warn("Komik API fallback failed", { mangaId, error: String(err) });
+    const apiDuration = Date.now() - apiStart;
+    logger.warn("Komik API fallback failed", {
+      mangaId,
+      error: String(err),
+      durationMs: apiDuration,
+    });
 
-    // L4: Stale DB fallback — serve expired data rather than 404.
+    // Track API error
+    trackEvent({
+      type: "api_error",
+      cacheTier: "api",
+      contentType: "komik",
+      contentId: mangaId,
+      durationMs: apiDuration,
+      context: String(err),
+    });
+
+    // L3: Stale DB fallback — serve expired data rather than 404.
     // sankavollerei.com intermittently blocks Azure IPs with 403;
     // returning stale content is far better than showing "not found".
     if (isDatabaseConfigured()) {
+      const staleStart = Date.now();
       try {
         const stale = await findCachedKomik(mangaId);
         if (stale) {
-          logger.info("Komik serving stale DB cache after API failure", { mangaId });
+          logger.info("Komik serving stale DB cache after API failure", {
+            mangaId,
+            durationMs: Date.now() - staleStart,
+            totalMs: Date.now() - requestStart,
+          });
+          trackCacheEvent("cache_stale", "stale", "komik", mangaId, staleStart);
           return mapDbKomikToApp(stale);
         }
       } catch {
@@ -438,12 +516,22 @@ export async function enrichAnimeWithGenres(items: Anime[]): Promise<Anime[]> {
  * to DB so that detail page cache hits are more likely.
  */
 export async function getCachedHomepageData() {
+  const start = Date.now();
+
   const [komikLatest, komikPopular, animeLatest, animeRecommended] = await Promise.all([
     getKomikLatest("mirror").catch(() => [] as Komik[]),
     getKomikPopular(1).catch(() => [] as Komik[]),
     getAnimeLatest().catch(() => [] as Anime[]),
     getAnimeRecommended(1).catch(() => [] as Anime[]),
   ]);
+
+  // Track homepage fetch performance
+  trackEvent({
+    type: "api_success",
+    contentType: "homepage",
+    durationMs: Date.now() - start,
+    context: `komik:${komikLatest.length + komikPopular.length},anime:${animeLatest.length + animeRecommended.length}`,
+  });
 
   // Warm DB cache in background (fire-and-forget)
   warmAnimeCacheInBackground([...animeLatest, ...animeRecommended]);
@@ -462,7 +550,7 @@ export async function getCachedHomepageData() {
 /**
  * Get chapter list from cached detail data.
  * Avoids a separate uncached API call when the detail is already in DB/KV.
- * Falls back to the direct API via getCachedKomikDetail's 4-tier strategy.
+ * Falls back to the direct API via getCachedKomikDetail's 3-tier strategy.
  */
 export async function getCachedKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
   const komik = await getCachedKomikDetail(mangaId);
