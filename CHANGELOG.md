@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.34.1] - 2026-04-04
+
+### Bug Fixes
+- fix(analytics): remove server-only import causing client component build failure (ea62043)
+
+
 ## [0.34.0] - 2026-04-04
 
 ### Features
