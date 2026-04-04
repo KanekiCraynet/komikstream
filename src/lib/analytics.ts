@@ -13,9 +13,23 @@
  *
  * NOTE: This module is imported through chains that include Client Components,
  * so we cannot use "server-only". Runtime checks handle client/server detection.
+ *
+ * IMPORTANT: Do NOT import from "applicationinsights" at the top level (even
+ * `import type`). Webpack will try to resolve the module during client bundle
+ * compilation, which fails because applicationinsights uses Node.js built-ins
+ * (fs, net, tls) via @grpc/grpc-js. The type is defined inline below.
  */
 
-import type { TelemetryClient } from "applicationinsights";
+// Minimal inline type for Application Insights TelemetryClient.
+// Only the methods we actually use are typed here.
+interface AppInsightsTelemetryClient {
+  trackEvent(event: {
+    name: string;
+    properties?: Record<string, string>;
+    measurements?: Record<string, number>;
+  }): void;
+  trackMetric(metric: { name: string; value: number; properties?: Record<string, string> }): void;
+}
 
 // ─── Event Types ────────────────────────────────────────────────────
 
@@ -69,7 +83,7 @@ function isCloudflareWorker(): boolean {
 
 // ─── Azure App Insights Client ──────────────────────────────────────
 
-let appInsightsClient: TelemetryClient | null = null;
+let appInsightsClient: AppInsightsTelemetryClient | null = null;
 let appInsightsInitialized = false;
 
 /**
