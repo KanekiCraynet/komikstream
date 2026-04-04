@@ -10,9 +10,11 @@
  *
  * CF Analytics: 100k events/day, 90-day retention
  * Azure App Insights: Based on configured data cap
+ *
+ * NOTE: This module is imported through chains that include Client Components,
+ * so we cannot use "server-only". Runtime checks handle client/server detection.
  */
 
-import "server-only";
 import type { TelemetryClient } from "applicationinsights";
 
 // ─── Event Types ────────────────────────────────────────────────────
