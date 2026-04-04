@@ -15,10 +15,8 @@
     },
   ],
   // KV namespaces — RATE_LIMIT_KV only.
-  // Response caching now uses CF Cache API (caches.default) instead of KV
+  // Response caching uses CF Cache API (caches.default) instead of KV
   // to avoid KV write budget exhaustion on the Free tier (1000 writes/day).
-  // API_CACHE_KV is still used by the Next.js app code (src/lib/kv-cache.ts)
-  // but is no longer bound to the thin proxy Worker.
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
