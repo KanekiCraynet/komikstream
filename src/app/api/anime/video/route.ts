@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleApiError, validateSearchParams } from "@/lib/api-helpers";
 import { ExternalApiError, NotFoundError } from "@/lib/errors";
 import { animeVideoParamsSchema } from "@/lib/validations/anime-video";
-import { getAnimeEpisode, getAnimeServerUrl } from "@/lib/api-client";
+import { getAnimeEpisode, getAnimeServerUrl } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {

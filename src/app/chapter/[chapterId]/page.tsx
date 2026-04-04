@@ -1,4 +1,4 @@
-import { getKomikChapterData } from "@/lib/api-client";
+import { getKomikChapterData } from "@/lib/api";
 import { siteConfig } from "@/lib/site-config";
 import { truncate } from "@/lib/utils";
 import { MangaImage } from "@/components/ui/MangaImage";

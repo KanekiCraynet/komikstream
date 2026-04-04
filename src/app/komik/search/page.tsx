@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { searchKomik, advancedSearchKomik } from "@/lib/api-client";
+import { searchKomik, advancedSearchKomik } from "@/lib/api";
 import { Card, SearchBar } from "@/components/ui";
 import { Pagination } from "@/components/ui/Pagination";
 import { GridSkeleton } from "@/components/ui/Skeleton";

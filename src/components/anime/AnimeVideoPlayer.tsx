@@ -1,6 +1,6 @@
 "use client";
 
-import { getAnimeVideo } from "@/lib/api-client";
+import { getAnimeVideo } from "@/lib/api";
 import { Film, Settings } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";

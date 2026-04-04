@@ -1,4 +1,4 @@
-import { getAnimeGenres } from "@/lib/api-client";
+import { getAnimeGenres } from "@/lib/api";
 import Link from "next/link";
 import { Tags } from "lucide-react";
 import { cn } from "@/lib/utils";

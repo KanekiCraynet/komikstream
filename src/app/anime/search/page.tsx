@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { searchAnime } from "@/lib/api-client";
+import { searchAnime } from "@/lib/api";
 import { Card, SearchBar } from "@/components/ui";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { Film, SearchX } from "lucide-react";

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { RelatedKomik } from "@/components/ui/RelatedContent";
 import { getCachedKomikDetail, getCachedKomikChapterList } from "@/lib/api-cached";
-import { getKomikPopular } from "@/lib/api-client";
+import { getKomikPopular } from "@/lib/api";
 import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Book, BookOpen, Clock, Star, User, AlertTriangle } from "lucide-react";

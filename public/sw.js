@@ -94,10 +94,12 @@ async function staleWhileRevalidate(request) {
   const cached = await caches.match(request);
 
   const fetchPromise = fetch(request)
-    .then((response) => {
+    .then(async (response) => {
       if (response.ok) {
-        const cache = caches.open(CACHE_NAME);
-        cache.then((c) => c.put(request, response.clone()));
+        // Clone response BEFORE using it to avoid "body already used" error
+        const responseToCache = response.clone();
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, responseToCache);
       }
       return response;
     })

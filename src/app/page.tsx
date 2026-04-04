@@ -6,7 +6,7 @@ import {
   getKomikPopular,
   getAnimeLatest,
   getAnimeRecommended,
-} from "@/lib/api-client";
+} from "@/lib/api";
 import { enrichKomikWithGenres, enrichAnimeWithGenres } from "@/lib/api-cached";
 import type { Metadata } from "next";
 import { siteConfig } from "@/lib/site-config";

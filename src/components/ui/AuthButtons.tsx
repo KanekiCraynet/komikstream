@@ -11,17 +11,22 @@ interface AuthButtonsProps {
 
 export function AuthButtons({ clerkEnabled }: AuthButtonsProps) {
   // If Clerk is not enabled, show a simple login link
+  // Separate Link components for mobile and desktop to ensure proper click handling
   if (!clerkEnabled) {
     return (
-      <Link href="/sign-in">
-        <Button variant="ghost" size="icon" className="flex md:hidden" aria-label="Masuk">
-          <LogIn className="h-5 w-5" />
-        </Button>
-        <Button variant="outline" size="sm" className="hidden gap-2 md:flex">
-          <LogIn className="h-4 w-4" />
-          Masuk
-        </Button>
-      </Link>
+      <>
+        <Link href="/sign-in" className="flex md:hidden">
+          <Button variant="ghost" size="icon" aria-label="Masuk">
+            <LogIn className="h-5 w-5" />
+          </Button>
+        </Link>
+        <Link href="/sign-in" className="hidden md:flex">
+          <Button variant="outline" size="sm" className="gap-2">
+            <LogIn className="h-4 w-4" />
+            Masuk
+          </Button>
+        </Link>
+      </>
     );
   }
 

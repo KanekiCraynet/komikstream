@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getKomikByGenre } from "@/lib/api-client";
+import { getKomikByGenre } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { Pagination } from "@/components/ui/Pagination";
 import { GridSkeleton } from "@/components/ui/Skeleton";

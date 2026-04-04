@@ -12,7 +12,7 @@ import {
   getAnimeGenres,
   getAnimeByGenre,
   getAnimeBatch,
-} from "@/lib/api-client";
+} from "@/lib/api";
 
 // Video resolution type
 export type VideoResolution = "360p" | "480p" | "720p" | "1080p";

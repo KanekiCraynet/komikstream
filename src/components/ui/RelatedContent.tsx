@@ -1,4 +1,4 @@
-import { getKomikPopular, getAnimeRecommended } from "@/lib/api-client";
+import { getKomikPopular, getAnimeRecommended } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";

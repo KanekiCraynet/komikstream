@@ -14,8 +14,8 @@ import {
   getKomikByGenre,
   advancedSearchKomik,
   getKomikScroll,
-} from "@/lib/api-client";
-import type { KomikAdvancedSearchParams } from "@/lib/api-client";
+} from "@/lib/api";
+import type { KomikAdvancedSearchParams } from "@/lib/api";
 
 // Komik type for recommendations
 export type KomikType = "manhwa" | "manhua" | "manga";

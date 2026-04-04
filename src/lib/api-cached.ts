@@ -24,7 +24,7 @@ import {
   getKomikDetail,
   getKomikLatest,
   getKomikPopular,
-} from "./api-client";
+} from "./api";
 import {
   findCachedAnime,
   upsertCachedAnime,
@@ -472,7 +472,7 @@ export async function getCachedKomikChapterList(mangaId: string): Promise<KomikC
 // ─── Re-exports for convenience ─────────────────────────────────────
 // These don't need DB caching (too dynamic or already ISR-cached)
 
-export { getKomikChapterList } from "./api-client";
-export { searchAnime, searchKomik, getKomikImages, getKomikChapterData } from "./api-client";
-export { getAnimeMovie, getAnimeLatest, getAnimeRecommended } from "./api-client";
-export { getKomikLatest, getKomikPopular, getKomikRecommended } from "./api-client";
+export { getKomikChapterList } from "./api";
+export { searchAnime, searchKomik, getKomikImages, getKomikChapterData } from "./api";
+export { getAnimeMovie, getAnimeLatest, getAnimeRecommended } from "./api";
+export { getKomikLatest, getKomikPopular, getKomikRecommended } from "./api";

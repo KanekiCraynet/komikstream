@@ -7,7 +7,7 @@ import {
   getAnimeUnlimited,
   getKomikPopular,
   getKomikRealtime,
-} from "@/lib/api-client";
+} from "@/lib/api";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

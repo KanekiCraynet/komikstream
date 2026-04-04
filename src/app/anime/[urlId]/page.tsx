@@ -5,7 +5,7 @@ import { siteConfig } from "@/lib/site-config";
 import { getImageUrl, truncate } from "@/lib/utils";
 import { Calendar, Clock, Download, Film, Play, Star, Tv, AlertTriangle } from "lucide-react";
 import { ShareButtons } from "@/components/ui/ShareButtons";
-import { extractEpisodeNumber, getAnimeBatch, getAnimeLatest } from "@/lib/api-client";
+import { extractEpisodeNumber, getAnimeBatch, getAnimeLatest } from "@/lib/api";
 import { buildTVSeriesJsonLd } from "@/lib/structured-data";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import type { Metadata } from "next";

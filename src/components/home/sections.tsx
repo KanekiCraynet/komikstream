@@ -182,8 +182,8 @@ export function UpdateTerbaruSection({
           linkText="Jelajahi Komik"
         />
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5">
-          {filteredItems.slice(0, 10).map((item, index) => {
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filteredItems.slice(0, 12).map((item, index) => {
             const isKomik = "_type" in item ? item._type === "komik" : "manga_id" in item;
             return (
               <Card
@@ -245,13 +245,13 @@ export function OngoingSection({ title, items, type, href, isLoading }: OngoingS
       <SectionHeader title={title} icon={icon} href={href} />
 
       <div
-        className="scrollbar-hide flex gap-4 overflow-x-auto pb-2"
+        className="scrollbar-hide flex gap-3 overflow-x-auto pb-2 sm:gap-4"
         style={{ scrollbarWidth: "none" }}
       >
-        {finalItems.slice(0, 10).map((item, index) => (
+        {finalItems.slice(0, 12).map((item, index) => (
           <div
             key={type === "komik" ? (item as Komik).manga_id : (item as Anime).urlId}
-            className="w-36 shrink-0"
+            className="w-32 shrink-0 sm:w-36 md:w-40"
           >
             <Card item={item} type={type} index={index} variant="compact" showChapters={true} />
           </div>
@@ -305,8 +305,8 @@ export function CompletedSection({ title, items, type, href, isLoading }: Comple
     <section className="py-6">
       <SectionHeader title={title} icon={icon} href={`${href}?status=completed`} />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        {finalItems.slice(0, 8).map((item, index) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {finalItems.slice(0, 12).map((item, index) => (
           <Card
             key={type === "komik" ? (item as Komik).manga_id : (item as Anime).urlId}
             item={item}

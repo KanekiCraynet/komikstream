@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getKomikBerwarna } from "@/lib/api-client";
+import { getKomikBerwarna } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { GridSkeleton } from "@/components/ui/Skeleton";
 import { Palette, SearchX } from "lucide-react";

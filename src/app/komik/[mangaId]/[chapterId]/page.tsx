@@ -1,5 +1,5 @@
 import { getCachedKomikDetail, getCachedKomikChapterList } from "@/lib/api-cached";
-import { getKomikImages } from "@/lib/api-client";
+import { getKomikImages } from "@/lib/api";
 import { siteConfig } from "@/lib/site-config";
 import { truncate } from "@/lib/utils";
 import { MangaImage } from "@/components/ui/MangaImage";

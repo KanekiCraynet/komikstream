@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchAnime, searchKomik } from "@/lib/api-client";
+import { searchAnime, searchKomik } from "@/lib/api";
 import { handleApiError, validateSearchParams } from "@/lib/api-helpers";
 import { searchParamsSchema } from "@/lib/validations/search";
 

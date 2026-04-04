@@ -1,4 +1,4 @@
-import { getAnimeSchedule } from "@/lib/api-client";
+import { getAnimeSchedule } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { Calendar, ImageOff } from "lucide-react";

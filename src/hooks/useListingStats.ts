@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { advancedSearchKomik } from "@/lib/api-client";
+import { advancedSearchKomik } from "@/lib/api";
 import { useKomikLatest } from "./useKomik";
 import { useAnimeLatest } from "./useAnime";
 
