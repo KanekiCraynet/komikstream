@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.2] - 2026-04-04
+
+### Bug Fixes
+- fix(deploy): use webpack for production builds instead of Turbopack (5576ff8)
+
+
 ## [0.35.1] - 2026-04-04
 
 ### Bug Fixes
