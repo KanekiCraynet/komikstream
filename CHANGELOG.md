@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.0] - 2026-04-04
+
+### Features
+- feat(anime): add status filter and rating sort support (3eda900)
+
+### Bug Fixes
+- fix(ci): add packageManager field for pnpm version detection (5749f81)
+
+### CI/CD
+- ci: migrate all workflows from npm to pnpm (497e315)
+
+### Chores
+- chore: cleanup duplicate routes and unused files (28d0f70)
+- chore: remove dead code and temporary design files (90a75ad)
+- chore(deps): bump effect in the npm_and_yarn group across 1 directory (9fd58c2)
+
+
 ## [0.34.1] - 2026-04-04
 
 ### Bug Fixes
