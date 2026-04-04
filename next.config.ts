@@ -155,7 +155,11 @@ const nextConfig: NextConfig = {
       }
     : {}),
 
-  // Turbopack configuration (dev server only, does not affect production builds)
+  // Turbopack configuration.
+  // NOTE: As of Next.js 16, Turbopack is the default bundler for BOTH dev and build.
+  // For Azure production builds, we use --webpack flag to opt out (see build:azure script)
+  // because Turbopack has known issues with React Client Manifest generation.
+  // This config below only applies when Turbopack IS used (dev mode or CF builds).
   // CF Workers: force Prisma edge/WASM loader instead of Node.js base64 loader.
   // Azure: use default Prisma client (native binary engine).
   turbopack: !isAzureBuild

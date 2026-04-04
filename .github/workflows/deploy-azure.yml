@@ -72,7 +72,10 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           SKIP_DB_CONNECTION: "true"
           NODE_ENV: production
-        run: pnpm exec next build
+        # Use build:azure script which includes --webpack flag to opt out of Turbopack.
+        # Next.js 16 defaults to Turbopack, but it has known issues with
+        # React Client Manifest generation causing 503 errors at runtime.
+        run: pnpm run build:azure
 
       - name: Prepare deployment package
         run: |

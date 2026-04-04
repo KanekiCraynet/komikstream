@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
-    "build:azure": "prisma generate && BUILD_TARGET=azure next build && node scripts/inject-sw-version.mjs",
+    "build:azure": "prisma generate && BUILD_TARGET=azure next build --webpack && node scripts/inject-sw-version.mjs",
     "build:cf": "prisma generate && opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare deploy",
