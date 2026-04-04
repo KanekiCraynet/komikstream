@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.34.0] - 2026-04-04
+
+### Features
+- feat(observability): add dual-mode analytics for Azure App Insights and CF Workers (459d5b3)
+
+### Other Changes
+- style: fix prettier formatting (82aa5a5)
+
+
 ## [0.33.2] - 2026-04-04
 
 ### Refactoring
