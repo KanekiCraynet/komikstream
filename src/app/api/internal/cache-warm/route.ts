@@ -2,12 +2,7 @@ import "server-only";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getCachedAnimeDetail, getCachedKomikDetail } from "@/lib/api-cached";
-import {
-  getAnimeLatest,
-  getAnimeUnlimited,
-  getKomikPopular,
-  getKomikRealtime,
-} from "@/lib/api";
+import { getAnimeLatest, getAnimeUnlimited, getKomikPopular, getKomikRealtime } from "@/lib/api";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

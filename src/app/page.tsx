@@ -1,12 +1,7 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/query-client";
 import { HomePageContent } from "@/components/home";
-import {
-  getKomikLatest,
-  getKomikPopular,
-  getAnimeLatest,
-  getAnimeRecommended,
-} from "@/lib/api";
+import { getKomikLatest, getKomikPopular, getAnimeLatest, getAnimeRecommended } from "@/lib/api";
 import { enrichKomikWithGenres, enrichAnimeWithGenres } from "@/lib/api-cached";
 import type { Metadata } from "next";
 import { siteConfig } from "@/lib/site-config";
