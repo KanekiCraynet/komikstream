@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.3] - 2026-04-04
+
+### Bug Fixes
+- fix(build): replace applicationinsights type import with inline interface (4c35cfb)
+
+
 ## [0.35.2] - 2026-04-04
 
 ### Bug Fixes
