@@ -37,7 +37,7 @@ const KOMIK_QUICK_ACCESS = [
 
 // Quick access links for anime
 const ANIME_QUICK_ACCESS = [
-  { label: "Jadwal", href: "/anime/jadwal", icon: Calendar },
+  { label: "Jadwal", href: "/anime/schedule", icon: Calendar },
   { label: "Sedang Tayang", href: "/anime?status=ongoing", icon: Play },
   { label: "Top Rating", href: "/anime?sort=rating", icon: Star },
 ];

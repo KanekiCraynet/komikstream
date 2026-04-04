@@ -21,12 +21,57 @@ const isPublicApiRoute = createRouteMatcher([
 ]);
 
 /**
+ * Reserved slugs that should NOT be treated as manga IDs.
+ * These are redirected to appropriate pages or return 404.
+ */
+const KOMIK_RESERVED_SLUGS: Record<string, string | null> = {
+  // Redirect to anime schedule (komik doesn't have schedule)
+  jadwal: "/anime/schedule",
+  schedule: "/anime/schedule",
+  // These are existing routes, not manga IDs — let them 404 naturally
+  // if someone types /komik/search/something instead of /komik/search?q=something
+};
+
+/**
+ * Reserved slugs under /anime that should redirect to proper routes.
+ * Prevents [urlId] dynamic route from catching known page slugs.
+ */
+const ANIME_RESERVED_SLUGS: Record<string, string | null> = {
+  // Indonesian "jadwal" -> English "schedule" route
+  jadwal: "/anime/schedule",
+};
+
+/**
  * Handle 301 redirects for old URL structures to new SEO-friendly URLs.
  * - Old: /komik/{mangaId}/{chapterId} -> New: /chapter/{chapterId}
  * - Old: /anime/watch/{animeUrlId}/{episodeId} -> New: /watch/{animeUrlId}/{episodeId}
+ * - Invalid: /komik/jadwal -> /anime/schedule (komik has no schedule)
+ * - Alias: /anime/jadwal -> /anime/schedule (Indonesian alias)
  */
 function handleUrlRedirects(req: NextRequest): NextResponse | null {
   const { pathname, search } = req.nextUrl;
+
+  // Handle reserved komik slugs that shouldn't hit the [mangaId] dynamic route
+  const komikSlugMatch = pathname.match(/^\/komik\/([^/]+)$/);
+  if (komikSlugMatch) {
+    const slug = komikSlugMatch[1].toLowerCase();
+    const redirect = KOMIK_RESERVED_SLUGS[slug];
+    if (redirect) {
+      const newUrl = new URL(`${redirect}${search}`, req.url);
+      return NextResponse.redirect(newUrl, 301);
+    }
+  }
+
+  // Handle reserved anime slugs (e.g., /anime/jadwal -> /anime/schedule)
+  const animeSlugMatch = pathname.match(/^\/anime\/([^/]+)$/);
+  if (animeSlugMatch) {
+    const slug = animeSlugMatch[1].toLowerCase();
+    const redirect = ANIME_RESERVED_SLUGS[slug];
+    if (redirect) {
+      const newUrl = new URL(`${redirect}${search}`, req.url);
+      return NextResponse.redirect(newUrl, 301);
+    }
+  }
 
   // Redirect old chapter URLs: /komik/{mangaId}/{chapterId} -> /chapter/{chapterId}
   // Only match paths with exactly 3 segments under /komik/ (the chapter reader)
