@@ -170,18 +170,24 @@ const nextConfig: NextConfig = {
       }
     : {},
 
+  // Include styled-jsx in standalone build trace.
+  // Next.js standalone output uses file tracing to determine which node_modules
+  // to copy. styled-jsx is a peer dependency used internally by Next.js for
+  // CSS-in-JS, but the tracer sometimes misses it, causing:
+  // "Error: Cannot find module 'styled-jsx/package.json'" at runtime.
+  // Only apply for Azure builds where output: 'standalone' is enabled.
+  ...(isAzureBuild
+    ? {
+        outputFileTracingIncludes: {
+          "/*": ["./node_modules/styled-jsx/**/*"],
+        },
+      }
+    : {}),
+
   // Experimental features
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
-    },
-    // Include styled-jsx in standalone build trace.
-    // Next.js standalone output uses file tracing to determine which node_modules
-    // to copy. styled-jsx is a peer dependency used internally by Next.js for
-    // CSS-in-JS, but the tracer sometimes misses it, causing:
-    // "Error: Cannot find module 'styled-jsx/package.json'" at runtime.
-    outputFileTracingIncludes: {
-      "/*": ["./node_modules/styled-jsx/**/*"],
     },
   },
 };
