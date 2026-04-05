@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.6] - 2026-04-05
+
+### Bug Fixes
+- fix(build): move outputFileTracingIncludes to top-level config (48ac8fb)
+
+
 ## [0.35.5] - 2026-04-05
 
 ### Bug Fixes
