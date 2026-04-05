@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.5] - 2026-04-05
+
+### Bug Fixes
+- fix(build): include styled-jsx in standalone output tracing (c3f2340)
+
+
 ## [0.35.4] - 2026-04-05
 
 ### Bug Fixes
