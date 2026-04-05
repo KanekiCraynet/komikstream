@@ -112,11 +112,14 @@ jobs:
 
       - name: Build application
         # Verify that `next build` compiles without errors.
+        # BUILD_TARGET=azure enables standalone output mode, which is what
+        # actually gets deployed. This ensures CI tests the real build config.
         # DATABASE_URL uses a dummy value so Prisma doesn't throw during
         # module load; no actual DB connection is made at build time.
         # Real values are injected only in the production deploy workflow.
         run: pnpm run build
         env:
+          BUILD_TARGET: "azure"
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"

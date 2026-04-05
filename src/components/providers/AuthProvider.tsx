@@ -3,8 +3,7 @@
 import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { useTheme } from "next-themes";
-import { createContext, useContext, type ReactNode } from "react";
-import { useMounted } from "@/hooks/useMounted";
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
 
 // ── Auth context ──────────────────────────────────────────────────────
 // Exposes a minimal { isSignedIn, isLoaded } contract that works
@@ -52,13 +51,35 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
   );
 }
 
-function ClerkProviderWithTheme({ children }: { children: ReactNode }) {
-  const { resolvedTheme } = useTheme();
-  const mounted = useMounted();
+// Hydration-safe mounted check using useSyncExternalStore (no setState in effect)
+const noop = () => () => {};
+const getMounted = () => true;
+const getServerMounted = () => false;
 
-  // Always wrap in ClerkProvider, but only apply theme after mount
-  // This ensures SignedIn/SignedOut components always have a ClerkProvider parent
-  //
+/**
+ * Derives the Clerk appearance from the current next-themes theme.
+ *
+ * useTheme() is safe to call here because ThemeProvider is loaded via
+ * next/dynamic with ssr:false, so this component only renders on the
+ * client where React's dispatcher is available.
+ *
+ * See: https://github.com/vercel/next.js/issues/74616
+ */
+function useClerkAppearance() {
+  const { resolvedTheme } = useTheme();
+  const mounted = useSyncExternalStore(noop, getMounted, getServerMounted);
+
+  return {
+    baseTheme: mounted && resolvedTheme === "dark" ? dark : undefined,
+    variables: {
+      colorPrimary: "hsl(263 70% 50%)",
+    },
+  };
+}
+
+function ClerkProviderWithTheme({ children }: { children: ReactNode }) {
+  const appearance = useClerkAppearance();
+
   // NOTE: publishableKey must be passed explicitly here.
   // In @clerk/nextjs@6 (App Router), ClerkProvider used inside a "use client"
   // component does NOT automatically read NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY from
@@ -70,12 +91,7 @@ function ClerkProviderWithTheme({ children }: { children: ReactNode }) {
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       proxyUrl={process.env.NEXT_PUBLIC_CLERK_PROXY_URL}
-      appearance={{
-        baseTheme: mounted && resolvedTheme === "dark" ? dark : undefined,
-        variables: {
-          colorPrimary: "hsl(263 70% 50%)",
-        },
-      }}
+      appearance={appearance}
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
     >
