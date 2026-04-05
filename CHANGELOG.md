@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.13] - 2026-04-05
+
+### Bug Fixes
+- fix(build): resolve useContext null error during SSG prerendering (ae0e6a7)
+
+
 ## [0.35.12] - 2026-04-05
 
 ### Bug Fixes
