@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.10] - 2026-04-05
+
+### Bug Fixes
+- fix(deploy): use Kudu ZipDeploy API instead of OneDeploy (1d710d7)
+
+
 ## [0.35.9] - 2026-04-05
 
 ### Bug Fixes
