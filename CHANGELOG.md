@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.11] - 2026-04-05
+
+### Bug Fixes
+- fix(azure): include react/react-dom in standalone output trace (4a9be41)
+
+
 ## [0.35.10] - 2026-04-05
 
 ### Bug Fixes
