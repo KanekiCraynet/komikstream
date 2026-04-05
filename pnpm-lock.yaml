@@ -53,6 +53,9 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
+      styled-jsx:
+        specifier: 5.1.6
+        version: 5.1.6(@babel/core@7.29.0)(react@19.2.3)
       svix:
         specifier: ^1.84.1
         version: 1.89.0
