@@ -174,13 +174,18 @@ const nextConfig: NextConfig = {
   // Next.js standalone output uses file tracing to determine which node_modules
   // to copy. Some transitive dependencies are missed by the tracer, causing
   // "Cannot find module" errors at runtime on Azure:
-  // - styled-jsx: peer dependency for Next.js CSS-in-JS
+  // - @next/env: environment variable handling (direct dep of next)
   // - @swc/helpers: runtime helpers used by Next.js/SWC transpilation
+  // - styled-jsx: peer dependency for Next.js CSS-in-JS
   // Only apply for Azure builds where output: 'standalone' is enabled.
   ...(isAzureBuild
     ? {
         outputFileTracingIncludes: {
-          "/*": ["./node_modules/styled-jsx/**/*", "./node_modules/@swc/helpers/**/*"],
+          "/*": [
+            "./node_modules/@next/env/**/*",
+            "./node_modules/@swc/helpers/**/*",
+            "./node_modules/styled-jsx/**/*",
+          ],
         },
       }
     : {}),
