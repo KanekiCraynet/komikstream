@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.14] - 2026-04-05
+
+### Bug Fixes
+- fix(azure): include .prisma/client and pg deps in standalone output trace (ffd8edf)
+
+
 ## [0.35.13] - 2026-04-05
 
 ### Bug Fixes
