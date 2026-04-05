@@ -73,7 +73,15 @@ const isAzureBuild = process.env.BUILD_TARGET === "azure";
 const nextConfig: NextConfig = {
   // Prisma client is always server-external — both CF Workers (OpenNext esbuild
   // rebundles with workerd condition) and Azure (Node.js resolves from node_modules).
-  serverExternalPackages: ["@prisma/client", ".prisma/client", "applicationinsights"],
+  // react/react-dom: explicitly listed to ensure they're traced into standalone output
+  // (Next.js tracer sometimes misses them, causing "Cannot find module 'react'" on Azure).
+  serverExternalPackages: [
+    "@prisma/client",
+    ".prisma/client",
+    "applicationinsights",
+    "react",
+    "react-dom",
+  ],
 
   // Azure: standalone output for zip deploy (node .next/standalone/server.js).
   // CF/local: no output mode (OpenNext wraps the build, standalone not needed).
@@ -174,6 +182,7 @@ const nextConfig: NextConfig = {
   // Next.js standalone output uses file tracing to determine which node_modules
   // to copy. Some transitive dependencies are missed by the tracer, causing
   // "Cannot find module" errors at runtime on Azure:
+  // - react, react-dom: core React runtime (sometimes missed by tracer)
   // - @next/env: environment variable handling (direct dep of next)
   // - @swc/helpers: runtime helpers used by Next.js/SWC transpilation
   // - styled-jsx: peer dependency for Next.js CSS-in-JS
@@ -182,6 +191,8 @@ const nextConfig: NextConfig = {
     ? {
         outputFileTracingIncludes: {
           "/*": [
+            "./node_modules/react/**/*",
+            "./node_modules/react-dom/**/*",
             "./node_modules/@next/env/**/*",
             "./node_modules/@swc/helpers/**/*",
             "./node_modules/styled-jsx/**/*",
