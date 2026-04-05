@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.4] - 2026-04-05
+
+### Bug Fixes
+- fix(build): add webpackIgnore to dynamic imports in analytics.ts (a154735)
+
+
 ## [0.35.3] - 2026-04-04
 
 ### Bug Fixes
