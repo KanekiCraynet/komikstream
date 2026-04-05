@@ -94,14 +94,69 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Azure App Service
+      - name: Get Kudu deployment credentials
+        id: kudu-creds
+        run: |
+          # Get publishing credentials for Kudu API authentication
+          CREDS=$(az webapp deployment list-publishing-credentials \
+            --name kuromanga \
+            --resource-group kuromanga \
+            --query "{username:publishingUserName, password:publishingPassword}" \
+            --output json)
+
+          KUDU_USER=$(echo "$CREDS" | jq -r '.username')
+          KUDU_PASS=$(echo "$CREDS" | jq -r '.password')
+
+          # Mask credentials in logs
+          echo "::add-mask::$KUDU_PASS"
+
+          # Export for next step
+          echo "KUDU_USER=$KUDU_USER" >> "$GITHUB_OUTPUT"
+          echo "KUDU_PASS=$KUDU_PASS" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via Kudu ZipDeploy API
         id: deploy
-        uses: azure/webapps-deploy@45c7df8f6a4fe841b67ff88920b33f4f8328f8d9 # v3.0.8
-        with:
-          app-name: kuromanga
-          package: deploy.zip
-          clean: true
-          restart: true
+        env:
+          KUDU_USER: ${{ steps.kudu-creds.outputs.KUDU_USER }}
+          KUDU_PASS: ${{ steps.kudu-creds.outputs.KUDU_PASS }}
+        run: |
+          # Use Kudu ZipDeploy API directly instead of OneDeploy API.
+          # OneDeploy (used by azure/webapps-deploy) triggers NodeProjectOptimizer
+          # which strips node_modules even with SCM_DO_BUILD_DURING_DEPLOYMENT=false.
+          # Kudu ZipDeploy extracts the zip directly to wwwroot without processing.
+
+          KUDU_HOST="kuromanga-eqh9frdqdzbjf9h4.scm.indonesiacentral-01.azurewebsites.net"
+          DEPLOY_URL="https://${KUDU_HOST}/api/zipdeploy?isAsync=false"
+
+          echo "Deploying to Kudu ZipDeploy API..."
+          echo "  Host: $KUDU_HOST"
+          echo "  Package: deploy.zip ($(du -h deploy.zip | cut -f1))"
+
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/deploy-response.txt \
+            -X POST \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            --max-time 300 \
+            "$DEPLOY_URL")
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Deployment successful"
+            echo "webapp-url=https://kuromanga.me" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Deployment failed with status $HTTP_STATUS"
+            echo "Response:"
+            cat /tmp/deploy-response.txt
+            exit 1
+          fi
+
+      - name: Restart App Service
+        run: |
+          echo "Restarting Azure App Service..."
+          az webapp restart --name kuromanga --resource-group kuromanga
+          echo "✅ Restart command sent"
 
       # Note: Direct Azure URL health check is skipped because Azure App Service
       # has IP access restrictions that block GitHub Actions runners.
