@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.8] - 2026-04-05
+
+### Bug Fixes
+- fix(azure): add @swc/helpers as explicit dependency for standalone build (ac6c9b8)
+
+
 ## [0.35.7] - 2026-04-05
 
 ### Bug Fixes
