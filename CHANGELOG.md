@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.7] - 2026-04-05
+
+### Bug Fixes
+- fix(deps): add styled-jsx as explicit dependency for standalone build (6dc9ccc)
+
+### CI/CD
+- ci(azure): increase deployment timeout to 30 minutes (5bd86c0)
+
+
 ## [0.35.6] - 2026-04-05
 
 ### Bug Fixes
