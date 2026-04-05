@@ -186,6 +186,10 @@ const nextConfig: NextConfig = {
   // - @next/env: environment variable handling (direct dep of next)
   // - @swc/helpers: runtime helpers used by Next.js/SWC transpilation
   // - styled-jsx: peer dependency for Next.js CSS-in-JS
+  // - .prisma/client: generated Prisma client (serverExternalPackages are NOT auto-traced)
+  // - @prisma/client: Prisma client runtime
+  // - @prisma/adapter-pg: PostgreSQL adapter for Prisma
+  // - pg, pg-pool: PostgreSQL driver dependencies
   // Only apply for Azure builds where output: 'standalone' is enabled.
   ...(isAzureBuild
     ? {
@@ -196,6 +200,11 @@ const nextConfig: NextConfig = {
             "./node_modules/@next/env/**/*",
             "./node_modules/@swc/helpers/**/*",
             "./node_modules/styled-jsx/**/*",
+            "./node_modules/.prisma/client/**/*",
+            "./node_modules/@prisma/client/**/*",
+            "./node_modules/@prisma/adapter-pg/**/*",
+            "./node_modules/pg/**/*",
+            "./node_modules/pg-pool/**/*",
           ],
         },
       }
