@@ -101,7 +101,9 @@ async function getAppInsightsClient() {
   if (!connectionString) return null;
 
   try {
-    const appInsights = await import("applicationinsights");
+    // webpackIgnore prevents webpack from statically analyzing this import
+    // and trying to bundle applicationinsights (which uses Node.js built-ins)
+    const appInsights = await import(/* webpackIgnore: true */ "applicationinsights");
     // Don't call setup() again if already initialized by instrumentation.ts
     // Just get the default client
     if (appInsights.defaultClient) {
@@ -129,8 +131,10 @@ async function trackViaCFAnalytics(event: AnalyticsEvent): Promise<boolean> {
   if (!isCloudflareWorker()) return false;
 
   try {
-    // Dynamic import to avoid bundling @opennextjs/cloudflare in Azure build
-    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    // webpackIgnore prevents webpack from bundling @opennextjs/cloudflare in Azure build
+    const { getCloudflareContext } = await import(
+      /* webpackIgnore: true */ "@opennextjs/cloudflare"
+    );
     const ctx = await getCloudflareContext({ async: true });
     const dataset = ctx?.env?.ANALYTICS;
     if (!dataset) return false;
