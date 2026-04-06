@@ -68,7 +68,10 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
           NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up"
           NEXT_PUBLIC_API_URL: "https://www.sankavollerei.com"
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Use dummy DATABASE_URL during build - Azure PostgreSQL is behind VNet
+          # and not accessible from GitHub Actions. Real DATABASE_URL is injected
+          # at runtime via Azure App Service environment variables.
+          DATABASE_URL: "postgresql://build:build@localhost:5432/build"
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           SKIP_DB_CONNECTION: "true"
           NODE_ENV: production
@@ -82,6 +85,49 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           cp -r prisma .next/standalone/prisma
+
+          # Fix pnpm symlink issue for Prisma client
+          # pnpm uses symlinks: node_modules/.prisma -> .pnpm/.../.prisma
+          # These symlinks don't survive zip extraction on Azure.
+          # Copy the actual .prisma/client directory to the expected location.
+          echo "Fixing Prisma client symlinks for pnpm..."
+
+          # First, find the real .prisma/client directory in pnpm structure
+          PRISMA_SOURCE=$(find node_modules/.pnpm -type d -name "client" -path "*/.prisma/*" 2>/dev/null | head -1)
+
+          if [ -n "$PRISMA_SOURCE" ]; then
+            echo "Found Prisma client at: $PRISMA_SOURCE"
+
+            # Remove any existing symlink or directory in standalone
+            rm -rf ".next/standalone/node_modules/.prisma"
+
+            # Create fresh directory and copy contents
+            mkdir -p ".next/standalone/node_modules/.prisma"
+            cp -r "$PRISMA_SOURCE" ".next/standalone/node_modules/.prisma/"
+
+            echo "✅ Copied .prisma/client to standalone"
+          else
+            echo "⚠️ Could not find .prisma/client in pnpm structure"
+            # Fallback: check if it exists as symlink in standalone and resolve it
+            if [ -L ".next/standalone/node_modules/.prisma" ]; then
+              PRISMA_TARGET=$(readlink -f ".next/standalone/node_modules/.prisma")
+              rm -rf ".next/standalone/node_modules/.prisma"
+              cp -r "$PRISMA_TARGET" ".next/standalone/node_modules/.prisma"
+              echo "✅ Resolved symlink from $PRISMA_TARGET"
+            fi
+          fi
+
+          # Verify the fix
+          if [ -f ".next/standalone/node_modules/.prisma/client/default.js" ]; then
+            echo "✅ Prisma client default.js verified"
+            ls -la ".next/standalone/node_modules/.prisma/client/"
+          else
+            echo "❌ ERROR: .prisma/client/default.js not found!"
+            echo "Searching for Prisma files..."
+            find .next/standalone/node_modules -name "*.prisma" -o -name "default.js" 2>/dev/null | grep -i prisma | head -10
+            exit 1
+          fi
+
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
           cd ../..
