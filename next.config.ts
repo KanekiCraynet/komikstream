@@ -201,8 +201,11 @@ const nextConfig: NextConfig = {
             "./node_modules/@swc/helpers/**/*",
             "./node_modules/styled-jsx/**/*",
             "./node_modules/.prisma/client/**/*",
-            "./node_modules/@prisma/client/**/*",
-            "./node_modules/@prisma/adapter-pg/**/*",
+            // Use wildcard to include ALL @prisma/* sub-packages.
+            // Prisma 7 refactored internals into separate packages
+            // (@prisma/client-runtime-utils, @prisma/driver-adapter-utils, etc.)
+            // that the file tracer misses when only @prisma/client is listed.
+            "./node_modules/@prisma/**/*",
             "./node_modules/pg/**/*",
             "./node_modules/pg-pool/**/*",
           ],
