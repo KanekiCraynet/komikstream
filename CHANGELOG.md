@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.20] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): copy pg-types and pg-protocol from pnpm store explicitly (8701d16)
+
+
 ## [0.35.19] - 2026-04-06
 
 ### Bug Fixes
