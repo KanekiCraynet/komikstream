@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.26] - 2026-04-06
+
+### Bug Fixes
+- fix(ci): add Neon DB for tests, fix Next.js 16 middleware/ISR deprecations (b6a0855)
+
+
 ## [0.35.25] - 2026-04-06
 
 ### Bug Fixes
