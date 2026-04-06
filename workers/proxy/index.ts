@@ -284,11 +284,11 @@ async function handleRequest(
 
     const apiHeaders: Record<string, string> = {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
       Accept: "application/json, text/plain, */*",
       "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
       Referer: "https://www.sankavollerei.com/",
-      "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
       "sec-ch-ua-mobile": "?0",
       "sec-ch-ua-platform": '"Windows"',
       "sec-fetch-dest": "empty",
@@ -297,12 +297,16 @@ async function handleRequest(
     };
 
     try {
-      // cf.cacheTtl caches the upstream response at the CF edge (5 min),
-      // reducing repeated fetches to sankavollerei.com. The Cache-Control: no-store
-      // on the proxied response prevents Azure from re-caching the payload.
+      // Cache 2xx upstream responses at CF edge for 5 min to reduce load on
+      // sankavollerei.com. Explicitly set 0 TTL for 4xx/5xx — cacheEverything:true
+      // would otherwise cache 403 "Plana AI block" responses, poisoning the entire
+      // colo for 5 minutes and causing a cascade of 404s for users.
       const apiResp = await fetch(apiUrl, {
         headers: apiHeaders,
-        cf: { cacheTtl: 300, cacheEverything: true },
+        cf: {
+          cacheEverything: true,
+          cacheTtlByStatus: { "200-299": 300, "300-399": 0, "400-599": 0 },
+        },
       });
 
       const respHeaders = new Headers();
