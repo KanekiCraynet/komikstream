@@ -129,7 +129,26 @@ jobs:
             fi
           done
 
-          # ── C: Resolve any remaining pnpm symlinks in standalone ─────────────
+          # ── C: pg transitive dependencies ────────────────────────────────────
+          # pg-types and pg-protocol are transitive deps of pg that pnpm does NOT
+          # hoist to node_modules/ root. They live only in the virtual store under
+          # pg's dependency context: node_modules/.pnpm/PKGNAME@VERSION/node_modules/PKGNAME/
+          # outputFileTracingIncludes cannot trace them (no hoisted symlink to follow).
+          # Copy them directly so Node.js can find them at node_modules/PKGNAME.
+          echo "Copying pg transitive dependencies from pnpm store..."
+          for PKG in pg-types pg-protocol; do
+            SRC=$(find node_modules/.pnpm -maxdepth 4 -type d -name "$PKG" 2>/dev/null \
+              | grep "node_modules/${PKG}\$" | head -1)
+            if [ -n "$SRC" ]; then
+              rm -rf "$STANDALONE_NM/$PKG"
+              cp -rL "$SRC" "$STANDALONE_NM/$PKG"
+              echo "  ✅ $PKG (from $SRC)"
+            else
+              echo "  ⚠️  $PKG not found in pnpm store — may be missing at runtime"
+            fi
+          done
+
+          # ── D: Resolve any remaining pnpm symlinks in standalone ─────────────
           # Some packages (typescript, react-dom, etc.) may remain as symlinks.
           # Walk maxdepth 2 to cover both top-level and @scope/pkg paths.
           echo "Resolving remaining pnpm symlinks..."
@@ -156,7 +175,11 @@ jobs:
             echo "❌ ERROR: @prisma/client-runtime-utils still missing!"
             exit 1
           fi
-          echo "✅ .prisma/client and @prisma/client-runtime-utils verified"
+          if [ ! -d "$STANDALONE_NM/pg-types" ]; then
+            echo "❌ ERROR: pg-types still missing!"
+            exit 1
+          fi
+          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
