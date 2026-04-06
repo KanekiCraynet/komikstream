@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.18] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): resolve ALL pnpm symlinks universally instead of per-package (bc0fd0e)
+
+
 ## [0.35.17] - 2026-04-06
 
 ### Bug Fixes
