@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.22] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): include postgres-* store entries to resolve xtend cascade (3a940b7)
+
+
 ## [0.35.21] - 2026-04-06
 
 ### Bug Fixes
