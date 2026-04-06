@@ -88,41 +88,68 @@ jobs:
           cp -r public .next/standalone/public
           cp -r prisma .next/standalone/prisma
 
-          # Resolve ALL pnpm symlinks in the standalone output.
+          # Fix pnpm virtual-store packages missing from the standalone output.
           #
-          # pnpm stores packages in a virtual store (.pnpm/) and uses symlinks in
-          # node_modules/ that point into that store. Next.js file tracing copies
-          # these symlinks into .next/standalone/node_modules/ but does NOT copy the
-          # virtual store itself — so every symlink is broken after zip extraction.
+          # pnpm stores packages in .pnpm/ and uses symlinks in node_modules/.
+          # Next.js file tracing copies these entries into standalone/node_modules/
+          # but does NOT copy the .pnpm/ virtual store itself, so symlinks break
+          # after zip extraction on Azure.
           #
-          # This affects every package that pnpm manages as a symlink: @prisma/*,
-          # pg-types, pg-protocol, @opentelemetry/*, etc.
-          #
-          # Fix: walk all symlinks at maxdepth 2 in standalone/node_modules and
-          # replace each one with a real copy of its resolved target.
-          # -rL in cp dereferences any nested symlinks recursively.
-          echo "Resolving pnpm symlinks in standalone node_modules..."
+          # Two categories need different fixes:
+          # A) .prisma/client — not at node_modules/.prisma/ in pnpm projects
+          #    (Prisma generates into the virtual store). File tracer never finds it.
+          #    Fix: locate in .pnpm/ and copy directly.
+          # B) @prisma/* sub-packages (Prisma 7 split internals into separate pkgs)
+          #    and other packages that remain as symlinks in standalone.
+          #    Fix: copy from .pnpm/ store + resolve remaining symlinks.
           STANDALONE_NM=".next/standalone/node_modules"
-          RESOLVED=0
 
+          # ── A: .prisma/client (Prisma generated client) ──────────────────────
+          echo "Copying .prisma/client from pnpm store..."
+          PRISMA_SRC=$(find node_modules/.pnpm -type d -name "client" -path "*/.prisma/*" 2>/dev/null | head -1)
+          if [ -n "$PRISMA_SRC" ]; then
+            rm -rf "$STANDALONE_NM/.prisma"
+            mkdir -p "$STANDALONE_NM/.prisma"
+            cp -rL "$PRISMA_SRC" "$STANDALONE_NM/.prisma/client"
+            echo "  ✅ .prisma/client (from $PRISMA_SRC)"
+          else
+            echo "  ❌ ERROR: .prisma/client not found in pnpm store!"
+            exit 1
+          fi
+
+          # ── B: @prisma/* sub-packages ────────────────────────────────────────
+          echo "Copying @prisma/* sub-packages from pnpm store..."
+          mkdir -p "$STANDALONE_NM/@prisma"
+          for SRC_PKG in node_modules/.pnpm/@prisma+*/node_modules/@prisma/*/; do
+            PKG_NAME=$(basename "$SRC_PKG")
+            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
+              rm -rf "$STANDALONE_NM/@prisma/$PKG_NAME"
+              cp -rL "$SRC_PKG" "$STANDALONE_NM/@prisma/$PKG_NAME"
+              echo "  ✅ @prisma/$PKG_NAME"
+            fi
+          done
+
+          # ── C: Resolve any remaining pnpm symlinks in standalone ─────────────
+          # Some packages (typescript, react-dom, etc.) may remain as symlinks.
+          # Walk maxdepth 2 to cover both top-level and @scope/pkg paths.
+          echo "Resolving remaining pnpm symlinks..."
+          RESOLVED=0
           while IFS= read -r link; do
             target=$(readlink -f "$link")
-            pkg_rel="${link#$STANDALONE_NM/}"
             if [ -d "$target" ]; then
               rm -rf "$link"
               cp -rL "$target" "$link"
-              echo "  ✅ $pkg_rel"
+              echo "  ✅ ${link#$STANDALONE_NM/}"
               RESOLVED=$((RESOLVED + 1))
             else
-              echo "  ⚠️  $pkg_rel → broken symlink (target missing in pnpm store)"
+              echo "  ⚠️  ${link#$STANDALONE_NM/} → broken symlink (skipped)"
             fi
           done < <(find "$STANDALONE_NM" -maxdepth 2 -type l)
+          echo "  Resolved $RESOLVED additional symlinks"
 
-          echo "✅ Resolved $RESOLVED symlinks"
-
-          # Verify the two historically-missing packages
+          # ── Verify critical packages ──────────────────────────────────────────
           if [ ! -f "$STANDALONE_NM/.prisma/client/default.js" ]; then
-            echo "❌ ERROR: .prisma/client/default.js not found — Prisma client missing!"
+            echo "❌ ERROR: .prisma/client/default.js not found!"
             exit 1
           fi
           if [ ! -d "$STANDALONE_NM/@prisma/client-runtime-utils" ]; then
