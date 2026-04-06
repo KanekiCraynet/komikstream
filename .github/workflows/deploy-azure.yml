@@ -36,6 +36,7 @@ jobs:
     with:
       # ci.yml already includes security checks, no need to duplicate
       skip-security: false
+    secrets: inherit
 
   # ==================== BUILD & DEPLOY TO AZURE ====================
   deploy:
