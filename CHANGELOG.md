@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.25] - 2026-04-06
+
+### Bug Fixes
+- fix(config): disable ISR filesystem writes to avoid ENOENT on read-only wwwroot (3470137)
+
+
 ## [0.35.24] - 2026-04-06
 
 ### Bug Fixes
