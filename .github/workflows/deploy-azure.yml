@@ -130,6 +130,38 @@ jobs:
             exit 1
           fi
 
+          # Fix pnpm symlink issue for ALL @prisma/* packages.
+          # Prisma 7 refactored internals into sub-packages (@prisma/client-runtime-utils,
+          # @prisma/driver-adapter-utils, etc.). pnpm stores them as symlinks in
+          # node_modules/@prisma/ pointing to .pnpm virtual store.
+          # outputFileTracingIncludes copies the symlinks but NOT the real files,
+          # so they break after zip extraction on Azure.
+          # Solution: resolve each @prisma/* symlink and copy real files to standalone.
+          echo "Fixing pnpm symlinks for @prisma/* sub-packages..."
+          STANDALONE_PRISMA=".next/standalone/node_modules/@prisma"
+          mkdir -p "$STANDALONE_PRISMA"
+
+          for SRC_PKG in node_modules/.pnpm/@prisma+*/node_modules/@prisma/*/; do
+            PKG_NAME=$(basename "$SRC_PKG")
+            DEST="$STANDALONE_PRISMA/$PKG_NAME"
+
+            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
+              rm -rf "$DEST"
+              cp -r "$SRC_PKG" "$DEST"
+              echo "  ✅ @prisma/$PKG_NAME"
+            fi
+          done
+
+          # Verify @prisma/client-runtime-utils (the package that was missing)
+          if [ -d "$STANDALONE_PRISMA/client-runtime-utils" ]; then
+            echo "✅ @prisma/client-runtime-utils verified in standalone"
+          else
+            echo "❌ ERROR: @prisma/client-runtime-utils still missing!"
+            echo "Available @prisma packages in pnpm store:"
+            find node_modules/.pnpm -maxdepth 3 -name "@prisma" -type d | head -10
+            exit 1
+          fi
+
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
           cd ../..
