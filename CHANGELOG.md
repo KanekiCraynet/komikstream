@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.17] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): resolve pnpm symlinks for all @prisma/* sub-packages (742817d)
+
+
 ## [0.35.16] - 2026-04-06
 
 ### Bug Fixes
