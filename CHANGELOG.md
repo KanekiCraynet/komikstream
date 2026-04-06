@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.21] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): copy entire pg store tree to resolve postgres-array cascade (8ad9b95)
+
+
 ## [0.35.20] - 2026-04-06
 
 ### Bug Fixes
