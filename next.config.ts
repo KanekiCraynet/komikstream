@@ -208,6 +208,10 @@ const nextConfig: NextConfig = {
             "./node_modules/@prisma/**/*",
             "./node_modules/pg/**/*",
             "./node_modules/pg-pool/**/*",
+            "./node_modules/pg-types/**/*",
+            "./node_modules/pg-protocol/**/*",
+            // @opentelemetry/* packages required by applicationinsights SDK
+            "./node_modules/@opentelemetry/**/*",
           ],
         },
       }
