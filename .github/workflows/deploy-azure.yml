@@ -129,23 +129,31 @@ jobs:
             fi
           done
 
-          # ── C: pg transitive dependencies ────────────────────────────────────
-          # pg-types and pg-protocol are transitive deps of pg that pnpm does NOT
-          # hoist to node_modules/ root. They live only in the virtual store under
-          # pg's dependency context: node_modules/.pnpm/PKGNAME@VERSION/node_modules/PKGNAME/
-          # outputFileTracingIncludes cannot trace them (no hoisted symlink to follow).
-          # Copy them directly so Node.js can find them at node_modules/PKGNAME.
-          echo "Copying pg transitive dependencies from pnpm store..."
-          for PKG in pg-types pg-protocol; do
-            SRC=$(find node_modules/.pnpm -maxdepth 4 -type d -name "$PKG" 2>/dev/null \
-              | grep "node_modules/${PKG}\$" | head -1)
-            if [ -n "$SRC" ]; then
-              rm -rf "$STANDALONE_NM/$PKG"
-              cp -rL "$SRC" "$STANDALONE_NM/$PKG"
-              echo "  ✅ $PKG (from $SRC)"
-            else
-              echo "  ⚠️  $PKG not found in pnpm store — may be missing at runtime"
-            fi
+          # ── C: pg dependency tree ────────────────────────────────────────────
+          # pnpm does not hoist transitive deps (pg-types, postgres-array, etc.)
+          # to node_modules/ root. They only exist inside their parent package's
+          # virtual store entry: node_modules/.pnpm/PARENT@V/node_modules/DEP/
+          #
+          # Strategy: for each pg-* package in the pnpm store, copy its entire
+          # node_modules/ sub-tree to standalone/node_modules/ so Node.js can
+          # resolve them. This covers pg, pg-types, pg-pool, pg-protocol and ALL
+          # of their transitive dependencies in one pass.
+          echo "Copying pg dependency tree from pnpm store..."
+          for STORE_PKG_DIR in node_modules/.pnpm/pg*/; do
+            [ -d "$STORE_PKG_DIR" ] || continue
+            # Copy all packages in this virtual store entry's node_modules/
+            for DEP_DIR in "${STORE_PKG_DIR}node_modules"/*/; do
+              DEP_NAME=$(basename "${DEP_DIR%/}")
+              [ "$DEP_NAME" = "." ] && continue
+              # Skip already-handled @-scoped packages (covered by @prisma/* loop)
+              [[ "$DEP_NAME" == @* ]] && continue
+              DEST="$STANDALONE_NM/$DEP_NAME"
+              # Don't overwrite packages already present (e.g., pg itself)
+              if [ ! -d "$DEST" ]; then
+                cp -rL "$DEP_DIR" "$DEST"
+                echo "  ✅ $DEP_NAME (from $STORE_PKG_DIR)"
+              fi
+            done
           done
 
           # ── D: Resolve any remaining pnpm symlinks in standalone ─────────────
@@ -179,7 +187,11 @@ jobs:
             echo "❌ ERROR: pg-types still missing!"
             exit 1
           fi
-          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types verified"
+          if [ ! -d "$STANDALONE_NM/postgres-array" ]; then
+            echo "❌ ERROR: postgres-array still missing!"
+            exit 1
+          fi
+          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
