@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.27] - 2026-04-06
+
+### Bug Fixes
+- fix(ci): pass secrets to reusable ci.yml workflow via secrets: inherit (40c9061)
+
+
 ## [0.35.26] - 2026-04-06
 
 ### Bug Fixes
