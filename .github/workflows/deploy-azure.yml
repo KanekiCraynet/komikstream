@@ -134,12 +134,13 @@ jobs:
           # to node_modules/ root. They only exist inside their parent package's
           # virtual store entry: node_modules/.pnpm/PARENT@V/node_modules/DEP/
           #
-          # Strategy: for each pg-* package in the pnpm store, copy its entire
-          # node_modules/ sub-tree to standalone/node_modules/ so Node.js can
-          # resolve them. This covers pg, pg-types, pg-pool, pg-protocol and ALL
-          # of their transitive dependencies in one pass.
-          echo "Copying pg dependency tree from pnpm store..."
-          for STORE_PKG_DIR in node_modules/.pnpm/pg*/; do
+          # Strategy: for each pg-* and postgres-* package in the pnpm store,
+          # copy its entire node_modules/ sub-tree to standalone/node_modules/.
+          # This covers pg, pg-types, pg-pool, pg-protocol, postgres-array,
+          # postgres-interval, postgres-date, postgres-bytea, xtend, and ALL
+          # other transitive dependencies in one pass.
+          echo "Copying pg/postgres dependency tree from pnpm store..."
+          for STORE_PKG_DIR in node_modules/.pnpm/pg*/ node_modules/.pnpm/postgres*/; do
             [ -d "$STORE_PKG_DIR" ] || continue
             # Copy all packages in this virtual store entry's node_modules/
             for DEP_DIR in "${STORE_PKG_DIR}node_modules"/*/; do
