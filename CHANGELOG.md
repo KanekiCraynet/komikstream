@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.16] - 2026-04-06
+
+### Bug Fixes
+- fix(azure): include all @prisma/* packages in standalone output trace (7095f6e)
+- fix(infra): fix health check, CI/CD double-deploy, Docker, and CF Worker issues (d52503c)
+
+
 ## [0.35.15] - 2026-04-06
 
 ### Bug Fixes
