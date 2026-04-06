@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.23] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): use pnpm node-linker=node-modules to eliminate all symlink issues (698227f)
+
+
 ## [0.35.22] - 2026-04-06
 
 ### Bug Fixes
