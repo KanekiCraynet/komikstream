@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.15] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): fix pnpm Prisma symlink issue and use dummy DATABASE_URL during build (82d395e)
+
+
 ## [0.35.14] - 2026-04-05
 
 ### Bug Fixes
