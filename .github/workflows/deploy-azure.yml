@@ -56,6 +56,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
+      - name: Use flat node_modules for Azure build
+        # pnpm default (hoisted+symlinks) puts transitive deps only in the virtual
+        # store, not in node_modules/. Next.js file tracing copies the symlinks but
+        # not the store, so extracted zip has broken symlinks on Azure.
+        # node-linker=node-modules installs packages flat (like npm): every package
+        # gets a real directory in node_modules/, tracer copies real files to standalone.
+        # This flag only affects this job's workspace — it is NOT committed to git.
+        run: echo 'node-linker=node-modules' >> .npmrc
+
       - name: Setup project
         uses: ./.github/actions/setup
         with:
@@ -88,111 +97,35 @@ jobs:
           cp -r public .next/standalone/public
           cp -r prisma .next/standalone/prisma
 
-          # Fix pnpm virtual-store packages missing from the standalone output.
+          # node-linker=node-modules (set in the earlier step) makes pnpm install
+          # packages as real directories in a flat node_modules/ (like npm).
+          # Next.js file tracer therefore copies real files to standalone/ — no
+          # symlinks to the pnpm virtual store, no broken-after-zip deps.
           #
-          # pnpm stores packages in .pnpm/ and uses symlinks in node_modules/.
-          # Next.js file tracing copies these entries into standalone/node_modules/
-          # but does NOT copy the .pnpm/ virtual store itself, so symlinks break
-          # after zip extraction on Azure.
-          #
-          # Two categories need different fixes:
-          # A) .prisma/client — not at node_modules/.prisma/ in pnpm projects
-          #    (Prisma generates into the virtual store). File tracer never finds it.
-          #    Fix: locate in .pnpm/ and copy directly.
-          # B) @prisma/* sub-packages (Prisma 7 split internals into separate pkgs)
-          #    and other packages that remain as symlinks in standalone.
-          #    Fix: copy from .pnpm/ store + resolve remaining symlinks.
+          # .prisma/client is the one exception: Prisma always generates into the
+          # pnpm virtual store regardless of node-linker. Copy it explicitly.
           STANDALONE_NM=".next/standalone/node_modules"
 
-          # ── A: .prisma/client (Prisma generated client) ──────────────────────
           echo "Copying .prisma/client from pnpm store..."
           PRISMA_SRC=$(find node_modules/.pnpm -type d -name "client" -path "*/.prisma/*" 2>/dev/null | head -1)
           if [ -n "$PRISMA_SRC" ]; then
             rm -rf "$STANDALONE_NM/.prisma"
             mkdir -p "$STANDALONE_NM/.prisma"
             cp -rL "$PRISMA_SRC" "$STANDALONE_NM/.prisma/client"
-            echo "  ✅ .prisma/client (from $PRISMA_SRC)"
+            echo "  ✅ .prisma/client"
           else
             echo "  ❌ ERROR: .prisma/client not found in pnpm store!"
             exit 1
           fi
 
-          # ── B: @prisma/* sub-packages ────────────────────────────────────────
-          echo "Copying @prisma/* sub-packages from pnpm store..."
-          mkdir -p "$STANDALONE_NM/@prisma"
-          for SRC_PKG in node_modules/.pnpm/@prisma+*/node_modules/@prisma/*/; do
-            PKG_NAME=$(basename "$SRC_PKG")
-            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
-              rm -rf "$STANDALONE_NM/@prisma/$PKG_NAME"
-              cp -rL "$SRC_PKG" "$STANDALONE_NM/@prisma/$PKG_NAME"
-              echo "  ✅ @prisma/$PKG_NAME"
+          # Verify critical packages are present (catches misconfiguration early)
+          for PKG in ".prisma/client/default.js" "@prisma/client-runtime-utils" "pg" "pg-types" "postgres-array"; do
+            if [ ! -e "$STANDALONE_NM/$PKG" ]; then
+              echo "❌ ERROR: $PKG missing from standalone!"
+              exit 1
             fi
           done
-
-          # ── C: pg dependency tree ────────────────────────────────────────────
-          # pnpm does not hoist transitive deps (pg-types, postgres-array, etc.)
-          # to node_modules/ root. They only exist inside their parent package's
-          # virtual store entry: node_modules/.pnpm/PARENT@V/node_modules/DEP/
-          #
-          # Strategy: for each pg-* and postgres-* package in the pnpm store,
-          # copy its entire node_modules/ sub-tree to standalone/node_modules/.
-          # This covers pg, pg-types, pg-pool, pg-protocol, postgres-array,
-          # postgres-interval, postgres-date, postgres-bytea, xtend, and ALL
-          # other transitive dependencies in one pass.
-          echo "Copying pg/postgres dependency tree from pnpm store..."
-          for STORE_PKG_DIR in node_modules/.pnpm/pg*/ node_modules/.pnpm/postgres*/; do
-            [ -d "$STORE_PKG_DIR" ] || continue
-            # Copy all packages in this virtual store entry's node_modules/
-            for DEP_DIR in "${STORE_PKG_DIR}node_modules"/*/; do
-              DEP_NAME=$(basename "${DEP_DIR%/}")
-              [ "$DEP_NAME" = "." ] && continue
-              # Skip already-handled @-scoped packages (covered by @prisma/* loop)
-              [[ "$DEP_NAME" == @* ]] && continue
-              DEST="$STANDALONE_NM/$DEP_NAME"
-              # Don't overwrite packages already present (e.g., pg itself)
-              if [ ! -d "$DEST" ]; then
-                cp -rL "$DEP_DIR" "$DEST"
-                echo "  ✅ $DEP_NAME (from $STORE_PKG_DIR)"
-              fi
-            done
-          done
-
-          # ── D: Resolve any remaining pnpm symlinks in standalone ─────────────
-          # Some packages (typescript, react-dom, etc.) may remain as symlinks.
-          # Walk maxdepth 2 to cover both top-level and @scope/pkg paths.
-          echo "Resolving remaining pnpm symlinks..."
-          RESOLVED=0
-          while IFS= read -r link; do
-            target=$(readlink -f "$link")
-            if [ -d "$target" ]; then
-              rm -rf "$link"
-              cp -rL "$target" "$link"
-              echo "  ✅ ${link#$STANDALONE_NM/}"
-              RESOLVED=$((RESOLVED + 1))
-            else
-              echo "  ⚠️  ${link#$STANDALONE_NM/} → broken symlink (skipped)"
-            fi
-          done < <(find "$STANDALONE_NM" -maxdepth 2 -type l)
-          echo "  Resolved $RESOLVED additional symlinks"
-
-          # ── Verify critical packages ──────────────────────────────────────────
-          if [ ! -f "$STANDALONE_NM/.prisma/client/default.js" ]; then
-            echo "❌ ERROR: .prisma/client/default.js not found!"
-            exit 1
-          fi
-          if [ ! -d "$STANDALONE_NM/@prisma/client-runtime-utils" ]; then
-            echo "❌ ERROR: @prisma/client-runtime-utils still missing!"
-            exit 1
-          fi
-          if [ ! -d "$STANDALONE_NM/pg-types" ]; then
-            echo "❌ ERROR: pg-types still missing!"
-            exit 1
-          fi
-          if [ ! -d "$STANDALONE_NM/postgres-array" ]; then
-            echo "❌ ERROR: postgres-array still missing!"
-            exit 1
-          fi
-          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array verified"
+          echo "✅ All critical packages verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
