@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.19] - 2026-04-06
+
+### Bug Fixes
+- fix(deploy): restore explicit pnpm-store copies for .prisma/client and @prisma/* (40e5686)
+
+
 ## [0.35.18] - 2026-04-06
 
 ### Bug Fixes
