@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.24] - 2026-04-06
+
+### Bug Fixes
+- fix(worker): don't cache 403 responses, update User-Agent to Chrome 136 (184b74b)
+
+### Other Changes
+- Revert "fix(deploy): use pnpm node-linker=node-modules to eliminate all symlink issues" (feb1dbf)
+
+
 ## [0.35.23] - 2026-04-06
 
 ### Bug Fixes
