@@ -35,6 +35,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://www.sankavollerei.c
 const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 10;
 
+// Rate limit: 50 req/min = 1 req per 1.2s. Use 1500ms for safety margin.
+const REQUEST_DELAY_MS = 1500;
+
 if (!CRON_SECRET) {
   console.error("CRON_SECRET not set in .env");
   process.exit(1);
@@ -58,6 +61,14 @@ const COMIC_HEADERS = {
 
 async function fetchJson(url: string, headers: Record<string, string>) {
   const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+  if (resp.status === 429) {
+    // Rate limited — wait 60s then retry once
+    console.warn("  ⚠️  Rate limited (429), waiting 60s...");
+    await sleep(60_000);
+    const retry = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+    if (!retry.ok) throw new Error(`${retry.status} ${retry.statusText}`);
+    return retry.json();
+  }
   if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   return resp.json();
 }
@@ -122,7 +133,7 @@ async function fetchAnimeDetailsBatch(
       if (detail?.data?.title) {
         items.push(transformAnimeDetail(detail.data, urlId));
       }
-      await sleep(200); // Be polite
+      await sleep(REQUEST_DELAY_MS);
     } catch (err) {
       console.log(`  Skip ${urlId}: ${(err as Error).message}`);
     }
@@ -136,6 +147,7 @@ async function fetchAllAnime() {
   // Ongoing anime
   try {
     const res = await fetchJson(`${API_BASE}/anime/ongoing-anime`, ANIME_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const list: RawAnimeListItem[] = res?.data?.animeList || [];
     const urlIds = list.map((a) => a.animeId).filter(Boolean) as string[];
     console.log(`  Ongoing: ${urlIds.length} anime IDs`);
@@ -147,6 +159,7 @@ async function fetchAllAnime() {
   // Unlimited (more anime)
   try {
     const res = await fetchJson(`${API_BASE}/anime/unlimited`, ANIME_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const list: RawAnimeListItem[] = res?.data?.animeList || [];
     const existingIds = new Set(items.map((a) => a.urlId));
     const newIds = list
@@ -162,6 +175,7 @@ async function fetchAllAnime() {
   // Home (ongoing + completed)
   try {
     const res = await fetchJson(`${API_BASE}/anime/home`, ANIME_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const ongoing: RawAnimeListItem[] = res?.data?.ongoing?.animeList || [];
     const completed: RawAnimeListItem[] = res?.data?.completed?.animeList || [];
     const existingIds = new Set(items.map((a) => a.urlId));
@@ -245,7 +259,7 @@ async function fetchKomikDetailsBatch(
       if (detail?.title) {
         items.push(transformKomikDetail(detail));
       }
-      await sleep(200);
+      await sleep(REQUEST_DELAY_MS);
     } catch (err) {
       console.log(`  Skip ${slug}: ${(err as Error).message}`);
     }
@@ -259,6 +273,7 @@ async function fetchAllKomik() {
   // Terbaru (latest)
   try {
     const res = await fetchJson(`${API_BASE}/comic/terbaru`, COMIC_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const list: RawKomikListItem[] = res?.comics || [];
     const slugs = list.map(extractSlug).filter(Boolean) as string[];
     console.log(`  Terbaru: ${slugs.length} komik IDs`);
@@ -270,6 +285,7 @@ async function fetchAllKomik() {
   // Populer
   try {
     const res = await fetchJson(`${API_BASE}/comic/populer`, COMIC_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const list: RawKomikListItem[] = res?.comics || [];
     const existingIds = new Set(items.map((k) => k.manga_id));
     const newSlugs = list
@@ -285,6 +301,7 @@ async function fetchAllKomik() {
   // Realtime
   try {
     const res = await fetchJson(`${API_BASE}/comic/realtime?count=48`, COMIC_HEADERS);
+    await sleep(REQUEST_DELAY_MS);
     const list: RawKomikListItem[] = res?.comics || [];
     const existingIds = new Set(items.map((k) => k.manga_id));
     const newSlugs = list

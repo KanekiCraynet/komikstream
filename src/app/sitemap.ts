@@ -160,7 +160,9 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       return entries;
     }
   } catch (err) {
-    logger.error(`Sitemap generation failed for id ${numId}`, { error: err });
+    logger.error(`Sitemap generation failed for id ${numId}`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   return [];

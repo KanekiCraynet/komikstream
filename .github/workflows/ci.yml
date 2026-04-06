@@ -73,7 +73,14 @@ jobs:
         with:
           prisma-generate: "true"
 
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm exec prisma migrate deploy
+
       - name: Run tests with coverage
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm test --coverage --coverageReporters=lcov --coverageReporters=text
 
       - name: Upload coverage to Codecov
@@ -116,13 +123,16 @@ jobs:
         # actually gets deployed. This ensures CI tests the real build config.
         # DATABASE_URL uses a dummy value so Prisma doesn't throw during
         # module load; no actual DB connection is made at build time.
+        # SKIP_DB_CONNECTION=true prevents isDatabaseConfigured() from returning
+        # true with the dummy URL — avoids noisy Prisma errors in sitemap generation.
         # Real values are injected only in the production deploy workflow.
-        run: pnpm run build
         env:
           BUILD_TARGET: "azure"
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          SKIP_DB_CONNECTION: "true"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
+        run: pnpm run build
 
       - name: Check build output
         run: |

@@ -31,6 +31,12 @@
       "dataset": "kuromanga_events",
     },
   ],
+  // ─── Cron Triggers ────────────────────────────────────────────────
+  // Runs every 6 hours to fetch latest content from sankavollerei.com
+  // and seed the Azure DB. CF Worker IPs are not blocked by sankavollerei.com.
+  "triggers": {
+    "crons": ["0 */6 * * *"],
+  },
   // ─── Environment Variables ─────────────────────────────────────────
   "vars": {
     "AZURE_ORIGIN": "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net",
@@ -39,6 +45,7 @@
   // Secrets MUST NOT be stored in this file. Set them via:
   //   wrangler secret put WORKER_TOKEN
   //   wrangler secret put API_PROXY_TOKEN
+  //   wrangler secret put CRON_SECRET
   //
   // Required secrets:
   //   WORKER_TOKEN     — shared secret between CF Worker and Azure origin.
@@ -47,4 +54,5 @@
   //   API_PROXY_TOKEN  — shared secret for /api-proxy/ route. Azure uses
   //                      this to authenticate API calls routed through the
   //                      Worker to bypass sankavollerei.com IP blocking.
+  //   CRON_SECRET      — auth token for /api/internal/seed endpoint.
 }

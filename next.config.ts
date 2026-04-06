@@ -222,11 +222,6 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
-    // Disable ISR filesystem writes. WEBSITE_RUN_FROM_PACKAGE=1 mounts the
-    // deployment zip as read-only, so Next.js cannot write .segments files.
-    // With false, revalidated pages are held in-memory only — safe because
-    // the DB cache layer (api-cached.ts) is the primary persistence mechanism.
-    isrFlushToDisk: false,
   },
 };
 

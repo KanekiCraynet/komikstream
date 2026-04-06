@@ -23,6 +23,7 @@ interface Env {
   WORKER_TOKEN: string;
   AZURE_ORIGIN: string;
   API_PROXY_TOKEN: string;
+  CRON_SECRET: string;
 }
 
 interface RateLimitEntry {
@@ -222,9 +223,154 @@ const worker: ExportedHandler<Env> = {
       });
     }
   },
+
+  // ─── Cron: Auto-seed DB every 6 hours ────────────────────────────
+  // Fetches latest content lists from sankavollerei.com (CF IPs not blocked)
+  // and pushes to Azure /api/internal/seed to keep DB cache fresh.
+  // Only fetches list endpoints (~4-6 requests) — fast enough for cron budget.
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runSeed(env));
+  },
 };
 
 export default worker;
+
+// ─── Cron Seed Logic ─────────────────────────────────────────────────
+
+const SANKAVOLLEREI = "https://www.sankavollerei.com";
+
+const FETCH_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+  "sec-fetch-dest": "empty",
+  "sec-fetch-mode": "cors",
+  "sec-fetch-site": "same-origin",
+};
+
+interface RawAnimeItem {
+  animeId?: string;
+  title?: string;
+  poster?: string;
+  type?: string;
+  status?: string;
+  score?: string;
+  episodes?: number;
+  genreList?: Array<{ title?: string }>;
+}
+
+interface RawComicItem {
+  slug?: string;
+  link?: string;
+  title?: string;
+  image?: string;
+  type?: string;
+}
+
+async function safeFetch(url: string): Promise<unknown | null> {
+  try {
+    const resp = await fetch(url, { headers: FETCH_HEADERS });
+    if (!resp.ok) return null;
+    return resp.json();
+  } catch {
+    return null;
+  }
+}
+
+function extractComicSlug(item: RawComicItem): string | undefined {
+  if (item.slug) return item.slug;
+  if (item.link) {
+    const parts = item.link.replace(/\/+$/, "").split("/");
+    return parts[parts.length - 1] || undefined;
+  }
+  return undefined;
+}
+
+async function runSeed(env: Env): Promise<void> {
+  if (!env.CRON_SECRET) return;
+
+  const anime: unknown[] = [];
+  const komik: unknown[] = [];
+
+  // ── Fetch anime lists ──
+  const [ongoingRes, homeRes] = await Promise.all([
+    safeFetch(`${SANKAVOLLEREI}/anime/ongoing-anime`),
+    safeFetch(`${SANKAVOLLEREI}/anime/home`),
+  ]);
+
+  const ongoingList: RawAnimeItem[] =
+    (ongoingRes as { data?: { animeList?: RawAnimeItem[] } })?.data?.animeList ?? [];
+  const homeOngoing: RawAnimeItem[] =
+    (homeRes as { data?: { ongoing?: { animeList?: RawAnimeItem[] } } })?.data?.ongoing
+      ?.animeList ?? [];
+  const homeCompleted: RawAnimeItem[] =
+    (homeRes as { data?: { completed?: { animeList?: RawAnimeItem[] } } })?.data?.completed
+      ?.animeList ?? [];
+
+  const seenAnime = new Set<string>();
+  for (const item of [...ongoingList, ...homeOngoing, ...homeCompleted]) {
+    if (!item.animeId || seenAnime.has(item.animeId)) continue;
+    seenAnime.add(item.animeId);
+    anime.push({
+      urlId: item.animeId,
+      title: item.title ?? "",
+      thumbnail: item.poster ?? "",
+      type: item.type,
+      status: item.status,
+      rating: item.score,
+      genres: item.genreList?.map((g) => g.title).filter(Boolean) ?? [],
+    });
+  }
+
+  // ── Fetch komik lists ──
+  const [terbaruRes, populerRes] = await Promise.all([
+    safeFetch(`${SANKAVOLLEREI}/comic/terbaru`),
+    safeFetch(`${SANKAVOLLEREI}/comic/populer`),
+  ]);
+
+  const terbaruList: RawComicItem[] = (terbaruRes as { comics?: RawComicItem[] })?.comics ?? [];
+  const populerList: RawComicItem[] = (populerRes as { comics?: RawComicItem[] })?.comics ?? [];
+
+  const seenKomik = new Set<string>();
+  for (const item of [...terbaruList, ...populerList]) {
+    const slug = extractComicSlug(item);
+    if (!slug || seenKomik.has(slug)) continue;
+    seenKomik.add(slug);
+    komik.push({
+      manga_id: slug,
+      title: item.title ?? "",
+      thumbnail: item.image ?? "",
+      type: item.type,
+    });
+  }
+
+  if (anime.length === 0 && komik.length === 0) return;
+
+  // ── Push to Azure seed endpoint ──
+  const seedUrl = `${env.AZURE_ORIGIN}/api/internal/seed`;
+  try {
+    await fetch(seedUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.CRON_SECRET}`,
+        "Content-Type": "application/json",
+        "x-worker-token": env.WORKER_TOKEN ?? "",
+      },
+      body: JSON.stringify({ anime, komik }),
+    });
+    trackEvent(
+      env.ANALYTICS,
+      "cron_seed",
+      "success",
+      `anime:${anime.length},komik:${komik.length}`,
+      anime.length + komik.length,
+      200
+    );
+  } catch {
+    trackEvent(env.ANALYTICS, "cron_seed", "error", "fetch_failed", 0, 500);
+  }
+}
 
 async function handleRequest(
   request: Request,

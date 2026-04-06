@@ -139,7 +139,7 @@ function verifyWorkerToken(req: NextRequest): NextResponse | null {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
-export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+export default async function proxy(req: NextRequest, event: NextFetchEvent) {
   // Preserve trace ID injected by the Cloudflare Worker proxy (edge gateway).
   // If no Worker trace ID is present (e.g. direct Azure access), generate one.
   const traceId = req.headers.get("x-trace-id") ?? crypto.randomUUID();
