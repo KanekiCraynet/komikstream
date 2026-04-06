@@ -79,35 +79,21 @@ jobs:
         run: pnpm exec wrangler deploy --name kuromanga-staging
 
       - name: Set Staging Worker Secrets
-        # Push server-side secrets to the staging worker via Cloudflare API.
+        # Push server-side secrets to the staging worker via wrangler.
         # NEXT_PUBLIC_* vars are baked into the bundle at build time and do not
         # need to be set here. Secrets persist across deployments — re-applied
         # here so the workflow is fully self-contained.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+          SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_CLERK_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          SECRET_CLERK_WEBHOOK: ${{ secrets.CLERK_WEBHOOK_SECRET }}
         run: |
-          set_secret() {
-            local name="$1" value="$2" worker="$3"
-            local status
-            status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${worker}/secrets" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\":\"${name}\",\"text\":\"${value}\",\"type\":\"secret_text\"}")
-            if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
-              echo "✅ Secret ${name} set (HTTP ${status})"
-            else
-              echo "⚠️  Secret ${name} returned HTTP ${status} — check CF dashboard"
-            fi
-          }
-          set_secret "DATABASE_URL"     "$DATABASE_URL"     "kuromanga-staging"
-          set_secret "CLERK_SECRET_KEY" "$CLERK_SECRET_KEY" "kuromanga-staging"
-          if [ -n "$CLERK_WEBHOOK_SECRET" ]; then
-            set_secret "CLERK_WEBHOOK_SECRET" "$CLERK_WEBHOOK_SECRET" "kuromanga-staging"
+          echo "$SECRET_DATABASE_URL" | pnpm exec wrangler secret put DATABASE_URL --name kuromanga-staging
+          echo "$SECRET_CLERK_KEY" | pnpm exec wrangler secret put CLERK_SECRET_KEY --name kuromanga-staging
+          if [ -n "$SECRET_CLERK_WEBHOOK" ]; then
+            echo "$SECRET_CLERK_WEBHOOK" | pnpm exec wrangler secret put CLERK_WEBHOOK_SECRET --name kuromanga-staging
           fi
 
       - name: Deployment Summary

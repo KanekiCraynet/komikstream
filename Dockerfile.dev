@@ -10,15 +10,18 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
+# Enable pnpm via corepack (matches packageManager in package.json)
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm install
+RUN pnpm install
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 
 # Expose port
 EXPOSE 3000
@@ -28,4 +31,4 @@ ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Start development server
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]

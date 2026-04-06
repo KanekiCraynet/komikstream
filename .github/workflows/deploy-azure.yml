@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - "CHANGELOG.md"
+      - "package.json"
       - "**.md"
       - "workers/**"
       - "wrangler.jsonc"
@@ -44,6 +45,7 @@ jobs:
     needs: [ci]
     if: |
       always() &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
       (needs.ci.result == 'success' || github.event.inputs.skip_tests == 'true')
     environment:
       name: production
@@ -204,6 +206,20 @@ jobs:
           az webapp restart --name kuromanga --resource-group kuromanga
           echo "✅ Restart command sent"
 
+      - name: Verify runtime env (safety check)
+        run: |
+          # Ensure SKIP_DB_CONNECTION is NOT set in production App Settings.
+          # This var is build-time only — if it leaks to runtime, the DB layer
+          # silently returns null and the app runs without a database.
+          SKIP_DB=$(az webapp config appsettings list \
+            --name kuromanga --resource-group kuromanga \
+            --query "[?name=='SKIP_DB_CONNECTION'].value | [0]" --output tsv)
+          if [ "$SKIP_DB" = "true" ]; then
+            echo "::error::SKIP_DB_CONNECTION=true found in App Settings — this disables DB in production!"
+            exit 1
+          fi
+          echo "SKIP_DB_CONNECTION is not set in App Settings (correct)"
+
       # Note: Direct Azure URL health check is skipped because Azure App Service
       # has IP access restrictions that block GitHub Actions runners.
       # Health verification is done in the post-deploy job via Cloudflare URL.
@@ -211,14 +227,29 @@ jobs:
         id: health-poll
         run: |
           echo "Waiting for Azure App Service to restart..."
-          echo "Note: Direct health polling skipped due to Azure IP restrictions."
-          echo "Post-deployment health check will verify via Cloudflare URL."
-
-          # Give the app time to restart after deployment
-          sleep 30
-
-          echo "health_status=pending" >> "$GITHUB_OUTPUT"
-          echo "✅ Deployment complete - health verification delegated to post-deploy job"
+          # Poll Azure directly (bypassing CF) to detect when the app is ready.
+          # Uses x-worker-token so the request passes middleware verification.
+          ORIGIN="https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net"
+          READY=false
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              -H "x-worker-token: ${{ secrets.WORKER_TOKEN }}" \
+              "$ORIGIN/api/health" 2>/dev/null || echo "000")
+            if [ "$status" = "200" ]; then
+              echo "App is up (HTTP $status) after attempt $i"
+              READY=true
+              break
+            fi
+            echo "Attempt $i/12: HTTP $status — waiting 10s..."
+            sleep 10
+          done
+          if [ "$READY" = "true" ]; then
+            echo "health_status=ready" >> "$GITHUB_OUTPUT"
+            echo "App Service is responding"
+          else
+            echo "health_status=pending" >> "$GITHUB_OUTPUT"
+            echo "::warning::App Service did not respond within 2 minutes — continuing to post-deploy verification"
+          fi
 
   # ==================== POST-DEPLOYMENT ====================
   post-deploy:

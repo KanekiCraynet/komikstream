@@ -53,10 +53,14 @@ export async function GET(request: NextRequest) {
   // On B1 single instance, Azure health probe will restart instance after
   // consecutive 503 failures (default: 5). Don't make this too sensitive.
   try {
-    const dbUrl = process.env.DATABASE_URL;
+    const { getSafePrisma, isDatabaseConfigured } = await import("@/lib/prisma");
 
-    if (dbUrl && !dbUrl.includes("dummy")) {
-      const { getSafePrisma } = await import("@/lib/prisma");
+    if (!isDatabaseConfigured()) {
+      // SKIP_DB_CONNECTION=true or DATABASE_URL missing — report degraded
+      // so monitoring catches misconfigured runtime environments.
+      health.checks.database = "skipped";
+      health.status = "degraded";
+    } else {
       const prisma = await getSafePrisma();
 
       if (prisma) {

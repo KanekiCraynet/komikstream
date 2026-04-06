@@ -10,18 +10,21 @@ FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# Enable pnpm via corepack (matches packageManager in package.json)
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+
 # ==================== DEPENDENCIES ====================
 FROM base AS deps
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci --legacy-peer-deps
+RUN pnpm install --frozen-lockfile
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 
 # ==================== BUILDER ====================
 FROM base AS builder
@@ -35,9 +38,10 @@ COPY . .
 # Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_DB_CONNECTION=true
+ENV BUILD_TARGET=azure
 
 # Build the application
-RUN npm run build
+RUN pnpm run build:azure
 
 # ==================== RUNNER ====================
 FROM base AS runner

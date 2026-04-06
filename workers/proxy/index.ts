@@ -260,6 +260,7 @@ async function handleRequest(
         const headers = new Headers(imgResp.headers);
         headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800");
         headers.set("Access-Control-Allow-Origin", "*");
+        headers.set("X-Content-Type-Options", "nosniff");
         headers.delete("Set-Cookie");
         return new Response(imgResp.body, { status: 200, headers });
       }
@@ -296,6 +297,9 @@ async function handleRequest(
     };
 
     try {
+      // cf.cacheTtl caches the upstream response at the CF edge (5 min),
+      // reducing repeated fetches to sankavollerei.com. The Cache-Control: no-store
+      // on the proxied response prevents Azure from re-caching the payload.
       const apiResp = await fetch(apiUrl, {
         headers: apiHeaders,
         cf: { cacheTtl: 300, cacheEverything: true },
@@ -304,6 +308,7 @@ async function handleRequest(
       const respHeaders = new Headers();
       respHeaders.set("Content-Type", apiResp.headers.get("Content-Type") ?? "application/json");
       respHeaders.set("Cache-Control", "no-store");
+      respHeaders.set("X-Content-Type-Options", "nosniff");
       respHeaders.set("x-trace-id", traceId);
 
       return new Response(apiResp.body, {
@@ -475,10 +480,7 @@ async function handleRequest(
   // so browsers can start DNS+TLS handshake early for client-side fetches
   const contentType = responseHeaders.get("Content-Type") ?? "";
   if (contentType.includes("text/html")) {
-    responseHeaders.set(
-      "Link",
-      '</cdn/>; rel="preconnect", <https://www.sankavollerei.com>; rel="preconnect"; crossorigin'
-    );
+    responseHeaders.set("Link", '<https://www.sankavollerei.com>; rel="preconnect"; crossorigin');
   }
 
   return new Response(originResponse.body, {
