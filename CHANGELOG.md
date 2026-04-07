@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.40] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): replace hardcoded Phase 1 globs with dynamic BFS over pnpm dep closure (57631b5)
+
+
 ## [0.35.39] - 2026-04-07
 
 ### Bug Fixes
