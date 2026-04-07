@@ -188,24 +188,72 @@ jobs:
           done
 
           # ── E: Sync all missing pnpm packages to standalone ─────────────────
-          # pnpm isolated mode symlinks every package in node_modules/ to the
-          # .pnpm/ virtual store. The standalone tracer follows these for bundled
-          # code but misses transitive deps of serverExternalPackages.
-          # Fix: copy ALL top-level node_modules/ packages that are absent from
-          # standalone as real directories. This is a comprehensive one-shot
-          # approach that handles the entire dep tree without manual tracking.
-          echo "Syncing missing top-level pnpm packages to standalone..."
+          # Two-phase approach:
+          #
+          # Phase 1 — pnpm store walk for packages NOT hoisted to top-level
+          # node_modules/. Deep transitive deps of serverExternalPackages (e.g.
+          # require-in-the-middle, shimmer, protobufjs) are never symlinked at
+          # top-level by pnpm when nothing in the main bundle needs them.
+          # Walk their .pnpm/ store entries directly and copy everything inside.
+          #
+          # walk_store GLOB: copies all packages from the matching .pnpm/ store
+          # entry's node_modules/ to standalone. Handles both scoped (@scope/pkg)
+          # and non-scoped packages. Skips @types (type-only, not needed at runtime).
+          walk_store() {
+            local GLOB="$1"
+            for STORE_DIR in $GLOB; do
+              [ -d "$STORE_DIR" ] || continue
+              for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
+                local DEP_NAME
+                DEP_NAME=$(basename "${DEP_DIR%/}")
+                [ -d "$DEP_DIR" ] || continue
+                if [[ "$DEP_NAME" == @* ]]; then
+                  # Scoped scope directory (e.g. @protobufjs, @types)
+                  [[ "$DEP_NAME" == "@types" ]] && continue  # skip type-only
+                  local SCOPE="$DEP_NAME"
+                  mkdir -p "$STANDALONE_NM/$SCOPE"
+                  for SCOPED_DIR in "${DEP_DIR}"*/; do
+                    local SCOPED_PKG
+                    SCOPED_PKG=$(basename "${SCOPED_DIR%/}")
+                    [ -d "$SCOPED_DIR" ] || continue
+                    local SCOPED_DEST="$STANDALONE_NM/$SCOPE/$SCOPED_PKG"
+                    if [ ! -d "$SCOPED_DEST" ] || [ -L "$SCOPED_DEST" ]; then
+                      rm -rf "$SCOPED_DEST"
+                      cp -rL "$SCOPED_DIR" "$SCOPED_DEST"
+                      echo "    ✅ $SCOPE/$SCOPED_PKG"
+                    fi
+                  done
+                else
+                  local DEST="$STANDALONE_NM/$DEP_NAME"
+                  if [ ! -d "$DEST" ] || [ -L "$DEST" ]; then
+                    rm -rf "$DEST"
+                    cp -rL "$DEP_DIR" "$DEST"
+                    echo "    ✅ $DEP_NAME"
+                  fi
+                fi
+              done
+              break  # use first matching version
+            done
+          }
+          echo "Phase 1: copying pnpm-store-only packages (not hoisted to top-level)..."
+          walk_store "node_modules/.pnpm/require-in-the-middle@*/"
+          walk_store "node_modules/.pnpm/import-in-the-middle@*/"
+          walk_store "node_modules/.pnpm/shimmer@*/"
+          walk_store "node_modules/.pnpm/protobufjs@*/"
+
+          # Phase 2 — Comprehensive sync from top-level node_modules/.
+          # Catches packages that ARE symlinked at top-level by pnpm but
+          # absent from standalone (standalone tracer misses them).
+          echo "Phase 2: syncing missing top-level pnpm packages to standalone..."
           SYNCED_E=0
           # Non-scoped packages
           for PKG_DIR in node_modules/*/; do
             PKG_NAME=$(basename "${PKG_DIR%/}")
             [[ "$PKG_NAME" == .* ]] && continue  # skip .pnpm, .modules.yaml
             DEST="$STANDALONE_NM/$PKG_NAME"
-            # Skip if already a real directory (not a symlink)
             if [ -d "$DEST" ] && [ ! -L "$DEST" ]; then
-              continue
+              continue  # already a real directory
             fi
-            # Resolve pnpm symlink to real target
             if [ -L "$PKG_DIR" ]; then
               REAL_SRC=$(readlink -f "$PKG_DIR")
             elif [ -d "$PKG_DIR" ]; then
