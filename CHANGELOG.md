@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.30] - 2026-04-07
+
+### Bug Fixes
+- fix(azure): fix App Insights @opentelemetry missing module + Clerk encryption key (9595344)
+
+
 ## [0.35.29] - 2026-04-07
 
 ### Bug Fixes
