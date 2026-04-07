@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.37] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): add debug@4 and resolve store walks to capture ms, is-core-module (232c9e5)
+
+
 ## [0.35.36] - 2026-04-07
 
 ### Bug Fixes

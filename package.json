@@ -1,6 +1,6 @@
 {
   "name": "KuroManga",
-  "version": "0.35.36",
+  "version": "0.35.37",
   "private": true,
   "packageManager": "pnpm@10.26.1",
   "scripts": {
