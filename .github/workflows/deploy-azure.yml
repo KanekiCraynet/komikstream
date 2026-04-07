@@ -190,15 +190,19 @@ jobs:
           # ── E: Sync all missing pnpm packages to standalone ─────────────────
           # Two-phase approach:
           #
-          # Phase 1 — pnpm store walk for packages NOT hoisted to top-level
-          # node_modules/. Deep transitive deps of serverExternalPackages (e.g.
-          # require-in-the-middle, @azure/logger, shimmer, protobufjs) are never
-          # symlinked at top-level by pnpm when nothing in the main bundle needs them.
-          # Walk their .pnpm/ store entries directly and copy all siblings inside.
+          # Phase 1 — Dynamic BFS over the pnpm store starting from applicationinsights.
+          # pnpm stores each package's direct deps as SIBLINGS in its store entry
+          # (.pnpm/PKG@VER/node_modules/). These siblings are symlinks to their OWN
+          # store entries. Next.js standalone does NOT copy .pnpm/ store entries, so
+          # any package that is only a transitive dep (never imported by bundled code)
+          # will be missing from standalone/node_modules/ at runtime.
           #
-          # walk_store_dir DIR: copies all packages from a single .pnpm/ store
-          # entry's node_modules/ to standalone. Handles both scoped (@scope/pkg)
-          # and non-scoped packages. Skips @types/@typespec (not needed at runtime).
+          # Strategy: BFS from 'applicationinsights' through all deps, collect every
+          # store entry dir path, then copy each entry's node_modules/ siblings into
+          # standalone/node_modules/ (skipping anything already there as a real dir).
+          #
+          # walk_store_dir DIR: copies all packages from a single .pnpm/ store entry's
+          # node_modules/ into standalone. Handles @scope/pkg and non-scoped packages.
           walk_store_dir() {
             local STORE_DIR="$1"
             [ -d "${STORE_DIR}node_modules" ] || return
@@ -207,7 +211,7 @@ jobs:
               DEP_NAME=$(basename "${DEP_DIR%/}")
               [ -d "$DEP_DIR" ] || continue
               if [[ "$DEP_NAME" == @* ]]; then
-                [[ "$DEP_NAME" == "@types" ]] && continue  # type-only, not needed at runtime
+                [[ "$DEP_NAME" == "@types" ]] && continue  # type-only
                 local SCOPE="$DEP_NAME"
                 mkdir -p "$STANDALONE_NM/$SCOPE"
                 for SCOPED_DIR in "${DEP_DIR}"*/; do
@@ -229,24 +233,41 @@ jobs:
               fi
             done
           }
-          echo "Phase 1: walking all App Insights / OpenTelemetry pnpm store entries..."
-          # Walk ALL store entries for the entire App Insights dep chain.
-          # Each entry's node_modules/ contains the package itself plus its
-          # transitive deps as siblings — copy all of them to standalone.
-          for STORE_DIR in \
-            node_modules/.pnpm/applicationinsights@*/ \
-            node_modules/.pnpm/@azure+*/ \
-            node_modules/.pnpm/@opentelemetry+*/ \
-            node_modules/.pnpm/require-in-the-middle@*/ \
-            node_modules/.pnpm/import-in-the-middle@*/ \
-            node_modules/.pnpm/shimmer@*/ \
-            node_modules/.pnpm/protobufjs@*/ \
-            node_modules/.pnpm/debug@4*/ \
-            node_modules/.pnpm/resolve@*/; do
+
+          # Phase 1: BFS over the applicationinsights dep closure via pnpm store.
+          # Writes each store entry path to /tmp/otel-store-dirs.txt, then walks them.
+          node - > /tmp/otel-store-dirs.txt << 'NODEJS_BFS'
+const fs = require('fs'), path = require('path');
+const pnpmDir = 'node_modules/.pnpm';
+function prefix(p) {
+  if (p.startsWith('@')) { const s=p.indexOf('/'); return '@'+p.slice(1,s)+'+'+p.slice(s+1)+'@'; }
+  return p+'@';
+}
+function entries(p) {
+  try { return fs.readdirSync(pnpmDir).filter(e=>e.startsWith(prefix(p))).map(e=>path.join(pnpmDir,e)+'/'); }
+  catch { return []; }
+}
+function deps(dir, p) {
+  try { return Object.keys(JSON.parse(fs.readFileSync(path.join(dir,'node_modules',p,'package.json'),'utf8')).dependencies||{}); }
+  catch { return []; }
+}
+const seen=new Set(), queue=['applicationinsights'], result=new Set();
+while (queue.length) {
+  const p=queue.shift(); if (seen.has(p)) continue; seen.add(p);
+  if (p.startsWith('@types/')) continue;
+  for (const d of entries(p)) { result.add(d); for (const dep of deps(d,p)) if (!seen.has(dep)) queue.push(dep); }
+}
+process.stdout.write([...result].sort().join('\n')+'\n');
+NODEJS_BFS
+
+          echo "Phase 1: walking $(wc -l < /tmp/otel-store-dirs.txt) applicationinsights dep closure store entries..."
+          PHASE1_COUNT=0
+          while IFS= read -r STORE_DIR; do
             [ -d "$STORE_DIR" ] || continue
             walk_store_dir "$STORE_DIR"
-          done
-          echo "  Phase 1 complete"
+            PHASE1_COUNT=$((PHASE1_COUNT + 1))
+          done < /tmp/otel-store-dirs.txt
+          echo "  Phase 1 complete (walked $PHASE1_COUNT store entries)"
 
           # Phase 2 — Comprehensive sync from top-level node_modules/.
           # Catches packages that ARE symlinked at top-level by pnpm but
