@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.35] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): comprehensive pnpm package sync — replace manual dep tracing (6ee1624)
+
+
 ## [0.35.34] - 2026-04-07
 
 ### Bug Fixes
