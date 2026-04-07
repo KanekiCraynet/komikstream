@@ -237,28 +237,28 @@ jobs:
           # Phase 1: BFS over the applicationinsights dep closure via pnpm store.
           # Writes each store entry path to /tmp/otel-store-dirs.txt, then walks them.
           cat > /tmp/pnpm-bfs.js << 'PNPM_BFS_EOF'
-const fs = require('fs'), path = require('path');
-const pnpmDir = 'node_modules/.pnpm';
-function prefix(p) {
-  if (p.startsWith('@')) { const s=p.indexOf('/'); return '@'+p.slice(1,s)+'+'+p.slice(s+1)+'@'; }
-  return p+'@';
-}
-function entries(p) {
-  try { return fs.readdirSync(pnpmDir).filter(e=>e.startsWith(prefix(p))).map(e=>path.join(pnpmDir,e)+'/'); }
-  catch { return []; }
-}
-function deps(dir, p) {
-  try { return Object.keys(JSON.parse(fs.readFileSync(path.join(dir,'node_modules',p,'package.json'),'utf8')).dependencies||{}); }
-  catch { return []; }
-}
-const seen=new Set(), queue=['applicationinsights'], result=new Set();
-while (queue.length) {
-  const p=queue.shift(); if (seen.has(p)) continue; seen.add(p);
-  if (p.startsWith('@types/')) continue;
-  for (const d of entries(p)) { result.add(d); for (const dep of deps(d,p)) if (!seen.has(dep)) queue.push(dep); }
-}
-process.stdout.write([...result].sort().join('\n')+'\n');
-PNPM_BFS_EOF
+          const fs = require('fs'), path = require('path');
+          const pnpmDir = 'node_modules/.pnpm';
+          function prefix(p) {
+            if (p.startsWith('@')) { const s=p.indexOf('/'); return '@'+p.slice(1,s)+'+'+p.slice(s+1)+'@'; }
+            return p+'@';
+          }
+          function entries(p) {
+            try { return fs.readdirSync(pnpmDir).filter(e=>e.startsWith(prefix(p))).map(e=>path.join(pnpmDir,e)+'/'); }
+            catch { return []; }
+          }
+          function deps(dir, p) {
+            try { return Object.keys(JSON.parse(fs.readFileSync(path.join(dir,'node_modules',p,'package.json'),'utf8')).dependencies||{}); }
+            catch { return []; }
+          }
+          const seen=new Set(), queue=['applicationinsights'], result=new Set();
+          while (queue.length) {
+            const p=queue.shift(); if (seen.has(p)) continue; seen.add(p);
+            if (p.startsWith('@types/')) continue;
+            for (const d of entries(p)) { result.add(d); for (const dep of deps(d,p)) if (!seen.has(dep)) queue.push(dep); }
+          }
+          process.stdout.write([...result].sort().join('\n')+'\n');
+          PNPM_BFS_EOF
           node /tmp/pnpm-bfs.js > /tmp/otel-store-dirs.txt
 
           echo "Phase 1: walking $(wc -l < /tmp/otel-store-dirs.txt) applicationinsights dep closure store entries..."
