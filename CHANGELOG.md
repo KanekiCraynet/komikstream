@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.39] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): include @typespec/* deps — @typespec/ts-http-runtime is a runtime dep of @azure/logger (b07d4cc)
+
+
 ## [0.35.38] - 2026-04-07
 
 ### Bug Fixes
