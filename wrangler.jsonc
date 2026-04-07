@@ -43,7 +43,7 @@
     "AZURE_ORIGIN": "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net",
     // Deno Deploy proxy base URL — replace sankavollerei.com direct calls.
     // Update this if the Deno Deploy project name changes.
-    "DENO_PROXY_URL": "https://kuromanga-proxy.deno.dev/api-proxy",
+    "DENO_PROXY_URL": "https://kuromanga-proxy.kanekicraynet.deno.net/api-proxy",
   },
   // ─── Secrets ────────────────────────────────────────────────────────
   // Secrets MUST NOT be stored in this file. Set them via:
