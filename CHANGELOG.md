@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.28] - 2026-04-07
+
+### Bug Fixes
+- fix(lint): remove unused variables flagged by ESLint (fa3c5d7)
+
+
 ## [0.35.27] - 2026-04-06
 
 ### Bug Fixes
