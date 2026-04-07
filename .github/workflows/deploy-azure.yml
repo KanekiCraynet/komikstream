@@ -188,15 +188,40 @@ jobs:
           done
 
           # ── E: require-in-the-middle + import-in-the-middle + shimmer ──────────
-          # Required by @opentelemetry/instrumentation; top-level in node_modules
-          # but not traced by Next.js standalone tracer.
+          # These packages are NOT hoisted to top-level node_modules/ in pnpm
+          # isolated mode — they exist only inside the pnpm virtual store under
+          # .pnpm/PKG@VERSION/node_modules/PKG/. The standalone tracer never sees
+          # them because top-level node_modules/PKG does not exist.
+          # Fix: copy directly from the .pnpm/ store (same strategy as steps A/B/D).
+          echo "Copying require-in-the-middle / import-in-the-middle / shimmer from pnpm store..."
           for PKG in "require-in-the-middle" "import-in-the-middle" "shimmer"; do
-            SRC="node_modules/$PKG"
-            DEST="$STANDALONE_NM/$PKG"
-            if [ -d "$SRC" ] && [ ! -d "$DEST" ]; then
+            for SRC in node_modules/.pnpm/${PKG}@*/node_modules/${PKG}/; do
+              [ -d "$SRC" ] || continue
+              DEST="$STANDALONE_NM/$PKG"
+              rm -rf "$DEST"
               cp -rL "$SRC" "$DEST"
-              echo "  ✅ $PKG"
-            fi
+              echo "  ✅ $PKG (from $SRC)"
+              break
+            done
+          done
+          # Copy transitive deps of require-in-the-middle and import-in-the-middle
+          # (module-details-from-path, debug, ms) that are nested in .pnpm/ store
+          # and not hoisted to top-level node_modules/.
+          for PARENT_PKG in "require-in-the-middle" "import-in-the-middle"; do
+            for STORE_DIR in node_modules/.pnpm/${PARENT_PKG}@*/; do
+              [ -d "$STORE_DIR" ] || continue
+              for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
+                DEP_NAME=$(basename "${DEP_DIR%/}")
+                [ "$DEP_NAME" = "$PARENT_PKG" ] && continue
+                [ -d "$DEP_DIR" ] || continue
+                DEST="$STANDALONE_NM/$DEP_NAME"
+                if [ ! -d "$DEST" ]; then
+                  cp -rL "$DEP_DIR" "$DEST"
+                  echo "  ✅ $DEP_NAME (transitive dep of $PARENT_PKG)"
+                fi
+              done
+              break
+            done
           done
 
           # ── F: Resolve any remaining pnpm symlinks in standalone ─────────────
@@ -234,7 +259,11 @@ jobs:
             echo "❌ ERROR: postgres-array still missing!"
             exit 1
           fi
-          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array verified"
+          if [ ! -d "$STANDALONE_NM/require-in-the-middle" ]; then
+            echo "❌ ERROR: require-in-the-middle still missing!"
+            exit 1
+          fi
+          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array, require-in-the-middle verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
