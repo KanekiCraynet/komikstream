@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.29] - 2026-04-07
+
+### Bug Fixes
+- fix(test): remove unused onError destructure in MockImage (41c7ee7)
+
+
 ## [0.35.28] - 2026-04-07
 
 ### Bug Fixes
