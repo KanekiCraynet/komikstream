@@ -174,16 +174,17 @@ jobs:
               echo "  ✅ @opentelemetry/$PKG_NAME"
             fi
           done
-          for SRC_PKG in node_modules/.pnpm/@azure+monitor*/node_modules/@azure/monitor*/
-                         node_modules/.pnpm/@azure+opentelemetry*/node_modules/@azure/opentelemetry*/; do
-            PKG_NAME=$(basename "$SRC_PKG")
-            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
-              DEST="$STANDALONE_NM/@azure/$PKG_NAME"
-              if [ ! -d "$DEST" ]; then
-                cp -rL "$SRC_PKG" "$DEST"
-                echo "  ✅ @azure/$PKG_NAME"
+          for GLOB_PAT in "node_modules/.pnpm/@azure+monitor*/node_modules/@azure/monitor*/" "node_modules/.pnpm/@azure+opentelemetry*/node_modules/@azure/opentelemetry*/"; do
+            for SRC_PKG in $GLOB_PAT; do
+              PKG_NAME=$(basename "$SRC_PKG")
+              if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
+                DEST="$STANDALONE_NM/@azure/$PKG_NAME"
+                if [ ! -d "$DEST" ]; then
+                  cp -rL "$SRC_PKG" "$DEST"
+                  echo "  ✅ @azure/$PKG_NAME"
+                fi
               fi
-            fi
+            done
           done
 
           # ── E: Resolve any remaining pnpm symlinks in standalone ─────────────
