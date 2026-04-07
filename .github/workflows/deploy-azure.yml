@@ -236,10 +236,12 @@ jobs:
             done
           }
           echo "Phase 1: copying pnpm-store-only packages (not hoisted to top-level)..."
-          walk_store "node_modules/.pnpm/require-in-the-middle@*/"
-          walk_store "node_modules/.pnpm/import-in-the-middle@*/"
-          walk_store "node_modules/.pnpm/shimmer@*/"
-          walk_store "node_modules/.pnpm/protobufjs@*/"
+          walk_store "node_modules/.pnpm/require-in-the-middle@*/"   # → debug, resolve, module-details-from-path
+          walk_store "node_modules/.pnpm/import-in-the-middle@*/"    # → acorn, acorn-import-attributes, cjs-module-lexer
+          walk_store "node_modules/.pnpm/shimmer@*/"                 # no extra deps
+          walk_store "node_modules/.pnpm/protobufjs@*/"              # → @protobufjs/*, long
+          walk_store "node_modules/.pnpm/debug@4*/"                  # → ms (debug@4.x's dep)
+          walk_store "node_modules/.pnpm/resolve@*/"                 # → is-core-module, path-parse, supports-preserve-symlinks-flag
 
           # Phase 2 — Comprehensive sync from top-level node_modules/.
           # Catches packages that ARE symlinked at top-level by pnpm but
