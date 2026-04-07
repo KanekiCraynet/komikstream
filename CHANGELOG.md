@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.32] - 2026-04-07
+
+### Bug Fixes
+- fix(azure): add missing require-in-the-middle to standalone output (1044f6f)
+
+
 ## [0.35.31] - 2026-04-07
 
 ### Bug Fixes
