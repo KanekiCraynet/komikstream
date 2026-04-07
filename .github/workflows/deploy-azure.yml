@@ -193,35 +193,48 @@ jobs:
           # .pnpm/PKG@VERSION/node_modules/PKG/. The standalone tracer never sees
           # them because top-level node_modules/PKG does not exist.
           # Fix: copy directly from the .pnpm/ store (same strategy as steps A/B/D).
-          echo "Copying require-in-the-middle / import-in-the-middle / shimmer from pnpm store..."
-          for PKG in "require-in-the-middle" "import-in-the-middle" "shimmer"; do
-            for SRC in node_modules/.pnpm/${PKG}@*/node_modules/${PKG}/; do
-              [ -d "$SRC" ] || continue
-              DEST="$STANDALONE_NM/$PKG"
-              rm -rf "$DEST"
-              cp -rL "$SRC" "$DEST"
-              echo "  ✅ $PKG (from $SRC)"
-              break
-            done
-          done
-          # Copy transitive deps of require-in-the-middle and import-in-the-middle
-          # (module-details-from-path, debug, ms) that are nested in .pnpm/ store
-          # and not hoisted to top-level node_modules/.
-          for PARENT_PKG in "require-in-the-middle" "import-in-the-middle"; do
-            for STORE_DIR in node_modules/.pnpm/${PARENT_PKG}@*/; do
+          #
+          # We also copy their full dep trees (depth 1 + depth 2) because pnpm
+          # stores each package's deps as SIBLINGS in the same store entry
+          # (e.g. debug's dep 'ms' is at .pnpm/debug@X/node_modules/ms/).
+          # These sibling deps are also not hoisted to top-level node_modules/.
+          #
+          # copy_pnpm_store_pkg PKG: copies PKG and all its pnpm-store siblings
+          # (the entire /node_modules/ subtree of the store entry), skipping
+          # packages already present as real dirs in standalone.
+          copy_pnpm_store_pkg() {
+            local PKG="$1"
+            for STORE_DIR in node_modules/.pnpm/${PKG}@*/; do
               [ -d "$STORE_DIR" ] || continue
               for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
+                local DEP_NAME
                 DEP_NAME=$(basename "${DEP_DIR%/}")
-                [ "$DEP_NAME" = "$PARENT_PKG" ] && continue
                 [ -d "$DEP_DIR" ] || continue
-                DEST="$STANDALONE_NM/$DEP_NAME"
-                if [ ! -d "$DEST" ]; then
+                local DEST="$STANDALONE_NM/$DEP_NAME"
+                if [ "$DEP_NAME" = "$PKG" ]; then
+                  # Always overwrite the main package (might be stale symlink)
+                  rm -rf "$DEST"
                   cp -rL "$DEP_DIR" "$DEST"
-                  echo "  ✅ $DEP_NAME (transitive dep of $PARENT_PKG)"
+                  echo "  ✅ $PKG (from $STORE_DIR)"
+                elif [ ! -d "$DEST" ] || [ -L "$DEST" ]; then
+                  rm -rf "$DEST"
+                  cp -rL "$DEP_DIR" "$DEST"
+                  echo "  ✅ $DEP_NAME (sibling dep in $PKG store)"
                 fi
               done
               break
             done
+          }
+
+          echo "Copying require-in-the-middle / import-in-the-middle / shimmer (+ full dep trees)..."
+          # Depth 1: copy the three main packages and all their pnpm store siblings
+          copy_pnpm_store_pkg "require-in-the-middle"
+          copy_pnpm_store_pkg "import-in-the-middle"
+          copy_pnpm_store_pkg "shimmer"
+          # Depth 2: copy pnpm store siblings of the packages we just added
+          # (e.g. debug's dep 'ms', resolve's deps 'is-core-module' + 'path-parse')
+          for DEPTH2_PKG in "debug" "resolve"; do
+            copy_pnpm_store_pkg "$DEPTH2_PKG"
           done
 
           # ── F: Resolve any remaining pnpm symlinks in standalone ─────────────
