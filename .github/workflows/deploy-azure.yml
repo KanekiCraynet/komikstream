@@ -207,8 +207,7 @@ jobs:
               DEP_NAME=$(basename "${DEP_DIR%/}")
               [ -d "$DEP_DIR" ] || continue
               if [[ "$DEP_NAME" == @* ]]; then
-                [[ "$DEP_NAME" == "@types" ]] && continue
-                [[ "$DEP_NAME" == "@typespec" ]] && continue
+                [[ "$DEP_NAME" == "@types" ]] && continue  # type-only, not needed at runtime
                 local SCOPE="$DEP_NAME"
                 mkdir -p "$STANDALONE_NM/$SCOPE"
                 for SCOPED_DIR in "${DEP_DIR}"*/; do
@@ -343,7 +342,11 @@ jobs:
             echo "❌ ERROR: @azure/logger still missing!"
             exit 1
           fi
-          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array, require-in-the-middle, @azure/logger verified"
+          if [ ! -d "$STANDALONE_NM/@typespec/ts-http-runtime" ]; then
+            echo "❌ ERROR: @typespec/ts-http-runtime still missing!"
+            exit 1
+          fi
+          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array, require-in-the-middle, @azure/logger, @typespec/ts-http-runtime verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
