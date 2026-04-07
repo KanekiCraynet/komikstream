@@ -187,55 +187,62 @@ jobs:
             done
           done
 
-          # ── E: require-in-the-middle + import-in-the-middle + shimmer ──────────
-          # These packages are NOT hoisted to top-level node_modules/ in pnpm
-          # isolated mode — they exist only inside the pnpm virtual store under
-          # .pnpm/PKG@VERSION/node_modules/PKG/. The standalone tracer never sees
-          # them because top-level node_modules/PKG does not exist.
-          # Fix: copy directly from the .pnpm/ store (same strategy as steps A/B/D).
-          #
-          # We also copy their full dep trees (depth 1 + depth 2) because pnpm
-          # stores each package's deps as SIBLINGS in the same store entry
-          # (e.g. debug's dep 'ms' is at .pnpm/debug@X/node_modules/ms/).
-          # These sibling deps are also not hoisted to top-level node_modules/.
-          #
-          # copy_pnpm_store_pkg PKG: copies PKG and all its pnpm-store siblings
-          # (the entire /node_modules/ subtree of the store entry), skipping
-          # packages already present as real dirs in standalone.
-          copy_pnpm_store_pkg() {
-            local PKG="$1"
-            for STORE_DIR in node_modules/.pnpm/${PKG}@*/; do
-              [ -d "$STORE_DIR" ] || continue
-              for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
-                local DEP_NAME
-                DEP_NAME=$(basename "${DEP_DIR%/}")
-                [ -d "$DEP_DIR" ] || continue
-                local DEST="$STANDALONE_NM/$DEP_NAME"
-                if [ "$DEP_NAME" = "$PKG" ]; then
-                  # Always overwrite the main package (might be stale symlink)
-                  rm -rf "$DEST"
-                  cp -rL "$DEP_DIR" "$DEST"
-                  echo "  ✅ $PKG (from $STORE_DIR)"
-                elif [ ! -d "$DEST" ] || [ -L "$DEST" ]; then
-                  rm -rf "$DEST"
-                  cp -rL "$DEP_DIR" "$DEST"
-                  echo "  ✅ $DEP_NAME (sibling dep in $PKG store)"
-                fi
-              done
-              break
-            done
-          }
-
-          echo "Copying require-in-the-middle / import-in-the-middle / shimmer (+ full dep trees)..."
-          # Depth 1: copy the three main packages and all their pnpm store siblings
-          copy_pnpm_store_pkg "require-in-the-middle"
-          copy_pnpm_store_pkg "import-in-the-middle"
-          copy_pnpm_store_pkg "shimmer"
-          # Depth 2: copy pnpm store siblings of the packages we just added
-          # (e.g. debug's dep 'ms', resolve's deps 'is-core-module' + 'path-parse')
-          for DEPTH2_PKG in "debug" "resolve"; do
-            copy_pnpm_store_pkg "$DEPTH2_PKG"
+          # ── E: Sync all missing pnpm packages to standalone ─────────────────
+          # pnpm isolated mode symlinks every package in node_modules/ to the
+          # .pnpm/ virtual store. The standalone tracer follows these for bundled
+          # code but misses transitive deps of serverExternalPackages.
+          # Fix: copy ALL top-level node_modules/ packages that are absent from
+          # standalone as real directories. This is a comprehensive one-shot
+          # approach that handles the entire dep tree without manual tracking.
+          echo "Syncing missing top-level pnpm packages to standalone..."
+          SYNCED_E=0
+          # Non-scoped packages
+          for PKG_DIR in node_modules/*/; do
+            PKG_NAME=$(basename "${PKG_DIR%/}")
+            [[ "$PKG_NAME" == .* ]] && continue  # skip .pnpm, .modules.yaml
+            DEST="$STANDALONE_NM/$PKG_NAME"
+            # Skip if already a real directory (not a symlink)
+            if [ -d "$DEST" ] && [ ! -L "$DEST" ]; then
+              continue
+            fi
+            # Resolve pnpm symlink to real target
+            if [ -L "$PKG_DIR" ]; then
+              REAL_SRC=$(readlink -f "$PKG_DIR")
+            elif [ -d "$PKG_DIR" ]; then
+              REAL_SRC="$PKG_DIR"
+            else
+              continue
+            fi
+            [ -d "$REAL_SRC" ] || continue
+            rm -rf "$DEST"
+            cp -rL "$REAL_SRC" "$DEST"
+            SYNCED_E=$((SYNCED_E + 1))
           done
+          # Scoped packages (@scope/pkg)
+          for SCOPE_DIR in node_modules/@*/; do
+            SCOPE=$(basename "${SCOPE_DIR%/}")
+            [[ "$SCOPE" == .* ]] && continue
+            mkdir -p "$STANDALONE_NM/$SCOPE"
+            for PKG_DIR in "${SCOPE_DIR}"*/; do
+              PKG_NAME=$(basename "${PKG_DIR%/}")
+              DEST="$STANDALONE_NM/$SCOPE/$PKG_NAME"
+              if [ -d "$DEST" ] && [ ! -L "$DEST" ]; then
+                continue
+              fi
+              if [ -L "$PKG_DIR" ]; then
+                REAL_SRC=$(readlink -f "$PKG_DIR")
+              elif [ -d "$PKG_DIR" ]; then
+                REAL_SRC="$PKG_DIR"
+              else
+                continue
+              fi
+              [ -d "$REAL_SRC" ] || continue
+              rm -rf "$DEST"
+              cp -rL "$REAL_SRC" "$DEST"
+              SYNCED_E=$((SYNCED_E + 1))
+            done
+          done
+          echo "  Synced $SYNCED_E packages from top-level node_modules to standalone"
 
           # ── F: Resolve any remaining pnpm symlinks in standalone ─────────────
           # Some packages may remain as symlinks after explicit copies above.
