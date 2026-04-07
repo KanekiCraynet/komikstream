@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.44] - 2026-04-07
+
+### Bug Fixes
+- fix(proxy): update Deno Deploy URL to kanekicraynet subdomain (2d4cf83)
+
+
 ## [0.35.43] - 2026-04-07
 
 ### Bug Fixes
