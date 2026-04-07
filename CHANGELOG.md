@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.33] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): copy require-in-the-middle from pnpm store (not hoisted to top-level node_modules) (0d458ad)
+
+
 ## [0.35.32] - 2026-04-07
 
 ### Bug Fixes
