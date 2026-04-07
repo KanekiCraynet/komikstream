@@ -33,13 +33,17 @@
   ],
   // ─── Cron Triggers ────────────────────────────────────────────────
   // Runs every 6 hours to fetch latest content from sankavollerei.com
-  // and seed the Azure DB. CF Worker IPs are not blocked by sankavollerei.com.
+  // and seed the Azure DB. Routes through Deno Deploy proxy (DENO_PROXY_URL)
+  // because CF Worker IPs are permanently banned by sankavollerei.com.
   "triggers": {
     "crons": ["0 */6 * * *"],
   },
   // ─── Environment Variables ─────────────────────────────────────────
   "vars": {
     "AZURE_ORIGIN": "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net",
+    // Deno Deploy proxy base URL — replace sankavollerei.com direct calls.
+    // Update this if the Deno Deploy project name changes.
+    "DENO_PROXY_URL": "https://kuromanga-proxy.deno.dev/api-proxy",
   },
   // ─── Secrets ────────────────────────────────────────────────────────
   // Secrets MUST NOT be stored in this file. Set them via:
@@ -51,8 +55,8 @@
   //   WORKER_TOKEN     — shared secret between CF Worker and Azure origin.
   //                      Validated by Next.js middleware to ensure requests
   //                      only arrive through the Worker proxy.
-  //   API_PROXY_TOKEN  — shared secret for /api-proxy/ route. Azure uses
-  //                      this to authenticate API calls routed through the
-  //                      Worker to bypass sankavollerei.com IP blocking.
+  //   API_PROXY_TOKEN  — shared secret for /api-proxy/ route. Azure and
+  //                      CF Worker cron use this to authenticate calls
+  //                      through the Deno Deploy proxy to sankavollerei.com.
   //   CRON_SECRET      — auth token for /api/internal/seed endpoint.
 }

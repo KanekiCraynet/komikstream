@@ -1,4 +1,4 @@
-import { getKomikChapterData } from "@/lib/api";
+import { getCachedKomikChapterData } from "@/lib/api-cached";
 import { siteConfig } from "@/lib/site-config";
 import { truncate } from "@/lib/utils";
 import { MangaImage } from "@/components/ui/MangaImage";
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: ReaderPageProps): Promise<Met
   const { chapterId } = await params;
 
   try {
-    const chapterData = await getKomikChapterData(chapterId);
+    const chapterData = await getCachedKomikChapterData(chapterId);
 
     if (!chapterData) {
       return { title: "Chapter tidak ditemukan" };
@@ -45,7 +45,7 @@ export default async function ChapterReaderPage({ params }: ReaderPageProps) {
 
   let chapterData;
   try {
-    chapterData = await getKomikChapterData(chapterId);
+    chapterData = await getCachedKomikChapterData(chapterId);
   } catch {
     // Let the route error boundary handle API failures
     throw new Error("Gagal memuat data chapter. Silakan coba lagi.");

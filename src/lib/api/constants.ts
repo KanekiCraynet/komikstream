@@ -6,8 +6,8 @@
 
 const DIRECT_API_URL = "https://www.sankavollerei.com";
 
-// Server-side: route API calls through CF Worker proxy to bypass Plana AI Detector
-// (Azure IPs are blocked; CF Worker edge IPs are not).
+// Server-side: route API calls through Deno Deploy proxy to bypass Plana AI Detector
+// (Azure IPs AND CF Worker IPs are blocked; Deno Deploy IPs are not).
 // Client-side: use direct URL (browser IPs are not blocked).
 const API_PROXY_URL = process.env.API_PROXY_URL; // e.g. https://kuromanga.me/api-proxy
 const API_PROXY_TOKEN = process.env.API_PROXY_TOKEN;

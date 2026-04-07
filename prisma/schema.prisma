@@ -115,6 +115,23 @@ model Komik {
   @@index([lastScraped])
 }
 
+// ============= KOMIK CHAPTER CACHE TABLE =============
+
+model KomikChapter {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  chapterId    String   @unique
+  mangaTitle   String
+  mangaSlug    String
+  chapterTitle String
+  prevChapter  String?
+  nextChapter  String?
+  images       Json     // Array of {url: string, page: number}
+  lastScraped  DateTime @default(now())
+
+  @@index([chapterId])
+  @@index([lastScraped])
+}
+
 // ============= SYNC LOG TABLE =============
 
 model SyncLog {

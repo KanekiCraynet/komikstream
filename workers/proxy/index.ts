@@ -24,6 +24,9 @@ interface Env {
   AZURE_ORIGIN: string;
   API_PROXY_TOKEN: string;
   CRON_SECRET: string;
+  // Deno Deploy proxy URL — sankavollerei.com banned CF Worker IPs.
+  // Set to https://kuromanga-proxy.deno.dev/api-proxy
+  DENO_PROXY_URL: string;
 }
 
 interface RateLimitEntry {
@@ -268,9 +271,18 @@ interface RawComicItem {
   type?: string;
 }
 
-async function safeFetch(url: string): Promise<unknown | null> {
+async function safeFetch(url: string, env?: Env): Promise<unknown | null> {
   try {
-    const resp = await fetch(url, { headers: FETCH_HEADERS });
+    let fetchUrl = url;
+    const headers: Record<string, string> = { ...FETCH_HEADERS };
+
+    // Route through Deno Deploy proxy if configured — CF Worker IPs are banned
+    if (env?.DENO_PROXY_URL && env?.API_PROXY_TOKEN) {
+      fetchUrl = url.replace(SANKAVOLLEREI, env.DENO_PROXY_URL);
+      headers["x-api-proxy-token"] = env.API_PROXY_TOKEN;
+    }
+
+    const resp = await fetch(fetchUrl, { headers });
     if (!resp.ok) return null;
     return resp.json();
   } catch {
@@ -295,8 +307,8 @@ async function runSeed(env: Env): Promise<void> {
 
   // ── Fetch anime lists ──
   const [ongoingRes, homeRes] = await Promise.all([
-    safeFetch(`${SANKAVOLLEREI}/anime/ongoing-anime`),
-    safeFetch(`${SANKAVOLLEREI}/anime/home`),
+    safeFetch(`${SANKAVOLLEREI}/anime/ongoing-anime`, env),
+    safeFetch(`${SANKAVOLLEREI}/anime/home`, env),
   ]);
 
   const ongoingList: RawAnimeItem[] =
@@ -325,8 +337,8 @@ async function runSeed(env: Env): Promise<void> {
 
   // ── Fetch komik lists ──
   const [terbaruRes, populerRes] = await Promise.all([
-    safeFetch(`${SANKAVOLLEREI}/comic/terbaru`),
-    safeFetch(`${SANKAVOLLEREI}/comic/populer`),
+    safeFetch(`${SANKAVOLLEREI}/comic/terbaru`, env),
+    safeFetch(`${SANKAVOLLEREI}/comic/populer`, env),
   ]);
 
   const terbaruList: RawComicItem[] = (terbaruRes as { comics?: RawComicItem[] })?.comics ?? [];
@@ -415,8 +427,9 @@ async function handleRequest(
   }
 
   // ── 0a2. API proxy for upstream sankavollerei.com (/api-proxy/{path}) ──
-  // Azure IPs are blocked by Plana AI Detector. CF Worker edge IPs
-  // are not blocked, so we proxy API requests through the Worker.
+  // Routes through Deno Deploy proxy (DENO_PROXY_URL) because CF Worker IPs
+  // are permanently banned by sankavollerei.com's Plana AI Detector.
+  // Deno Deploy uses a separate IP range not blocked by sankavollerei.com.
   // Protected by a shared secret to prevent open-relay abuse.
 
   if (pathname.startsWith("/api-proxy/")) {
@@ -425,30 +438,21 @@ async function handleRequest(
       return new Response("Not Found", { status: 404 });
     }
 
-    const apiPath = pathname.slice("/api-proxy".length); // keeps leading /
-    const apiUrl = `https://www.sankavollerei.com${apiPath}${search}`;
+    if (!env.DENO_PROXY_URL) {
+      return new Response(JSON.stringify({ error: "proxy_not_configured" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json", "x-trace-id": traceId },
+      });
+    }
 
-    const apiHeaders: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-      Referer: "https://www.sankavollerei.com/",
-      "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": '"Windows"',
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-    };
+    // Forward to Deno Deploy: /api-proxy/{path} → DENO_PROXY_URL/{path}
+    const denoUrl = `${env.DENO_PROXY_URL}${pathname.slice("/api-proxy".length)}${search}`;
 
     try {
-      // Cache 2xx upstream responses at CF edge for 5 min to reduce load on
-      // sankavollerei.com. Explicitly set 0 TTL for 4xx/5xx — cacheEverything:true
-      // would otherwise cache 403 "Plana AI block" responses, poisoning the entire
-      // colo for 5 minutes and causing a cascade of 404s for users.
-      const apiResp = await fetch(apiUrl, {
-        headers: apiHeaders,
+      const apiResp = await fetch(denoUrl, {
+        headers: {
+          "x-api-proxy-token": env.API_PROXY_TOKEN,
+        },
         cf: {
           cacheEverything: true,
           cacheTtlByStatus: { "200-299": 300, "300-399": 0, "400-599": 0 },

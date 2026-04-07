@@ -19,13 +19,14 @@
 
 import "server-only";
 
-import type { Anime, Komik, KomikChapter } from "@/types";
+import type { Anime, Komik, KomikChapter, KomikChapterData } from "@/types";
 import { CACHE_TIMES } from "./cache-config";
 import {
   extractEpisodeNumber,
   getAnimeDetail,
   getAnimeLatest,
   getAnimeRecommended,
+  getKomikChapterData,
   getKomikDetail,
   getKomikLatest,
   getKomikPopular,
@@ -33,6 +34,8 @@ import {
 import {
   findCachedAnime,
   upsertCachedAnime,
+  findCachedChapter,
+  upsertCachedChapter,
   findCachedKomik,
   upsertCachedKomik,
   getKomikGenresBatch,
@@ -46,6 +49,7 @@ import { trackCacheEvent, trackEvent } from "./analytics";
 
 type DbAnime = NonNullable<Awaited<ReturnType<typeof findCachedAnime>>>;
 type DbKomik = NonNullable<Awaited<ReturnType<typeof findCachedKomik>>>;
+type DbChapter = NonNullable<Awaited<ReturnType<typeof findCachedChapter>>>;
 
 function mapDbAnimeToApp(db: DbAnime): Anime {
   const genres = Array.isArray(db.genres) ? (db.genres as string[]) : [];
@@ -555,6 +559,133 @@ export async function getCachedHomepageData() {
 export async function getCachedKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
   const komik = await getCachedKomikDetail(mangaId);
   return komik?.chapters ?? [];
+}
+
+// ─── Cached Chapter Data ───────────────────────────────────────────
+
+function mapDbChapterToApp(db: DbChapter): KomikChapterData {
+  const images = Array.isArray(db.images)
+    ? (db.images as Array<{ url: string; page: number }>)
+    : [];
+  return {
+    mangaTitle: db.mangaTitle,
+    mangaSlug: db.mangaSlug,
+    chapterTitle: db.chapterTitle,
+    navigation: {
+      previousChapter: db.prevChapter ?? null,
+      nextChapter: db.nextChapter ?? null,
+    },
+    images,
+  };
+}
+
+/**
+ * Get chapter data with 3-tier caching: DB (fresh) -> API -> DB (stale).
+ *
+ * Tier 1 (L1): DB fresh hit — return immediately if within TTL.
+ * Tier 2 (L2): External API — write-through to DB on success.
+ * Tier 3 (L3): Stale DB fallback — serve expired data rather than 404
+ *   when sankavollerei.com blocks Azure/CF IPs.
+ */
+export async function getCachedKomikChapterData(
+  chapterId: string
+): Promise<KomikChapterData | null> {
+  const requestStart = Date.now();
+
+  // L1: DB fresh cache
+  if (isDatabaseConfigured()) {
+    const dbStart = Date.now();
+    try {
+      const cached = await findCachedChapter(chapterId, CACHE_TIMES.IMAGES);
+      if (cached) {
+        logger.debug("Chapter DB cache hit", { chapterId, durationMs: Date.now() - dbStart });
+        trackCacheEvent("cache_hit", "db", "chapter", chapterId, dbStart);
+        return mapDbChapterToApp(cached);
+      }
+      logger.debug("Chapter cache miss", { chapterId, durationMs: Date.now() - dbStart });
+      trackCacheEvent("cache_miss", "db", "chapter", chapterId, dbStart);
+    } catch (err) {
+      logger.warn("Chapter DB cache read failed, falling back to API", {
+        chapterId,
+        error: String(err),
+        durationMs: Date.now() - dbStart,
+      });
+    }
+  }
+
+  // L2: External API
+  const apiStart = Date.now();
+  try {
+    const data = await getKomikChapterData(chapterId);
+
+    trackEvent({
+      type: "api_success",
+      cacheTier: "api",
+      contentType: "chapter",
+      contentId: chapterId,
+      durationMs: Date.now() - apiStart,
+    });
+
+    // Write-through to DB cache (fire-and-forget)
+    if (data && isDatabaseConfigured()) {
+      upsertCachedChapter({
+        chapterId,
+        mangaTitle: data.mangaTitle,
+        mangaSlug: data.mangaSlug,
+        chapterTitle: data.chapterTitle,
+        prevChapter: data.navigation.previousChapter,
+        nextChapter: data.navigation.nextChapter,
+        images: data.images as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      }).catch((err) => {
+        logger.debug("Failed to write chapter DB cache", { chapterId, error: String(err) });
+      });
+    }
+
+    logger.debug("Chapter fetched from API", {
+      chapterId,
+      durationMs: Date.now() - apiStart,
+      totalMs: Date.now() - requestStart,
+    });
+
+    return data;
+  } catch (err) {
+    const apiDuration = Date.now() - apiStart;
+    logger.warn("Chapter API fetch failed", {
+      chapterId,
+      error: String(err),
+      durationMs: apiDuration,
+    });
+
+    trackEvent({
+      type: "api_error",
+      cacheTier: "api",
+      contentType: "chapter",
+      contentId: chapterId,
+      durationMs: apiDuration,
+      context: String(err),
+    });
+
+    // L3: Stale DB fallback
+    if (isDatabaseConfigured()) {
+      const staleStart = Date.now();
+      try {
+        const stale = await findCachedChapter(chapterId);
+        if (stale) {
+          logger.info("Chapter serving stale DB cache after API failure", {
+            chapterId,
+            durationMs: Date.now() - staleStart,
+            totalMs: Date.now() - requestStart,
+          });
+          trackCacheEvent("cache_stale", "stale", "chapter", chapterId, staleStart);
+          return mapDbChapterToApp(stale);
+        }
+      } catch {
+        // DB also failed — nothing to serve
+      }
+    }
+
+    return null;
+  }
 }
 
 // ─── Re-exports for convenience ─────────────────────────────────────

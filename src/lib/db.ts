@@ -470,6 +470,70 @@ export async function upsertCachedKomik(data: {
   }
 }
 
+// ─── DB Service: KomikChapter Cache ─────────────────────────────────
+
+/**
+ * Find a cached chapter by chapterId, optionally enforcing a max age (in seconds).
+ * Returns null if not found or if the cache is stale.
+ */
+export async function findCachedChapter(chapterId: string, maxAgeSeconds?: number) {
+  const db = await getDb();
+  try {
+    const chapter = await db.komikChapter.findUnique({ where: { chapterId } });
+    if (!chapter) return null;
+
+    if (maxAgeSeconds != null) {
+      const age = (Date.now() - chapter.lastScraped.getTime()) / 1000;
+      if (age > maxAgeSeconds) return null;
+    }
+
+    return chapter;
+  } catch (error) {
+    mapPrismaError(error);
+  }
+}
+
+/**
+ * Upsert a chapter record in the cache table.
+ * Uses chapterId as the unique key.
+ */
+export async function upsertCachedChapter(data: {
+  chapterId: string;
+  mangaTitle: string;
+  mangaSlug: string;
+  chapterTitle: string;
+  prevChapter?: string | null;
+  nextChapter?: string | null;
+  images: Prisma.InputJsonValue;
+}) {
+  const db = await getDb();
+  try {
+    return await db.komikChapter.upsert({
+      where: { chapterId: data.chapterId },
+      update: {
+        mangaTitle: data.mangaTitle,
+        mangaSlug: data.mangaSlug,
+        chapterTitle: data.chapterTitle,
+        prevChapter: data.prevChapter ?? null,
+        nextChapter: data.nextChapter ?? null,
+        images: data.images,
+        lastScraped: new Date(),
+      },
+      create: {
+        chapterId: data.chapterId,
+        mangaTitle: data.mangaTitle,
+        mangaSlug: data.mangaSlug,
+        chapterTitle: data.chapterTitle,
+        prevChapter: data.prevChapter ?? null,
+        nextChapter: data.nextChapter ?? null,
+        images: data.images,
+      },
+    });
+  } catch (error) {
+    mapPrismaError(error);
+  }
+}
+
 // ─── DB Service: Batch Genre Fetch ──────────────────────────────────
 
 /**

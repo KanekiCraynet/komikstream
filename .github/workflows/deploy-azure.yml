@@ -382,6 +382,17 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Update API proxy App Setting
+        run: |
+          # Point API_PROXY_URL to Deno Deploy proxy.
+          # CF Worker IPs are permanently banned by sankavollerei.com;
+          # Deno Deploy uses a separate IP range that is not blocked.
+          az webapp config appsettings set \
+            --name kuromanga --resource-group kuromanga \
+            --settings "API_PROXY_URL=https://kuromanga-proxy.deno.dev/api-proxy" \
+            --output none
+          echo "✅ API_PROXY_URL updated to Deno Deploy proxy"
+
       - name: Get Kudu deployment credentials
         id: kudu-creds
         run: |
