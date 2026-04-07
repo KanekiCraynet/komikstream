@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.41] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): fix heredoc syntax — use cat > file then node file for BFS script (d5f72a1)
+
+
 ## [0.35.40] - 2026-04-07
 
 ### Bug Fixes
