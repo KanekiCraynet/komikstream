@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.38] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): walk all @azure+* and @opentelemetry+* pnpm store entries in Phase 1 (4b7f55d)
+
+
 ## [0.35.37] - 2026-04-07
 
 ### Bug Fixes
