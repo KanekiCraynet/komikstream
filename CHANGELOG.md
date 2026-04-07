@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.34] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): resolve transitive dep chain for require-in-the-middle (ms, is-core-module, etc.) (2024e54)
+
+
 ## [0.35.33] - 2026-04-07
 
 ### Bug Fixes
