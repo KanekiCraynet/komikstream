@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.43] - 2026-04-07
+
+### Bug Fixes
+- fix(proxy): route sankavollerei.com calls through Deno Deploy to bypass IP ban (5e330bb)
+
+
 ## [0.35.42] - 2026-04-07
 
 ### Bug Fixes
