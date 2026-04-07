@@ -158,9 +158,37 @@ jobs:
             done
           done
 
-          # ── D: Resolve any remaining pnpm symlinks in standalone ─────────────
-          # Some packages (typescript, react-dom, etc.) may remain as symlinks.
-          # Walk maxdepth 2 to cover both top-level and @scope/pkg paths.
+          # ── D: @opentelemetry + applicationinsights dependency tree ─────────────
+          # applicationinsights v3 depends on ~17 @opentelemetry/* packages.
+          # pnpm symlinks cause the Next.js standalone tracer to miss them even
+          # when listed in serverExternalPackages. Copy directly from pnpm store.
+          echo "Copying @opentelemetry/* and @azure/monitor-* packages from pnpm store..."
+          mkdir -p "$STANDALONE_NM/@opentelemetry"
+          mkdir -p "$STANDALONE_NM/@azure"
+          for SRC_PKG in node_modules/.pnpm/@opentelemetry+*/node_modules/@opentelemetry/*/; do
+            PKG_NAME=$(basename "$SRC_PKG")
+            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
+              DEST="$STANDALONE_NM/@opentelemetry/$PKG_NAME"
+              rm -rf "$DEST"
+              cp -rL "$SRC_PKG" "$DEST"
+              echo "  ✅ @opentelemetry/$PKG_NAME"
+            fi
+          done
+          for SRC_PKG in node_modules/.pnpm/@azure+monitor*/node_modules/@azure/monitor*/
+                         node_modules/.pnpm/@azure+opentelemetry*/node_modules/@azure/opentelemetry*/; do
+            PKG_NAME=$(basename "$SRC_PKG")
+            if [ -d "$SRC_PKG" ] && [ "$PKG_NAME" != "." ]; then
+              DEST="$STANDALONE_NM/@azure/$PKG_NAME"
+              if [ ! -d "$DEST" ]; then
+                cp -rL "$SRC_PKG" "$DEST"
+                echo "  ✅ @azure/$PKG_NAME"
+              fi
+            fi
+          done
+
+          # ── E: Resolve any remaining pnpm symlinks in standalone ─────────────
+          # Some packages (typescript, react-dom, @opentelemetry, etc.) may remain as symlinks.
+          # Walk maxdepth 3 to cover @scope/pkg paths.
           echo "Resolving remaining pnpm symlinks..."
           RESOLVED=0
           while IFS= read -r link; do
@@ -173,7 +201,7 @@ jobs:
             else
               echo "  ⚠️  ${link#$STANDALONE_NM/} → broken symlink (skipped)"
             fi
-          done < <(find "$STANDALONE_NM" -maxdepth 2 -type l)
+          done < <(find "$STANDALONE_NM" -maxdepth 3 -type l)
           echo "  Resolved $RESOLVED additional symlinks"
 
           # ── Verify critical packages ──────────────────────────────────────────
