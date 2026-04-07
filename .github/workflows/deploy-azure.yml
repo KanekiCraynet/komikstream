@@ -236,7 +236,7 @@ jobs:
 
           # Phase 1: BFS over the applicationinsights dep closure via pnpm store.
           # Writes each store entry path to /tmp/otel-store-dirs.txt, then walks them.
-          node - > /tmp/otel-store-dirs.txt << 'NODEJS_BFS'
+          cat > /tmp/pnpm-bfs.js << 'PNPM_BFS_EOF'
 const fs = require('fs'), path = require('path');
 const pnpmDir = 'node_modules/.pnpm';
 function prefix(p) {
@@ -258,7 +258,8 @@ while (queue.length) {
   for (const d of entries(p)) { result.add(d); for (const dep of deps(d,p)) if (!seen.has(dep)) queue.push(dep); }
 }
 process.stdout.write([...result].sort().join('\n')+'\n');
-NODEJS_BFS
+PNPM_BFS_EOF
+          node /tmp/pnpm-bfs.js > /tmp/otel-store-dirs.txt
 
           echo "Phase 1: walking $(wc -l < /tmp/otel-store-dirs.txt) applicationinsights dep closure store entries..."
           PHASE1_COUNT=0
