@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.31] - 2026-04-07
+
+### Bug Fixes
+- fix(deploy): fix bash syntax error in @azure copy loop (8522c96)
+
+
 ## [0.35.30] - 2026-04-07
 
 ### Bug Fixes
