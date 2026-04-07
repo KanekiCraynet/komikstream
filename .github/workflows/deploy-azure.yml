@@ -192,56 +192,62 @@ jobs:
           #
           # Phase 1 — pnpm store walk for packages NOT hoisted to top-level
           # node_modules/. Deep transitive deps of serverExternalPackages (e.g.
-          # require-in-the-middle, shimmer, protobufjs) are never symlinked at
-          # top-level by pnpm when nothing in the main bundle needs them.
-          # Walk their .pnpm/ store entries directly and copy everything inside.
+          # require-in-the-middle, @azure/logger, shimmer, protobufjs) are never
+          # symlinked at top-level by pnpm when nothing in the main bundle needs them.
+          # Walk their .pnpm/ store entries directly and copy all siblings inside.
           #
-          # walk_store GLOB: copies all packages from the matching .pnpm/ store
+          # walk_store_dir DIR: copies all packages from a single .pnpm/ store
           # entry's node_modules/ to standalone. Handles both scoped (@scope/pkg)
-          # and non-scoped packages. Skips @types (type-only, not needed at runtime).
-          walk_store() {
-            local GLOB="$1"
-            for STORE_DIR in $GLOB; do
-              [ -d "$STORE_DIR" ] || continue
-              for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
-                local DEP_NAME
-                DEP_NAME=$(basename "${DEP_DIR%/}")
-                [ -d "$DEP_DIR" ] || continue
-                if [[ "$DEP_NAME" == @* ]]; then
-                  # Scoped scope directory (e.g. @protobufjs, @types)
-                  [[ "$DEP_NAME" == "@types" ]] && continue  # skip type-only
-                  local SCOPE="$DEP_NAME"
-                  mkdir -p "$STANDALONE_NM/$SCOPE"
-                  for SCOPED_DIR in "${DEP_DIR}"*/; do
-                    local SCOPED_PKG
-                    SCOPED_PKG=$(basename "${SCOPED_DIR%/}")
-                    [ -d "$SCOPED_DIR" ] || continue
-                    local SCOPED_DEST="$STANDALONE_NM/$SCOPE/$SCOPED_PKG"
-                    if [ ! -d "$SCOPED_DEST" ] || [ -L "$SCOPED_DEST" ]; then
-                      rm -rf "$SCOPED_DEST"
-                      cp -rL "$SCOPED_DIR" "$SCOPED_DEST"
-                      echo "    ✅ $SCOPE/$SCOPED_PKG"
-                    fi
-                  done
-                else
-                  local DEST="$STANDALONE_NM/$DEP_NAME"
-                  if [ ! -d "$DEST" ] || [ -L "$DEST" ]; then
-                    rm -rf "$DEST"
-                    cp -rL "$DEP_DIR" "$DEST"
-                    echo "    ✅ $DEP_NAME"
+          # and non-scoped packages. Skips @types/@typespec (not needed at runtime).
+          walk_store_dir() {
+            local STORE_DIR="$1"
+            [ -d "${STORE_DIR}node_modules" ] || return
+            for DEP_DIR in "${STORE_DIR}node_modules"/*/; do
+              local DEP_NAME
+              DEP_NAME=$(basename "${DEP_DIR%/}")
+              [ -d "$DEP_DIR" ] || continue
+              if [[ "$DEP_NAME" == @* ]]; then
+                [[ "$DEP_NAME" == "@types" ]] && continue
+                [[ "$DEP_NAME" == "@typespec" ]] && continue
+                local SCOPE="$DEP_NAME"
+                mkdir -p "$STANDALONE_NM/$SCOPE"
+                for SCOPED_DIR in "${DEP_DIR}"*/; do
+                  local SCOPED_PKG
+                  SCOPED_PKG=$(basename "${SCOPED_DIR%/}")
+                  [ -d "$SCOPED_DIR" ] || continue
+                  local SCOPED_DEST="$STANDALONE_NM/$SCOPE/$SCOPED_PKG"
+                  if [ ! -d "$SCOPED_DEST" ] || [ -L "$SCOPED_DEST" ]; then
+                    rm -rf "$SCOPED_DEST"
+                    cp -rL "$SCOPED_DIR" "$SCOPED_DEST"
                   fi
+                done
+              else
+                local DEST="$STANDALONE_NM/$DEP_NAME"
+                if [ ! -d "$DEST" ] || [ -L "$DEST" ]; then
+                  rm -rf "$DEST"
+                  cp -rL "$DEP_DIR" "$DEST"
                 fi
-              done
-              break  # use first matching version
+              fi
             done
           }
-          echo "Phase 1: copying pnpm-store-only packages (not hoisted to top-level)..."
-          walk_store "node_modules/.pnpm/require-in-the-middle@*/"   # → debug, resolve, module-details-from-path
-          walk_store "node_modules/.pnpm/import-in-the-middle@*/"    # → acorn, acorn-import-attributes, cjs-module-lexer
-          walk_store "node_modules/.pnpm/shimmer@*/"                 # no extra deps
-          walk_store "node_modules/.pnpm/protobufjs@*/"              # → @protobufjs/*, long
-          walk_store "node_modules/.pnpm/debug@4*/"                  # → ms (debug@4.x's dep)
-          walk_store "node_modules/.pnpm/resolve@*/"                 # → is-core-module, path-parse, supports-preserve-symlinks-flag
+          echo "Phase 1: walking all App Insights / OpenTelemetry pnpm store entries..."
+          # Walk ALL store entries for the entire App Insights dep chain.
+          # Each entry's node_modules/ contains the package itself plus its
+          # transitive deps as siblings — copy all of them to standalone.
+          for STORE_DIR in \
+            node_modules/.pnpm/applicationinsights@*/ \
+            node_modules/.pnpm/@azure+*/ \
+            node_modules/.pnpm/@opentelemetry+*/ \
+            node_modules/.pnpm/require-in-the-middle@*/ \
+            node_modules/.pnpm/import-in-the-middle@*/ \
+            node_modules/.pnpm/shimmer@*/ \
+            node_modules/.pnpm/protobufjs@*/ \
+            node_modules/.pnpm/debug@4*/ \
+            node_modules/.pnpm/resolve@*/; do
+            [ -d "$STORE_DIR" ] || continue
+            walk_store_dir "$STORE_DIR"
+          done
+          echo "  Phase 1 complete"
 
           # Phase 2 — Comprehensive sync from top-level node_modules/.
           # Catches packages that ARE symlinked at top-level by pnpm but
@@ -333,7 +339,11 @@ jobs:
             echo "❌ ERROR: require-in-the-middle still missing!"
             exit 1
           fi
-          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array, require-in-the-middle verified"
+          if [ ! -d "$STANDALONE_NM/@azure/logger" ]; then
+            echo "❌ ERROR: @azure/logger still missing!"
+            exit 1
+          fi
+          echo "✅ .prisma/client, @prisma/client-runtime-utils, pg-types, postgres-array, require-in-the-middle, @azure/logger verified"
 
           cd .next/standalone
           zip -r ../../deploy.zip . -x '*.map'
