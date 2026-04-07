@@ -98,6 +98,11 @@ const nextConfig: NextConfig = {
     "@opentelemetry/sdk-trace-base",
     "@opentelemetry/sdk-trace-node",
     "@opentelemetry/semantic-conventions",
+    "@opentelemetry/instrumentation",
+    // require-in-the-middle + import-in-the-middle: required by @opentelemetry/instrumentation
+    "require-in-the-middle",
+    "import-in-the-middle",
+    "shimmer",
     "react",
     "react-dom",
   ],

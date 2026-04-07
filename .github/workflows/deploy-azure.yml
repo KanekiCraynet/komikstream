@@ -187,8 +187,20 @@ jobs:
             done
           done
 
-          # ── E: Resolve any remaining pnpm symlinks in standalone ─────────────
-          # Some packages (typescript, react-dom, @opentelemetry, etc.) may remain as symlinks.
+          # ── E: require-in-the-middle + import-in-the-middle + shimmer ──────────
+          # Required by @opentelemetry/instrumentation; top-level in node_modules
+          # but not traced by Next.js standalone tracer.
+          for PKG in "require-in-the-middle" "import-in-the-middle" "shimmer"; do
+            SRC="node_modules/$PKG"
+            DEST="$STANDALONE_NM/$PKG"
+            if [ -d "$SRC" ] && [ ! -d "$DEST" ]; then
+              cp -rL "$SRC" "$DEST"
+              echo "  ✅ $PKG"
+            fi
+          done
+
+          # ── F: Resolve any remaining pnpm symlinks in standalone ─────────────
+          # Some packages may remain as symlinks after explicit copies above.
           # Walk maxdepth 3 to cover @scope/pkg paths.
           echo "Resolving remaining pnpm symlinks..."
           RESOLVED=0
