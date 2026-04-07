@@ -6,7 +6,6 @@ import { UpdateTerbaruSection, OngoingSection, CompletedSection } from "./sectio
 import { useKomikLatest, useKomikPopular } from "@/hooks/useKomik";
 import { useAnimeLatest, useAnimeRecommended } from "@/hooks/useAnime";
 import type { Komik, Anime } from "@/types";
-import { cn } from "@/lib/utils";
 
 // Type for featured items in the hero carousel
 type FeaturedItem = (Komik | Anime) & { itemType: "komik" | "anime" };

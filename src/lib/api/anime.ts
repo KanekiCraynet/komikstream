@@ -13,7 +13,7 @@ import type {
   PaginatedResult,
 } from "@/types";
 import { CACHE_TIMES } from "@/lib/cache-config";
-import { BASE_URL, ANIME_HEADERS } from "./constants";
+import { BASE_URL } from "./constants";
 import { fetchWithCache, ensureArray } from "./fetch";
 import {
   transformAnimeListItem,

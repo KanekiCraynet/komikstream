@@ -12,7 +12,7 @@ jest.mock("next/image", () => ({
   default: function MockImage({
     alt,
     src,
-    onError,
+    onError: _onError,
     ...props
   }: {
     alt: string;

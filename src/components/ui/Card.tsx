@@ -247,10 +247,6 @@ export function Card({
                   ? (ch as KomikChapter).chapter
                   : (ch as AnimeEpisode).episode;
                 const date = ch.date;
-                const chapterId = isKomik
-                  ? (ch as KomikChapter).chapter_id
-                  : (ch as AnimeEpisode).episodeId;
-
                 return (
                   <div key={idx} className="flex items-center justify-between text-xs">
                     <span className="text-primary cursor-pointer font-medium hover:underline">
