@@ -239,12 +239,6 @@ export default worker;
 
 const SANKAVOLLEREI = "https://www.sankavollerei.com";
 
-// sankavollerei.com IPv4 addresses (Cloudflare proxy).
-// Used with cf.resolveOverride to force IPv4 egress from CF Workers,
-// bypassing the permanent ban on CF Workers' IPv6 egress IP (2a06:98c0:3600::103).
-// These are stable CF anycast IPs — update only if DNS A records change.
-const SANKAVOLLEREI_IPV4 = ["104.21.89.211", "172.67.147.90"] as const;
-
 const FETCH_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
@@ -276,11 +270,7 @@ interface RawComicItem {
 
 async function safeFetch(url: string): Promise<unknown | null> {
   try {
-    const ipv4 = SANKAVOLLEREI_IPV4[Math.floor(Math.random() * SANKAVOLLEREI_IPV4.length)];
-    const resp = await fetch(url, {
-      headers: FETCH_HEADERS,
-      cf: { resolveOverride: ipv4 },
-    });
+    const resp = await fetch(url, { headers: FETCH_HEADERS });
     if (!resp.ok) return null;
     return resp.json();
   } catch {
@@ -453,13 +443,9 @@ async function handleRequest(
     };
 
     try {
-      // resolveOverride forces IPv4 connection — bypasses CF Workers IPv6 egress ban.
-      // Round-robin between the two IPv4 addresses for load distribution.
-      const ipv4 = SANKAVOLLEREI_IPV4[Math.floor(Math.random() * SANKAVOLLEREI_IPV4.length)];
       const apiResp = await fetch(apiUrl, {
         headers: apiHeaders,
         cf: {
-          resolveOverride: ipv4,
           cacheEverything: true,
           cacheTtlByStatus: { "200-299": 300, "300-399": 0, "400-599": 0 },
         },
