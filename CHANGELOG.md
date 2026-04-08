@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.45] - 2026-04-08
+
+### Bug Fixes
+- fix(deploy): use deployctl@1.13.1 (correct version tag) (9bac98e)
+
+
 ## [0.35.44] - 2026-04-07
 
 ### Bug Fixes
