@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.36.0] - 2026-04-08
+
+### Features
+- feat: migrate from sankavollerei to direct Otakudesu + Komikcast scrapers (c5e18ff)
+
+### Other Changes
+- revert(worker): remove ineffective resolveOverride — cannot change CF egress IP (d7909df)
+
+
 ## [0.35.47] - 2026-04-08
 
 ### Bug Fixes
