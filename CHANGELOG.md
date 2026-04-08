@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.47] - 2026-04-08
+
+### Bug Fixes
+- fix(worker): force IPv4 via resolveOverride to bypass IPv6 egress ban (dfa7ee2)
+
+### Other Changes
+- revert(proxy): remove Deno Deploy integration, revert to direct CF Worker (dcfe04c)
+
+
 ## [0.35.46] - 2026-04-08
 
 ### Bug Fixes
