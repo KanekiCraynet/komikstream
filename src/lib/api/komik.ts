@@ -1,23 +1,24 @@
 /**
- * Komik API — Komikcast Source
+ * Komik API — Sansekai Source
  *
- * All comic data is scraped directly from komikcast03.com.
- * Replaces the previous sankavollerei.com JSON API.
+ * Thin wrapper delegating to the Sansekai JSON API module.
+ * Public signatures unchanged so all consumers keep working.
  */
 
 import type { Komik, KomikChapter, KomikChapterData, KomikImage, PaginatedResult } from "@/types";
 import {
-  getLatestKomik,
-  getPopularKomik,
-  getKomikList,
-  searchKomik as scrapeSearchKomik,
-  getKomikDetail as scrapeKomikDetail,
-  getKomikChapterList as scrapeChapterList,
-  getKomikChapterData as scrapeChapterData,
-  getKomikImages as scrapeImages,
-  getKomikGenres as scrapeGenres,
-  getKomikByGenre as scrapeByGenre,
-} from "./scrapers/komikcast";
+  fetchKomikLatest,
+  fetchKomikPopular,
+  fetchKomikRecommended,
+  fetchKomikSearch,
+  fetchKomikDetail,
+  fetchKomikChapterList,
+  fetchKomikChapterData,
+  fetchKomikImages,
+  fetchKomikGenres as sansekaiGenres,
+  fetchKomikByGenre,
+  fetchKomikList,
+} from "./sansekai/komik";
 
 export interface KomikAdvancedSearchParams {
   q?: string;
@@ -33,83 +34,98 @@ export interface KomikAdvancedSearchParams {
 // ==================== KOMIK LIST ====================
 
 export async function getKomikLatest(_type?: "project" | "mirror"): Promise<Komik[]> {
-  return getLatestKomik();
+  return fetchKomikLatest(_type);
 }
 
 export async function getKomikPopular(page = 1): Promise<Komik[]> {
-  return getPopularKomik(page);
+  return fetchKomikPopular(page);
 }
 
-export async function getKomikRecommended(_type?: string): Promise<Komik[]> {
-  // No dedicated recommendations endpoint — use popular list
-  return getPopularKomik(1);
+export async function getKomikRecommended(type?: string): Promise<Komik[]> {
+  return fetchKomikRecommended(type);
 }
 
 export async function getKomikBerwarna(_page = 1): Promise<Komik[]> {
-  // Komikcast doesn't have a colored comics section — return empty
   return [];
 }
 
 export async function getKomikPustaka(page = 1): Promise<Komik[]> {
-  const { items } = await getKomikList({ page, sortby: "update" });
+  const { items } = await fetchKomikList({ page, sortby: "update" });
   return items;
 }
 
 // ==================== KOMIK DETAIL ====================
 
 export async function getKomikDetail(mangaId: string): Promise<Komik | null> {
-  return scrapeKomikDetail(mangaId);
+  return fetchKomikDetail(mangaId);
 }
 
 export async function getKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
-  return scrapeChapterList(mangaId);
+  return fetchKomikChapterList(mangaId);
 }
 
 // ==================== SEARCH ====================
 
 export async function searchKomik(query: string): Promise<Komik[]> {
-  return scrapeSearchKomik(query);
+  return fetchKomikSearch(query);
 }
 
 export async function advancedSearchKomik(
   params: KomikAdvancedSearchParams
 ): Promise<PaginatedResult<Komik>> {
-  // Map to Komikcast list filter parameters
+  // If query provided, use search endpoint
+  if (params.q) {
+    const results = await fetchKomikSearch(params.q);
+    // Client-side filtering for type/status/genre
+    const filtered = results.filter((k) => {
+      if (
+        params.type &&
+        params.type !== "all" &&
+        k.type?.toLowerCase() !== params.type.toLowerCase()
+      )
+        return false;
+      if (
+        params.status &&
+        params.status !== "all" &&
+        k.status?.toLowerCase() !== params.status.toLowerCase()
+      )
+        return false;
+      if (
+        params.genre &&
+        params.genre !== "all" &&
+        !k.genres?.some((g) => g.toLowerCase() === params.genre!.toLowerCase())
+      )
+        return false;
+      return true;
+    });
+    return { items: filtered, hasNextPage: false, totalPages: 1 };
+  }
+
+  // No query — use list endpoint with pagination
   const sortby = params.sort === "popular" ? "popular" : "update";
-  const { items, hasMore } = await getKomikList({
+  const { items, hasMore, totalPages } = await fetchKomikList({
     page: params.page ?? 1,
     sortby,
     type: params.type !== "all" ? params.type : undefined,
-    status: params.status !== "all" ? params.status : undefined,
-    genre: params.genre !== "all" ? params.genre : undefined,
   });
 
-  // If query provided, filter client-side (Komikcast list doesn't support keyword+filter together)
-  const filtered = params.q
-    ? items.filter((k) => k.title.toLowerCase().includes(params.q!.toLowerCase()))
-    : items;
-
-  return {
-    items: filtered,
-    hasNextPage: hasMore,
-    totalPages: hasMore ? (params.page ?? 1) + 1 : (params.page ?? 1),
-  };
+  return { items, hasNextPage: hasMore, totalPages };
 }
 
 // ==================== GENRE ====================
 
 export async function getKomikByGenre(genre: string, page = 1): Promise<PaginatedResult<Komik>> {
-  return scrapeByGenre(genre, page);
+  return fetchKomikByGenre(genre, page);
 }
 
 // ==================== CHAPTER & IMAGES ====================
 
 export async function getKomikImages(chapterId: string): Promise<KomikImage[]> {
-  return scrapeImages(chapterId);
+  return fetchKomikImages(chapterId);
 }
 
 export async function getKomikChapterData(chapterId: string): Promise<KomikChapterData | null> {
-  return scrapeChapterData(chapterId);
+  return fetchKomikChapterData(chapterId);
 }
 
 // ==================== CATALOG / SEEDING ====================
@@ -121,7 +137,7 @@ export async function getKomikUnlimited(params?: {
   const maxPages = params?.max_pages ?? 3;
   const results: Komik[] = [];
   for (let page = 1; page <= maxPages; page++) {
-    const { items, hasMore } = await getKomikList({
+    const { items, hasMore } = await fetchKomikList({
       page,
       sortby: "update",
       type: params?.type,
@@ -136,7 +152,7 @@ export async function getKomikRealtime(_params?: {
   count?: number;
   fresh?: boolean;
 }): Promise<Komik[]> {
-  return getLatestKomik();
+  return fetchKomikLatest();
 }
 
 export async function getKomikScroll(params?: {
@@ -147,10 +163,9 @@ export async function getKomikScroll(params?: {
 }): Promise<{ items: Komik[]; nextOffset: number | null }> {
   const batchSize = params?.batch_size ?? 20;
   const offset = params?.offset ?? 0;
-  // Convert offset to page number (Komikcast uses page-based pagination)
   const page = Math.floor(offset / batchSize) + 1;
 
-  const { items, hasMore } = await getKomikList({ page, sortby: "update" });
+  const { items, hasMore } = await fetchKomikList({ page, sortby: "update", type: params?.type });
   const nextOffset = hasMore ? offset + items.length : null;
 
   return { items, nextOffset };
@@ -161,5 +176,5 @@ export async function getKomikScroll(params?: {
 import type { KomikGenre } from "@/types";
 
 export async function getKomikGenres(): Promise<KomikGenre[]> {
-  return scrapeGenres();
+  return sansekaiGenres();
 }

@@ -43,14 +43,19 @@ interface RateLimitConfig {
  * Only these origins are proxied to prevent open-relay abuse.
  */
 const CDN_ALLOWED_HOSTS = new Set([
-  // Otakudesu image CDN
+  // Sansekai anime covers (animekita / WordPress proxy / MAL)
+  "storage.animekita.org",
+  "i0.wp.com",
+  "cdn.myanimelist.net",
+  "myanimelist.net",
+  // Sansekai komik covers (shinigami)
+  "assets.shngm.id",
+  // Legacy domains (keep for old thumbnail URLs in DB)
   "otakudesu.cloud",
   "cdn.otakudesu.cloud",
-  // Komikcast image CDN
   "komikcast03.com",
   "cdn.komikcast03.com",
   "komikcast.com",
-  // Legacy komiku domains (keep for old thumbnail URLs in DB)
   "thumbnail.komiku.org",
   "img.komiku.org",
   "cdn.komiku.org",
@@ -232,8 +237,8 @@ const worker: ExportedHandler<Env> = {
   },
 
   // ─── Cron: Auto-seed DB every 6 hours ────────────────────────────
-  // Triggers Azure /api/internal/seed to scrape fresh content from
-  // Otakudesu and Komikcast. Azure handles all scraping — Worker just signals.
+  // Fetches fresh data from Sansekai API and pushes pre-fetched items
+  // to Azure /api/internal/seed for DB upsert.
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runSeed(env));
   },
@@ -242,30 +247,88 @@ const worker: ExportedHandler<Env> = {
 export default worker;
 
 // ─── Cron Seed Logic ─────────────────────────────────────────────────
-// Sends a trigger signal to Azure /api/internal/seed.
-// Azure is responsible for scraping Otakudesu and Komikcast directly.
-// The Worker does not scrape HTML — it only signals Azure to refresh.
+// Fetches anime + komik data from Sansekai API, transforms to seed
+// format, and POSTs pre-fetched items to Azure /api/internal/seed.
 
 async function runSeed(env: Env): Promise<void> {
   if (!env.CRON_SECRET) return;
 
-  const seedUrl = `${env.AZURE_ORIGIN}/api/internal/seed`;
+  const API = "https://api.sansekai.my.id/api";
+
+  // Fetch 4 endpoints in parallel (well under Worker 50 subrequest limit)
+  const [latestRes, recRes, komikLatestRes, komikPopRes] = await Promise.allSettled([
+    fetch(`${API}/anime/latest`).then((r) => r.json()),
+    fetch(`${API}/anime/recommended?page=1`).then((r) => r.json()),
+    fetch(`${API}/komik/latest?type=mirror`).then((r) => r.json()),
+    fetch(`${API}/komik/popular?page=1`).then((r) => r.json()),
+  ]);
+
+  // Transform anime items
+  const anime: Record<string, unknown>[] = [];
+  const seenAnime = new Set<string>();
+  for (const res of [latestRes, recRes]) {
+    if (res.status !== "fulfilled") continue;
+    const items = Array.isArray(res.value) ? res.value : (res.value?.data ?? []);
+    for (const item of items as Record<string, unknown>[]) {
+      const urlId = String(item.url ?? item.series_id ?? "").replace(/\/+$/, "");
+      if (!urlId || seenAnime.has(urlId)) continue;
+      seenAnime.add(urlId);
+      anime.push({
+        urlId,
+        title: item.judul ?? "",
+        thumbnail: item.cover ?? "",
+        type: item.type,
+        status: item.status,
+        rating: item.score ?? item.rating,
+        genres: item.genre ?? [],
+      });
+    }
+  }
+
+  // Transform komik items
+  const komik: Record<string, unknown>[] = [];
+  const seenKomik = new Set<string>();
+  for (const res of [komikLatestRes, komikPopRes]) {
+    if (res.status !== "fulfilled") continue;
+    const items = ((res.value as Record<string, unknown>)?.data ?? []) as Record<string, unknown>[];
+    for (const item of items) {
+      const mangaId = String(item.manga_id ?? "");
+      if (!mangaId || seenKomik.has(mangaId)) continue;
+      seenKomik.add(mangaId);
+      const taxonomy = (item.taxonomy ?? {}) as Record<string, Array<{ name: string }>>;
+      komik.push({
+        manga_id: mangaId,
+        title: item.title ?? item.alternative_title ?? "",
+        thumbnail: item.cover_image_url ?? "",
+        type: taxonomy?.Format?.[0]?.name,
+        status: item.status,
+        rating: item.user_rate,
+        genres: (taxonomy?.Genre ?? []).map((g) => g.name),
+      });
+    }
+  }
+
+  if (anime.length === 0 && komik.length === 0) {
+    trackEvent(env.ANALYTICS, "cron_seed", "empty", "no_data", 0, 0);
+    return;
+  }
+
   try {
-    const resp = await fetch(seedUrl, {
+    const resp = await fetch(`${env.AZURE_ORIGIN}/api/internal/seed`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.CRON_SECRET}`,
         "Content-Type": "application/json",
         "x-worker-token": env.WORKER_TOKEN ?? "",
       },
-      body: JSON.stringify({ trigger: true }),
+      body: JSON.stringify({ anime, komik }),
     });
     trackEvent(
       env.ANALYTICS,
       "cron_seed",
       resp.ok ? "success" : "error",
-      String(resp.status),
-      0,
+      `anime:${anime.length},komik:${komik.length}`,
+      anime.length + komik.length,
       resp.status
     );
   } catch {

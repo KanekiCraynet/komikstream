@@ -53,10 +53,10 @@ export async function GET(request: NextRequest) {
       videoUrl = episodeData.defaultStreamingUrl;
     }
 
-    // All URLs from this API are embed URLs (iframe players), not direct video files
+    // Sansekai returns direct MP4 URLs
     return NextResponse.json({
       url: videoUrl,
-      type: "embed",
+      type: "direct",
       availableResolutions,
     });
   } catch (error) {

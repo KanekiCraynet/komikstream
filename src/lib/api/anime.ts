@@ -1,8 +1,8 @@
 /**
- * Anime API — Otakudesu Source
+ * Anime API — Sansekai Source
  *
- * All anime data is scraped directly from otakudesu.cloud.
- * Replaces the previous sankavollerei.com JSON API.
+ * Thin wrapper delegating to the Sansekai JSON API module.
+ * Public signatures unchanged so all consumers keep working.
  */
 
 import type {
@@ -14,20 +14,19 @@ import type {
 } from "@/types";
 import type { RawEpisodeData } from "./types";
 import {
-  getOngoingAnime,
-  getCompleteAnime,
-  getHomeAnime,
-  getAnimeDetail as scrapeAnimeDetail,
-  getAnimeEpisode as scrapeAnimeEpisode,
-  getAnimeServerUrl as resolveServerUrl,
-  searchAnime as scrapeSearchAnime,
-  getAnimeSchedule as scrapeAnimeSchedule,
-  getAnimeGenres as scrapeAnimeGenres,
-  getAnimeByGenre as scrapeAnimeByGenre,
-  getAnimeBatch as scrapeAnimeBatch,
-} from "./scrapers/otakudesu";
+  fetchAnimeLatest,
+  fetchAnimeRecommended,
+  fetchAnimeMovie,
+  fetchAnimeSearch,
+  fetchAnimeDetail,
+  fetchAnimeEpisode,
+  fetchAnimeServerUrl,
+  fetchAnimeSchedule,
+  fetchAnimeGenres,
+  fetchAnimeByGenre,
+  fetchAnimeBatch,
+} from "./sansekai/anime";
 
-// Re-export for consumers that import extractEpisodeNumber from this module
 export function extractEpisodeNumber(text: string): number {
   const m = text.match(/(\d+(?:\.\d+)?)/);
   return m ? parseFloat(m[1]) : 0;
@@ -36,35 +35,31 @@ export function extractEpisodeNumber(text: string): number {
 // ==================== ANIME LIST ENDPOINTS ====================
 
 export async function getAnimeLatest(): Promise<Anime[]> {
-  return getOngoingAnime();
+  return fetchAnimeLatest();
 }
 
 export async function getAnimeRecommended(page = 1): Promise<Anime[]> {
-  const { ongoing, complete } = await getHomeAnime();
-  const all = [...ongoing, ...complete];
-  const perPage = 20;
-  const start = (page - 1) * perPage;
-  return all.slice(start, start + perPage);
+  return fetchAnimeRecommended(page);
 }
 
 export async function getAnimeMovie(): Promise<Anime[]> {
-  return getCompleteAnime();
+  return fetchAnimeMovie();
 }
 
 export async function getAnimeUnlimited(): Promise<Anime[]> {
-  return getCompleteAnime();
+  return fetchAnimeMovie();
 }
 
 // ==================== ANIME DETAIL ====================
 
 export async function getAnimeDetail(urlId: string): Promise<Anime | null> {
-  return scrapeAnimeDetail(urlId);
+  return fetchAnimeDetail(urlId);
 }
 
 // ==================== ANIME SEARCH ====================
 
 export async function searchAnime(query: string): Promise<Anime[]> {
-  return scrapeSearchAnime(query);
+  return fetchAnimeSearch(query);
 }
 
 // ==================== ANIME VIDEO ====================
@@ -83,44 +78,44 @@ export async function getAnimeVideo(
     const res = await fetch(
       `/api/anime/video?episodeId=${encodeURIComponent(episodeId)}&quality=${encodeURIComponent(quality)}`
     );
-    if (!res.ok) return { url: null, type: "embed", availableResolutions: [] };
+    if (!res.ok) return { url: null, type: "direct", availableResolutions: [] };
     const data = await res.json();
     return {
       url: data.url || null,
-      type: data.type || "embed",
+      type: data.type || "direct",
       availableResolutions: data.availableResolutions || [],
     };
   } catch {
-    return { url: null, type: "embed", availableResolutions: [] };
+    return { url: null, type: "direct", availableResolutions: [] };
   }
 }
 
 export async function getAnimeEpisode(episodeId: string): Promise<RawEpisodeData | null> {
-  return scrapeAnimeEpisode(episodeId);
+  return fetchAnimeEpisode(episodeId);
 }
 
 export async function getAnimeServerUrl(serverId: string): Promise<string | null> {
-  return resolveServerUrl(serverId);
+  return fetchAnimeServerUrl(serverId);
 }
 
 // ==================== ANIME SCHEDULE ====================
 
 export async function getAnimeSchedule(): Promise<AnimeScheduleDay[]> {
-  return scrapeAnimeSchedule();
+  return fetchAnimeSchedule();
 }
 
 // ==================== ANIME GENRES ====================
 
 export async function getAnimeGenres(): Promise<AnimeGenre[]> {
-  return scrapeAnimeGenres();
+  return fetchAnimeGenres();
 }
 
 export async function getAnimeByGenre(slug: string, page = 1): Promise<PaginatedResult<Anime>> {
-  return scrapeAnimeByGenre(slug, page);
+  return fetchAnimeByGenre(slug, page);
 }
 
 // ==================== ANIME BATCH ====================
 
 export async function getAnimeBatch(slug: string): Promise<AnimeBatchDownload | null> {
-  return scrapeAnimeBatch(slug);
+  return fetchAnimeBatch(slug);
 }

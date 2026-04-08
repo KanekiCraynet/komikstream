@@ -351,7 +351,7 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
 
 // Reject IDs that are clearly not valid API slugs — UUIDs from stale
 // bookmark/history records and reserved route segments that leak into [mangaId].
-const INVALID_SLUG_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-|^(genre|search|berwarna|pustaka)$/;
+const INVALID_SLUG_RE = /^(genre|search|berwarna|pustaka)$/;
 
 /**
  * Get komik detail with two-tier caching: DB -> External API.

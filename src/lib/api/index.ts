@@ -6,53 +6,7 @@
  */
 
 // ==================== TYPES ====================
-export type {
-  // Raw API response types (for advanced use cases)
-  RawAnimeListItem,
-  RawAnimeDetailData,
-  RawGenreItem,
-  RawEpisodeListItem,
-  RawAnimeResponse,
-  RawServerItem,
-  RawQualityItem,
-  RawEpisodeData,
-  RawScheduleDay,
-  RawScheduleResponse,
-  RawBatchQuality,
-  RawBatchData,
-  RawComicListItem,
-  RawComicCatalogItem,
-  RawComicSearchItem,
-  RawComicDetailData,
-  RawComicChapterItem,
-  RawComicGenreItem,
-  RawComicChapterData,
-  RawComicPaginatedResponse,
-  RawComicScrollResponse,
-} from "./types";
-
-// ==================== CONSTANTS ====================
-export { BASE_URL, ANIME_HEADERS, COMIC_HEADERS } from "./constants";
-
-// ==================== CORE UTILITIES ====================
-export { fetchWithCache, ensureArray } from "./fetch";
-
-// ==================== TRANSFORMERS ====================
-export {
-  // Anime transformers
-  transformAnimeListItem,
-  transformAnimeDetail,
-  extractEpisodeNumber,
-  // Komik transformers
-  extractChapterNumber,
-  extractMangaSlug,
-  extractMangaSlugFromChapter,
-  transformComicListItem,
-  transformComicCatalogItem,
-  transformComicSearchItem,
-  transformComicChapter,
-  transformComicDetail,
-} from "./transformers";
+export type { RawServerItem, RawQualityItem, RawEpisodeData } from "./types";
 
 // ==================== ANIME API ====================
 export {
@@ -69,7 +23,7 @@ export {
   getAnimeGenres,
   getAnimeByGenre,
   getAnimeBatch,
-  // Types
+  extractEpisodeNumber,
   type AnimeVideoResult,
 } from "./anime";
 
@@ -90,7 +44,7 @@ export {
   getKomikUnlimited,
   getKomikRealtime,
   getKomikScroll,
-  // Types
+  getKomikGenres,
   type KomikAdvancedSearchParams,
 } from "./komik";
 
