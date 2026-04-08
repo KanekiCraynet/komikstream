@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@1
+        uses: denoland/deployctl@1.13.1
         with:
           project: kanekicraynet/kuromanga-proxy
           entrypoint: deno-proxy/main.ts
