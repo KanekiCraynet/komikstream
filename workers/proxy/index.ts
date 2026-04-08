@@ -22,7 +22,7 @@ interface Env {
   ANALYTICS: AnalyticsEngineDataset;
   WORKER_TOKEN: string;
   AZURE_ORIGIN: string;
-  API_PROXY_TOKEN: string;
+  SCRAPER_PROXY_TOKEN: string;
   CRON_SECRET: string;
 }
 
@@ -43,10 +43,17 @@ interface RateLimitConfig {
  * Only these origins are proxied to prevent open-relay abuse.
  */
 const CDN_ALLOWED_HOSTS = new Set([
+  // Otakudesu image CDN
+  "otakudesu.cloud",
+  "cdn.otakudesu.cloud",
+  // Komikcast image CDN
+  "komikcast03.com",
+  "cdn.komikcast03.com",
+  "komikcast.com",
+  // Legacy komiku domains (keep for old thumbnail URLs in DB)
   "thumbnail.komiku.org",
   "img.komiku.org",
   "cdn.komiku.org",
-  "otakudesu.blog",
 ]);
 
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
@@ -225,9 +232,8 @@ const worker: ExportedHandler<Env> = {
   },
 
   // ─── Cron: Auto-seed DB every 6 hours ────────────────────────────
-  // Fetches latest content lists from sankavollerei.com via IPv4 resolveOverride
-  // and pushes to Azure /api/internal/seed to keep DB cache fresh.
-  // Only fetches list endpoints (~4-6 requests) — fast enough for cron budget.
+  // Triggers Azure /api/internal/seed to scrape fresh content from
+  // Otakudesu and Komikcast. Azure handles all scraping — Worker just signals.
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runSeed(env));
   },
@@ -236,136 +242,31 @@ const worker: ExportedHandler<Env> = {
 export default worker;
 
 // ─── Cron Seed Logic ─────────────────────────────────────────────────
-
-const SANKAVOLLEREI = "https://www.sankavollerei.com";
-
-const FETCH_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-  Accept: "application/json, text/plain, */*",
-  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-  "sec-fetch-dest": "empty",
-  "sec-fetch-mode": "cors",
-  "sec-fetch-site": "same-origin",
-};
-
-interface RawAnimeItem {
-  animeId?: string;
-  title?: string;
-  poster?: string;
-  type?: string;
-  status?: string;
-  score?: string;
-  episodes?: number;
-  genreList?: Array<{ title?: string }>;
-}
-
-interface RawComicItem {
-  slug?: string;
-  link?: string;
-  title?: string;
-  image?: string;
-  type?: string;
-}
-
-async function safeFetch(url: string): Promise<unknown | null> {
-  try {
-    const resp = await fetch(url, { headers: FETCH_HEADERS });
-    if (!resp.ok) return null;
-    return resp.json();
-  } catch {
-    return null;
-  }
-}
-
-function extractComicSlug(item: RawComicItem): string | undefined {
-  if (item.slug) return item.slug;
-  if (item.link) {
-    const parts = item.link.replace(/\/+$/, "").split("/");
-    return parts[parts.length - 1] || undefined;
-  }
-  return undefined;
-}
+// Sends a trigger signal to Azure /api/internal/seed.
+// Azure is responsible for scraping Otakudesu and Komikcast directly.
+// The Worker does not scrape HTML — it only signals Azure to refresh.
 
 async function runSeed(env: Env): Promise<void> {
   if (!env.CRON_SECRET) return;
 
-  const anime: unknown[] = [];
-  const komik: unknown[] = [];
-
-  // ── Fetch anime lists ──
-  const [ongoingRes, homeRes] = await Promise.all([
-    safeFetch(`${SANKAVOLLEREI}/anime/ongoing-anime`),
-    safeFetch(`${SANKAVOLLEREI}/anime/home`),
-  ]);
-
-  const ongoingList: RawAnimeItem[] =
-    (ongoingRes as { data?: { animeList?: RawAnimeItem[] } })?.data?.animeList ?? [];
-  const homeOngoing: RawAnimeItem[] =
-    (homeRes as { data?: { ongoing?: { animeList?: RawAnimeItem[] } } })?.data?.ongoing
-      ?.animeList ?? [];
-  const homeCompleted: RawAnimeItem[] =
-    (homeRes as { data?: { completed?: { animeList?: RawAnimeItem[] } } })?.data?.completed
-      ?.animeList ?? [];
-
-  const seenAnime = new Set<string>();
-  for (const item of [...ongoingList, ...homeOngoing, ...homeCompleted]) {
-    if (!item.animeId || seenAnime.has(item.animeId)) continue;
-    seenAnime.add(item.animeId);
-    anime.push({
-      urlId: item.animeId,
-      title: item.title ?? "",
-      thumbnail: item.poster ?? "",
-      type: item.type,
-      status: item.status,
-      rating: item.score,
-      genres: item.genreList?.map((g) => g.title).filter(Boolean) ?? [],
-    });
-  }
-
-  // ── Fetch komik lists ──
-  const [terbaruRes, populerRes] = await Promise.all([
-    safeFetch(`${SANKAVOLLEREI}/comic/terbaru`),
-    safeFetch(`${SANKAVOLLEREI}/comic/populer`),
-  ]);
-
-  const terbaruList: RawComicItem[] = (terbaruRes as { comics?: RawComicItem[] })?.comics ?? [];
-  const populerList: RawComicItem[] = (populerRes as { comics?: RawComicItem[] })?.comics ?? [];
-
-  const seenKomik = new Set<string>();
-  for (const item of [...terbaruList, ...populerList]) {
-    const slug = extractComicSlug(item);
-    if (!slug || seenKomik.has(slug)) continue;
-    seenKomik.add(slug);
-    komik.push({
-      manga_id: slug,
-      title: item.title ?? "",
-      thumbnail: item.image ?? "",
-      type: item.type,
-    });
-  }
-
-  if (anime.length === 0 && komik.length === 0) return;
-
-  // ── Push to Azure seed endpoint ──
   const seedUrl = `${env.AZURE_ORIGIN}/api/internal/seed`;
   try {
-    await fetch(seedUrl, {
+    const resp = await fetch(seedUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.CRON_SECRET}`,
         "Content-Type": "application/json",
         "x-worker-token": env.WORKER_TOKEN ?? "",
       },
-      body: JSON.stringify({ anime, komik }),
+      body: JSON.stringify({ trigger: true }),
     });
     trackEvent(
       env.ANALYTICS,
       "cron_seed",
-      "success",
-      `anime:${anime.length},komik:${komik.length}`,
-      anime.length + komik.length,
-      200
+      resp.ok ? "success" : "error",
+      String(resp.status),
+      0,
+      resp.status
     );
   } catch {
     trackEvent(env.ANALYTICS, "cron_seed", "error", "fetch_failed", 0, 500);
@@ -414,57 +315,72 @@ async function handleRequest(
     return new Response("Forbidden", { status: 403 });
   }
 
-  // ── 0a2. API proxy for upstream sankavollerei.com (/api-proxy/{path}) ──
-  // Azure IPs are blocked by Plana AI Detector. CF Worker edge IPs
-  // are used to proxy API requests through the Worker.
-  // Protected by a shared secret to prevent open-relay abuse.
+  // ── 0a2. Transparent HTML proxy (/proxy?url={encodedUrl}) ──
+  // Used by Azure as a fallback when scraping Otakudesu or Komikcast directly
+  // fails due to CF bot protection. Set SCRAPER_PROXY_URL=https://kuromanga.me/proxy
+  // in Azure App Settings to enable routing through this Worker.
+  // Protected by SCRAPER_PROXY_TOKEN to prevent open-relay abuse.
 
-  if (pathname.startsWith("/api-proxy/")) {
-    const proxyToken = request.headers.get("x-api-proxy-token");
-    if (!env.API_PROXY_TOKEN || proxyToken !== env.API_PROXY_TOKEN) {
+  if (pathname === "/proxy") {
+    const proxyToken = request.headers.get("x-scraper-proxy-token");
+    if (!env.SCRAPER_PROXY_TOKEN || proxyToken !== env.SCRAPER_PROXY_TOKEN) {
       return new Response("Not Found", { status: 404 });
     }
 
-    const apiPath = pathname.slice("/api-proxy".length); // keeps leading /
-    const apiUrl = `https://www.sankavollerei.com${apiPath}${search}`;
+    const targetUrl = url.searchParams.get("url");
+    if (!targetUrl) {
+      return new Response("Bad Request: missing url param", { status: 400 });
+    }
 
-    const apiHeaders: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-      Referer: "https://www.sankavollerei.com/",
-      "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": '"Windows"',
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-    };
+    let parsedTarget: URL;
+    try {
+      parsedTarget = new URL(targetUrl);
+    } catch {
+      return new Response("Bad Request: invalid url", { status: 400 });
+    }
+
+    // Only allow scraping known source domains
+    const PROXY_ALLOWED_HOSTS = new Set([
+      "otakudesu.cloud",
+      "www.otakudesu.cloud",
+      "komikcast03.com",
+      "www.komikcast03.com",
+    ]);
+    if (!PROXY_ALLOWED_HOSTS.has(parsedTarget.hostname)) {
+      return new Response("Forbidden: host not allowed", { status: 403 });
+    }
 
     try {
-      const apiResp = await fetch(apiUrl, {
-        headers: apiHeaders,
+      const htmlResp = await fetch(parsedTarget.toString(), {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Cache-Control": "no-cache",
+        },
         cf: {
-          cacheEverything: true,
-          cacheTtlByStatus: { "200-299": 300, "300-399": 0, "400-599": 0 },
+          cacheEverything: false,
         },
       });
 
       const respHeaders = new Headers();
-      respHeaders.set("Content-Type", apiResp.headers.get("Content-Type") ?? "application/json");
+      respHeaders.set(
+        "Content-Type",
+        htmlResp.headers.get("Content-Type") ?? "text/html; charset=utf-8"
+      );
       respHeaders.set("Cache-Control", "no-store");
       respHeaders.set("X-Content-Type-Options", "nosniff");
       respHeaders.set("x-trace-id", traceId);
 
-      return new Response(apiResp.body, {
-        status: apiResp.status,
+      return new Response(htmlResp.body, {
+        status: htmlResp.status,
         headers: respHeaders,
       });
     } catch {
-      return new Response(JSON.stringify({ error: "upstream_error" }), {
+      return new Response("upstream_error", {
         status: 502,
-        headers: { "Content-Type": "application/json", "x-trace-id": traceId },
+        headers: { "x-trace-id": traceId },
       });
     }
   }
@@ -620,13 +536,6 @@ async function handleRequest(
       "Cache-Control",
       `public, max-age=${cacheConfig.ttl}, stale-while-revalidate=${cacheConfig.swr}`
     );
-  }
-
-  // SEO/performance: add Link preconnect header for API domain
-  // so browsers can start DNS+TLS handshake early for client-side fetches
-  const contentType = responseHeaders.get("Content-Type") ?? "";
-  if (contentType.includes("text/html")) {
-    responseHeaders.set("Link", '<https://www.sankavollerei.com>; rel="preconnect"; crossorigin');
   }
 
   return new Response(originResponse.body, {

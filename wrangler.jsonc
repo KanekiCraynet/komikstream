@@ -32,8 +32,8 @@
     },
   ],
   // ─── Cron Triggers ────────────────────────────────────────────────
-  // Runs every 6 hours to fetch latest content from sankavollerei.com
-  // and seed the Azure DB.
+  // Runs every 6 hours to trigger Azure /api/internal/seed
+  // which scrapes Otakudesu and Komikcast directly.
   "triggers": {
     "crons": ["0 */6 * * *"],
   },
@@ -44,15 +44,15 @@
   // ─── Secrets ────────────────────────────────────────────────────────
   // Secrets MUST NOT be stored in this file. Set them via:
   //   wrangler secret put WORKER_TOKEN
-  //   wrangler secret put API_PROXY_TOKEN
+  //   wrangler secret put SCRAPER_PROXY_TOKEN
   //   wrangler secret put CRON_SECRET
   //
   // Required secrets:
-  //   WORKER_TOKEN     — shared secret between CF Worker and Azure origin.
-  //                      Validated by Next.js middleware to ensure requests
-  //                      only arrive through the Worker proxy.
-  //   API_PROXY_TOKEN  — shared secret for /api-proxy/ route. Azure and
-  //                      CF Worker cron use this to authenticate calls
-  //                      through the Deno Deploy proxy to sankavollerei.com.
-  //   CRON_SECRET      — auth token for /api/internal/seed endpoint.
+  //   WORKER_TOKEN         — shared secret between CF Worker and Azure origin.
+  //                          Validated by Next.js middleware to ensure requests
+  //                          only arrive through the Worker proxy.
+  //   SCRAPER_PROXY_TOKEN  — shared secret for /proxy?url= route. Azure uses
+  //                          this as a fallback to scrape Otakudesu/Komikcast
+  //                          through the CF Worker if direct access is blocked.
+  //   CRON_SECRET          — auth token for /api/internal/seed endpoint.
 }
