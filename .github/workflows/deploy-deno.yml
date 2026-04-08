@@ -27,6 +27,6 @@ jobs:
       - name: Deploy to Deno Deploy
         uses: denoland/deployctl@1.13.1
         with:
-          project: kanekicraynet/kuromanga-proxy
+          project: kuromanga-proxy
           entrypoint: deno-proxy/main.ts
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
