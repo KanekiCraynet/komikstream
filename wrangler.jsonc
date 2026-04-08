@@ -33,17 +33,13 @@
   ],
   // ─── Cron Triggers ────────────────────────────────────────────────
   // Runs every 6 hours to fetch latest content from sankavollerei.com
-  // and seed the Azure DB. Routes through Deno Deploy proxy (DENO_PROXY_URL)
-  // because CF Worker IPs are permanently banned by sankavollerei.com.
+  // and seed the Azure DB.
   "triggers": {
     "crons": ["0 */6 * * *"],
   },
   // ─── Environment Variables ─────────────────────────────────────────
   "vars": {
     "AZURE_ORIGIN": "https://kuromanga-eqh9frdqdzbjf9h4.indonesiacentral-01.azurewebsites.net",
-    // Deno Deploy proxy base URL — replace sankavollerei.com direct calls.
-    // Update this if the Deno Deploy project name changes.
-    "DENO_PROXY_URL": "https://kuromanga-proxy.kanekicraynet.deno.net/api-proxy",
   },
   // ─── Secrets ────────────────────────────────────────────────────────
   // Secrets MUST NOT be stored in this file. Set them via:
