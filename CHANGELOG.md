@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.35.46] - 2026-04-08
+
+### Bug Fixes
+- fix(deploy): remove org prefix from deployctl project name (89f7e24)
+
+
 ## [0.35.45] - 2026-04-08
 
 ### Bug Fixes
