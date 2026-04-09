@@ -125,7 +125,7 @@ model KomikChapter {
   chapterTitle String
   prevChapter  String?
   nextChapter  String?
-  images       Json     // Array of {url: string, page: number}
+  images       Json // Array of {url: string, page: number}
   lastScraped  DateTime @default(now())
 
   @@index([chapterId])
