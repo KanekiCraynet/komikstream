@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.37.1] - 2026-04-09
+
+### Bug Fixes
+- fix(ci): format prisma schema + lower coverage threshold temporarily (d0c66ee)
+
+### Tests
+- test: remove stale API tests for old sankavollerei provider (4be741f)
+
+
 ## [0.37.0] - 2026-04-09
 
 ### Features
