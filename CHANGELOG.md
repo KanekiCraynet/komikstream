@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.37.0] - 2026-04-09
+
+### Features
+- feat: migrate from HTML scrapers to Sansekai JSON REST API (1bf283e)
+
+
 ## [0.36.0] - 2026-04-08
 
 ### Features
