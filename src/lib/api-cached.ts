@@ -325,7 +325,7 @@ export async function getCachedAnimeDetail(urlId: string): Promise<Anime | null>
     });
 
     // L3: Stale DB fallback — serve expired data rather than 404.
-    // sankavollerei.com intermittently blocks Azure IPs with 403;
+    // External API intermittently fails or rate-limits;
     // returning stale content is far better than showing "not found".
     if (isDatabaseConfigured()) {
       const staleStart = Date.now();
@@ -446,7 +446,7 @@ export async function getCachedKomikDetail(mangaId: string): Promise<Komik | nul
     });
 
     // L3: Stale DB fallback — serve expired data rather than 404.
-    // sankavollerei.com intermittently blocks Azure IPs with 403;
+    // External API intermittently fails or rate-limits;
     // returning stale content is far better than showing "not found".
     if (isDatabaseConfigured()) {
       const staleStart = Date.now();
@@ -552,13 +552,24 @@ export async function getCachedHomepageData() {
 // ─── Cached Chapter List ───────────────────────────────────────────
 
 /**
- * Get chapter list from cached detail data.
- * Avoids a separate uncached API call when the detail is already in DB/KV.
- * Falls back to the direct API via getCachedKomikDetail's 3-tier strategy.
+ * Get chapter list independently from the detail page.
+ * Uses the dedicated /komik/chapterlist endpoint for lazy loading —
+ * detail pages can load metadata first, then chapters asynchronously.
+ * Falls back to extracting chapters from cached detail data.
  */
 export async function getCachedKomikChapterList(mangaId: string): Promise<KomikChapter[]> {
-  const komik = await getCachedKomikDetail(mangaId);
-  return komik?.chapters ?? [];
+  try {
+    const { getKomikChapterList: fetchChapters } = await import("./api");
+    return await fetchChapters(mangaId);
+  } catch (err) {
+    logger.debug("Chapter list API failed, falling back to detail", {
+      mangaId,
+      error: String(err),
+    });
+    // Fallback: extract from cached detail
+    const komik = await getCachedKomikDetail(mangaId);
+    return komik?.chapters ?? [];
+  }
 }
 
 // ─── Cached Chapter Data ───────────────────────────────────────────
@@ -585,7 +596,7 @@ function mapDbChapterToApp(db: DbChapter): KomikChapterData {
  * Tier 1 (L1): DB fresh hit — return immediately if within TTL.
  * Tier 2 (L2): External API — write-through to DB on success.
  * Tier 3 (L3): Stale DB fallback — serve expired data rather than 404
- *   when sankavollerei.com blocks Azure/CF IPs.
+ *   when the external API is unreachable.
  */
 export async function getCachedKomikChapterData(
   chapterId: string

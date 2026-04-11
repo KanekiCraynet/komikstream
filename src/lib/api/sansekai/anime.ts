@@ -183,9 +183,13 @@ export async function fetchAnimeDetail(urlId: string): Promise<Anime | null> {
   return mapDetail(d);
 }
 
-export async function fetchAnimeEpisode(episodeId: string): Promise<RawEpisodeData | null> {
+export async function fetchAnimeEpisode(
+  episodeId: string,
+  reso?: string
+): Promise<RawEpisodeData | null> {
+  const resoParam = reso ? `&reso=${encodeURIComponent(reso)}` : "";
   const res = await fetchSansekai<{ data: SansekaiVideoData[] }>(
-    `/anime/getvideo?chapterUrlId=${encodeURIComponent(episodeId)}`,
+    `/anime/getvideo?chapterUrlId=${encodeURIComponent(episodeId)}${resoParam}`,
     CACHE_TIMES.SEARCH
   );
   const v = res?.data?.[0];

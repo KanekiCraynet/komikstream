@@ -82,34 +82,18 @@ export async function GET(request: NextRequest) {
   // Check external API — NON-CRITICAL dependency.
   // Only run when ?full=true is specified.
   //
-  // NOTE: sankavollerei.com's bot protection (Plana AI Detector) blocks
-  // Azure datacenter IPs with 403 regardless of headers. This check may
-  // permanently show "degraded" from Azure, which is expected and harmless.
-  // The actual API client works via ISR cache + Next.js server-side fetches
-  // through different code paths that are not blocked.
+  // NOTE: External API check is best-effort and may show "degraded"
+  // if the API is rate-limiting or temporarily unreachable.
+  // The app handles this gracefully via ISR cache + DB stale fallback.
   if (fullCheck) {
     health.checks.externalApi = "skipped";
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (apiUrl) {
-        const resp = await fetch(`${apiUrl}/anime/home`, {
-          signal: AbortSignal.timeout(5000),
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            Accept: "application/json, text/plain, */*",
-            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-            Referer: "https://www.sankavollerei.com/anime/",
-            "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-          },
-        });
-        health.checks.externalApi = resp.ok ? "operational" : "degraded";
-      }
+      const apiUrl = process.env.SANSEKAI_BASE_URL ?? "https://api.sansekai.my.id/api";
+      const resp = await fetch(`${apiUrl}/anime/latest`, {
+        signal: AbortSignal.timeout(5000),
+        headers: { Accept: "application/json" },
+      });
+      health.checks.externalApi = resp.ok ? "operational" : "degraded";
     } catch {
       health.checks.externalApi = "unreachable";
       // External API failure is non-critical - only degrade, don't mark unhealthy

@@ -8,10 +8,10 @@ export async function GET(request: NextRequest) {
   try {
     const { episodeId, quality } = validateSearchParams(request, animeVideoParamsSchema);
 
-    // Step 1: Fetch episode data to get server list
+    // Step 1: Fetch episode data to get server list, passing quality as reso
     let episodeData;
     try {
-      episodeData = await getAnimeEpisode(episodeId);
+      episodeData = await getAnimeEpisode(episodeId, quality);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new ExternalApiError(`Failed to fetch episode data: ${msg}`, {

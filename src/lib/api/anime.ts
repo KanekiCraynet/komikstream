@@ -90,8 +90,11 @@ export async function getAnimeVideo(
   }
 }
 
-export async function getAnimeEpisode(episodeId: string): Promise<RawEpisodeData | null> {
-  return fetchAnimeEpisode(episodeId);
+export async function getAnimeEpisode(
+  episodeId: string,
+  reso?: string
+): Promise<RawEpisodeData | null> {
+  return fetchAnimeEpisode(episodeId, reso);
 }
 
 export async function getAnimeServerUrl(serverId: string): Promise<string | null> {

@@ -35,7 +35,7 @@ const cspDirectives = [
   "img-src 'self' https: data: blob:",
   "font-src 'self' data:",
   "frame-src 'self' https: https://challenges.cloudflare.com",
-  "connect-src 'self' https://www.sankavollerei.com https://clerk.kuromanga.me https://*.clerk.accounts.dev https://*.clerk.dev wss://*.clerk.dev",
+  "connect-src 'self' https://api.sansekai.my.id https://clerk.kuromanga.me https://*.clerk.accounts.dev https://*.clerk.dev wss://*.clerk.dev",
   "media-src 'self' https: blob:",
   "worker-src 'self' blob:",
   "object-src 'none'",
@@ -155,7 +155,7 @@ const nextConfig: NextConfig = {
   // Image optimization for performance
   // NOTE: All images currently use `unoptimized` (bypass optimization), so
   // remotePatterns only applies if `unoptimized` is removed in the future.
-  // The wildcard is necessary because the external API (sankavollerei.com)
+  // The wildcard is necessary because the external API (api.sansekai.my.id)
   // returns cover images from unpredictable CDN hostnames.
   // Mitigations: HTTPS-only, CSP img-src restricts to https:/data:/blob:.
   // TODO: Replace with an image proxy (e.g. /api/img?url=...) to remove wildcard.

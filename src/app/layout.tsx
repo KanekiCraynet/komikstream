@@ -145,8 +145,8 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
-        <link rel="dns-prefetch" href="https://www.sankavollerei.com" />
-        <link rel="preconnect" href="https://www.sankavollerei.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.sansekai.my.id" />
+        <link rel="preconnect" href="https://api.sansekai.my.id" crossOrigin="anonymous" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
         <script
           dangerouslySetInnerHTML={{
