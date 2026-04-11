@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.37.2] - 2026-04-11
+
+### Bug Fixes
+- fix: resolve blank pages — CSP, server prefetch, client-safe fetch (bb2680e)
+
+
 ## [0.37.1] - 2026-04-09
 
 ### Bug Fixes
