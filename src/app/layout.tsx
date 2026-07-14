@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider, QueryProvider, AuthProvider } from "@/components/providers";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { isClerkConfigured } from "@/lib/auth-config";
-import { siteConfig } from "@/lib/site-config";
+import { OptionalClerkProvider } from "@/components/providers/ClerkProvider";
+import { clerkEnabled } from "@/lib/clerk-flags";
+import GdprBanner from "@/components/GdprBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +15,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "KomikStream - Baca Komik Manga, Manhwa, Manhua Sub Indo Gratis";
+const DESC = "Baca komik manga, manhwa, manhua online bahasa Indonesia gratis. Update setiap hari dengan koleksi ribuan judul komik terpopuler.";
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -27,47 +28,32 @@ export const viewport: Viewport = {
   ],
 };
 
-const defaultTitle = `${siteConfig.name} - Baca Komik Manga, Manhwa, Manhua Sub Indo Gratis`;
-const defaultDescription = siteConfig.description;
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  title: {
-    default: defaultTitle,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: defaultDescription,
-  applicationName: siteConfig.name,
-  keywords: [...siteConfig.keywords],
-  authors: [{ name: siteConfig.author, url: siteConfig.url }],
-  creator: siteConfig.author,
-  publisher: siteConfig.author,
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
+  title: { default: TITLE, template: `%s | KomikStream` },
+  description: DESC,
+  applicationName: "KomikStream",
+  keywords: [
+    "komik manga", "baca manga online", "manhwa sub indo", "manhua",
+    "komik online gratis", "manga bahasa indonesia",
+  ],
+  authors: [{ name: "KomikStream", url: "https://komikstream.space" }],
+  creator: "KomikStream",
+  publisher: "KomikStream",
+  formatDetection: { email: false, address: false, telephone: false },
   openGraph: {
     type: "website",
-    locale: siteConfig.locale,
-    url: siteConfig.url,
-    siteName: siteConfig.name,
-    title: defaultTitle,
-    description: defaultDescription,
-    images: [
-      {
-        url: siteConfig.ogImage,
-        width: 1200,
-        height: 630,
-        alt: `${siteConfig.name} - Baca Komik Online Gratis`,
-      },
-    ],
+    locale: "id_ID",
+    url: "https://komikstream.space",
+    siteName: "KomikStream",
+    title: TITLE,
+    description: DESC,
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: TITLE }],
   },
   twitter: {
     card: "summary_large_image",
-    title: defaultTitle,
-    description: defaultDescription,
-    images: [siteConfig.ogImage],
+    title: TITLE,
+    description: DESC,
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
@@ -80,73 +66,45 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
-  alternates: {
-    canonical: siteConfig.url,
-  },
+  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
 };
 
-// Static structured data for SEO - safe to inline as it contains no user input
+const SEARCH_ACTIONS = [
+  { target: "komik", param: "search_term_string" },
+  { target: "anime", param: "search_term_string" },
+].map(
+  (a) => `{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://komikstream.space/komik/search?q={${a.param}}"},"query-input":"required name=${a.param}"}`,
+);
+
 const structuredData = JSON.stringify({
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "WebSite",
-      "@id": `${siteConfig.url}/#website`,
-      url: siteConfig.url,
-      name: siteConfig.name,
-      description: siteConfig.description,
-      publisher: {
-        "@id": `${siteConfig.url}/#organization`,
-      },
-      potentialAction: [
-        {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: `${siteConfig.url}/komik/search?q={search_term_string}`,
-          },
-          "query-input": "required name=search_term_string",
-        },
-        {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: `${siteConfig.url}/anime/search?q={search_term_string}`,
-          },
-          "query-input": "required name=search_term_string",
-        },
-      ],
+      "@id": "https://komikstream.space/#website",
+      url: "https://komikstream.space",
+      name: "KomikStream",
+      description: DESC,
+      publisher: { "@id": "https://komikstream.space/#organization" },
+      potentialAction: JSON.parse(`[${SEARCH_ACTIONS.join(",")}]`),
       inLanguage: "id-ID",
     },
     {
       "@type": "Organization",
-      "@id": `${siteConfig.url}/#organization`,
-      name: siteConfig.name,
-      url: siteConfig.url,
-      logo: {
-        "@type": "ImageObject",
-        url: `${siteConfig.url}/logo.svg`,
-      },
+      "@id": "https://komikstream.space/#organization",
+      name: "KomikStream",
+      url: "https://komikstream.space",
+      logo: { "@type": "ImageObject", url: "https://komikstream.space/logo.svg" },
     },
   ],
 });
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const clerkEnabled = isClerkConfigured();
-
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
-        <link rel="dns-prefetch" href="https://api.sansekai.my.id" />
-        <link rel="preconnect" href="https://api.sansekai.my.id" crossOrigin="anonymous" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
         <script
           dangerouslySetInnerHTML={{
@@ -157,23 +115,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
-        <ThemeProvider>
-          <AuthProvider clerkEnabled={clerkEnabled}>
-            <QueryProvider>
-              <a
-                href="#main-content"
-                className="bg-primary text-primary-foreground sr-only rounded-md px-4 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100]"
-              >
-                Langsung ke konten
-              </a>
-              <Navbar clerkEnabled={clerkEnabled} />
-              <main id="main-content" className="flex-1">
-                {children}
-              </main>
-              <Footer />
-            </QueryProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <OptionalClerkProvider enabled={clerkEnabled}>
+          <a
+            href="#main-content"
+            className="bg-primary text-primary-foreground sr-only rounded-md px-4 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100]"
+          >
+            Langsung ke konten
+          </a>
+          <main id="main-content" className="flex-1">{children}</main>
+          <GdprBanner />
+        </OptionalClerkProvider>
       </body>
     </html>
   );

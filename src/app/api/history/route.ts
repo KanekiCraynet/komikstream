@@ -1,49 +1,25 @@
-import { NextResponse } from "next/server";
-import { withAuth, validateBody, validateSearchParams } from "@/lib/api-helpers";
-import { findHistory, upsertHistory, deleteHistory } from "@/lib/db";
-import {
-  createHistorySchema,
-  getHistoryParamsSchema,
-  deleteHistoryParamsSchema,
-} from "@/lib/validations/history";
+import { NextRequest, NextResponse } from 'next/server'
+import { clearHistory, deleteHistory, listHistory, upsertHistory } from '@/lib/actions/history'
 
-// GET /api/history - Get reading/watching history for current user
-export const GET = withAuth(async ({ user, request }) => {
-  const { type, limit } = validateSearchParams(request, getHistoryParamsSchema);
+export const runtime = 'nodejs'
 
-  const history = await findHistory(user.id, type ?? null, limit);
-  return NextResponse.json({ history });
-}, "GET /api/history");
+export async function GET(request: NextRequest) {
+  const page = Number(request.nextUrl.searchParams.get('page') ?? '1')
+  return NextResponse.json(await listHistory(Number.isFinite(page) ? page : 1))
+}
 
-// POST /api/history - Add or update reading/watching progress
-export const POST = withAuth(async ({ user, request }) => {
-  const { type, itemId, title, thumbnail, progress, progressTitle } = await validateBody(
-    request,
-    createHistorySchema
-  );
-
-  const historyEntry = await upsertHistory({
-    userId: user.id,
-    type,
-    itemId,
-    title,
-    thumbnail: thumbnail ?? undefined,
-    progress,
-    progressTitle: progressTitle ?? undefined,
-  });
-
-  return NextResponse.json({ history: historyEntry }, { status: 201 });
-}, "POST /api/history");
-
-// DELETE /api/history - Remove history entry
-export const DELETE = withAuth(async ({ user, request }) => {
-  const data = validateSearchParams(request, deleteHistoryParamsSchema);
-
-  if (data.clearAll) {
-    await deleteHistory(user.id, data.type ?? null);
-  } else {
-    await deleteHistory(user.id, data.type!, data.itemId!);
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null) as { contentId?: unknown; lastPage?: unknown } | null
+  if (typeof body?.contentId !== 'string' || typeof body.lastPage !== 'number') {
+    return NextResponse.json({ error: 'INVALID_HISTORY' }, { status: 400 })
   }
+  await upsertHistory(body.contentId, body.lastPage)
+  return NextResponse.json({ ok: true })
+}
 
-  return NextResponse.json({ success: true });
-}, "DELETE /api/history");
+export async function DELETE(request: NextRequest) {
+  const contentId = request.nextUrl.searchParams.get('contentId')
+  if (contentId) await deleteHistory(contentId)
+  else await clearHistory()
+  return NextResponse.json({ ok: true })
+}
