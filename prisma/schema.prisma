@@ -1,149 +1,127 @@
+// Prisma schema — komikstream
+// Sprint 0 task 4: User.tier, User.preferences, User.lastSeenAt, Subscription, PushSubscription
+// Plus core models per SRS §5.1: Komik, KomikChapter, Bookmark, History
+
 generator client {
-  provider      = "prisma-client-js"
-  engineType    = "client"
-  compilerBuild = "small"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+
 }
 
-model Bookmark {
-  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  userId    String
-  type      String
-  itemId    String
-  title     String
-  thumbnail String?
-  createdAt DateTime @default(now())
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([userId, type, itemId])
-  @@index([userId])
+enum Tier {
+  free
+  premium
 }
 
-model History {
-  id            String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  userId        String
-  type          String
-  itemId        String
-  title         String
-  thumbnail     String?
-  progress      String
-  progressTitle String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  User          User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+enum SubscriptionStatus {
+  active
+  cancelled
+  expired
+  grace
+}
 
-  @@unique([userId, type, itemId])
-  @@index([userId])
+enum PaymentProvider {
+  ipaymu
 }
 
 model User {
-  id        String     @id @default(dbgenerated("(gen_random_uuid())::text"))
-  clerkId   String     @unique
-  email     String     @unique
-  name      String?
-  imageUrl  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  Bookmark  Bookmark[]
-  History   History[]
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  tier        Tier     @default(free)
+  preferences Json?
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions     Subscription[]
+  pushSubscriptions PushSubscription[]
+  bookmarks         Bookmark[]
+  histories         History[]
 }
 
-// ============= ANIME CACHE TABLE =============
+model Subscription {
+  id         String             @id @default(cuid())
+  userId     String
+  status     SubscriptionStatus @default(active)
+  provider   PaymentProvider
+  externalId String?            @unique
+  startsAt   DateTime           @default(now())
+  endsAt     DateTime?
+  graceUntil DateTime?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 
-model Anime {
-  id               String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  urlId            String   @unique
-  title            String
-  alternativeTitle String?
-  cover            String
-  synopsis         String?  @db.Text
-  status           String?
-  type             String?
-  totalEpisodes    Int?
-  rating           Float?
-  genres           Json?
-  episodes         Json?
-  lastEpisode      String?
-  lastUpdate       String?
-  sourceUrl        String?
-  lastScraped      DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([urlId])
-  @@index([title])
-  @@index([createdAt])
-  @@index([lastScraped])
+  @@index([userId, status])
 }
 
-// ============= KOMIK CACHE TABLE =============
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
 
 model Komik {
-  id                  String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-  mangaId             String    @unique
-  title               String
-  alternativeTitle    String?
-  coverImage          String
-  coverPortrait       String?
-  synopsis            String?   @db.Text
-  status              Int?
-  type                String?
-  releaseYear         String?
-  country             String?
-  rating              Float?
-  viewCount           BigInt?
-  bookmarkCount       Int?
-  genres              Json?
-  authors             Json?
-  artists             Json?
-  latestChapterId     String?
-  latestChapterNumber Float?
-  latestChapterDate   DateTime?
-  chapters            Json?
-  sourceUrl           String?
-  lastScraped         DateTime  @default(now())
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  genres    Json?
+  chapters  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([mangaId])
-  @@index([title])
-  @@index([type])
-  @@index([createdAt])
-  @@index([lastScraped])
+  komikChapters KomikChapter[]
 }
-
-// ============= KOMIK CHAPTER CACHE TABLE =============
 
 model KomikChapter {
-  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
-  chapterId    String   @unique
-  mangaTitle   String
-  mangaSlug    String
-  chapterTitle String
-  prevChapter  String?
-  nextChapter  String?
-  images       Json // Array of {url: string, page: number}
-  lastScraped  DateTime @default(now())
+  id        String   @id @default(cuid())
+  komikId   String
+  chapterId String   @unique
+  images    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([chapterId])
-  @@index([lastScraped])
+  komik Komik @relation(fields: [komikId], references: [id], onDelete: Cascade)
+
+  @@index([komikId])
 }
 
-// ============= SYNC LOG TABLE =============
+model Bookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  contentId   String
+  contentType String   @default("komik")
+  createdAt   DateTime @default(now())
 
-model SyncLog {
-  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-  type        String
-  status      String
-  itemsCount  Int       @default(0)
-  errorMsg    String?   @db.Text
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  duration    Int?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([type])
-  @@index([startedAt])
+  @@unique([userId, contentId, contentType])
+}
+
+model History {
+  id          String   @id @default(cuid())
+  userId      String
+  contentId   String
+  contentType String   @default("komik")
+  lastPage    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId, contentType])
+  @@index([userId, updatedAt])
 }
