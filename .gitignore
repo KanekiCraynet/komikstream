@@ -12,9 +12,6 @@
 
 # testing
 /coverage
-/playwright-report
-/test-results
-/.lighthouseci
 
 # next.js
 /.next/
@@ -34,43 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Keep example env
-!.env.example
+.env*
 
 # vercel
 .vercel
-
-# cloudflare
-.open-next/
-.wrangler/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
 /src/generated/prisma
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-Thumbs.db
-
-# Large files
-*.zip
-*.tar.gz
-
-# Database files
-*.db
-*.sqlite
-.tmp-jest/
