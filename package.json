@@ -14,17 +14,22 @@
     "db:generate": "prisma generate"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.5.12",
+    "@clerk/nextjs": "^7.5.18",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "next": "15.5.20",
     "pg": "^8.22.0",
     "prisma": "^7.8.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.1.4",
+    "react-dom": "19.1.4",
     "svix": "^1.96.1",
     "web-push": "^3.6.7",
     "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@hono/node-server": "1.19.13"
+    }
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
