@@ -12,7 +12,11 @@ export async function GET() {
     await requireCurrentUserId()
     const data = await getSubscriptionStatus()
     return NextResponse.json(data ?? { tier: 'free', subscription: null })
-  } catch {
-    return NextResponse.json({ tier: 'free', subscription: null })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (message === 'UNAUTHORIZED' || message === 'AUTH_DISABLED') {
+      return NextResponse.json({ error: message }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'SUBSCRIPTION_STATUS_FAILED' }, { status: 503 })
   }
 }

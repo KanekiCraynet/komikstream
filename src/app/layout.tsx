@@ -29,6 +29,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://komikstream.space"),
   title: { default: TITLE, template: `%s | KomikStream` },
   description: DESC,
   applicationName: "KomikStream",
@@ -47,13 +48,11 @@ export const metadata: Metadata = {
     siteName: "KomikStream",
     title: TITLE,
     description: DESC,
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: TITLE }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESC,
-    images: ["/og-image.png"],
   },
   robots: {
     index: true,
@@ -66,14 +65,13 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
+  icons: { icon: "/favicon.ico" },
 };
 
 const SEARCH_ACTIONS = [
-  { target: "komik", param: "search_term_string" },
-  { target: "anime", param: "search_term_string" },
+  { target: "search", param: "search_term_string" },
 ].map(
-  (a) => `{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://komikstream.space/komik/search?q={${a.param}}"},"query-input":"required name=${a.param}"}`,
+  (a) => `{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://komikstream.space/search?q={${a.param}}"},"query-input":"required name=${a.param}"}`,
 );
 
 const structuredData = JSON.stringify({
@@ -94,7 +92,7 @@ const structuredData = JSON.stringify({
       "@id": "https://komikstream.space/#organization",
       name: "KomikStream",
       url: "https://komikstream.space",
-      logo: { "@type": "ImageObject", url: "https://komikstream.space/logo.svg" },
+      logo: { "@type": "ImageObject", url: "https://komikstream.space/favicon.ico" },
     },
   ],
 });

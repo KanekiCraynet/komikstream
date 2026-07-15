@@ -34,7 +34,7 @@ Gunakan stack existing dari dokumen project. Jangan tambah infra baru.
 | DB | Supabase PostgreSQL |
 | Auth | Clerk |
 | Edge | Cloudflare Workers + KV + Cache API |
-| Origin | Azure Container Apps |
+
 | Payment | iPaymu (ID, env-gated). No fallback gateway at launch |
 | Push | Web Push API + VAPID |
 | Ads | Google AdSense |
@@ -95,7 +95,7 @@ Rule: kalau fitur bisa jalan dengan stack di atas, jangan tambah service/depende
 ## 4. Production Rules
 
 - Cloudflare handle rate limit, ad cap, image proxy, cache.
-- Azure Container Apps handle Next.js origin.
+
 - Supabase PostgreSQL tetap source of truth untuk user, subscription, bookmark, history, push subscription.
 - Sansekai API hanya content source; DB cache dipakai saat source down.
 - Jangan simpan file manga di storage sendiri.

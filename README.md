@@ -2,7 +2,7 @@
 
 Manga platform rewrite — solo project. Reader, bookmark, subscription, push notification.
 
-**Stack**: Next.js 15 App Router · TypeScript strict · Prisma 7 · PostgreSQL (Supabase) · Clerk · iPaymu · Cloudflare Workers · Azure Container Apps
+**Stack**: Next.js 15 App Router · TypeScript strict · Prisma 7 · PostgreSQL (Supabase) · Clerk · iPaymu · Cloudflare Workers
 
 ## Quick Start
 

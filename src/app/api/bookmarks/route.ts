@@ -4,8 +4,9 @@ import { listBookmarks, toggleBookmark } from '@/lib/actions/bookmark'
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  const page = Number(request.nextUrl.searchParams.get('page') ?? '1')
-  return NextResponse.json(await listBookmarks(Number.isFinite(page) ? page : 1))
+  const rawPage = Number(request.nextUrl.searchParams.get('page') ?? '1')
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+  return NextResponse.json(await listBookmarks(page))
 }
 
 export async function POST(request: NextRequest) {

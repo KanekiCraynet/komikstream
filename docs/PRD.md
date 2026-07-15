@@ -155,7 +155,7 @@ Stack dipertahankan dari komikstream:
 - Next.js 15 App Router + TypeScript
 - Prisma 7 + PostgreSQL (Supabase)
 - Clerk auth
-- CF Workers edge proxy + Azure Container Apps origin
+- CF Workers edge runtime
 - pnpm + Turborepo-compatible structure
 
 Tambahan untuk rewrite:
@@ -165,9 +165,9 @@ Tambahan untuk rewrite:
 - Zod validation wajib untuk semua JSON DB columns
 
 Constraints operasional (solo dev):
-- Zero managed infra baru jika bisa pakai CF/Azure existing
+- Zero managed infra baru jika bisa pakai Cloudflare existing
 - Semua cron/background job via CF Workers Cron Triggers
-- Monitoring: Azure App Insights (existing) + CF Analytics
+- Monitoring: CF Analytics
 
 ---
 

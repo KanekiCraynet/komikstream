@@ -13,12 +13,25 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Bad Request', { status: 400 })
   }
 
-  if (!ALLOWED_HOSTS.some(h => target.hostname.includes(h)))
+  if (target.protocol !== 'https:')
     return new NextResponse('Forbidden', { status: 403 })
 
-  const resp = await fetch(target, {
-    headers: { 'User-Agent': 'KomikStream/1.0' },
-  })
+  // strict suffix match — prevents SSRF via subdomain bypass
+  if (!ALLOWED_HOSTS.some(h => target.hostname === h || target.hostname.endsWith('.' + h)))
+    return new NextResponse('Forbidden', { status: 403 })
+
+  let resp: Response
+  try {
+    resp = await fetch(target, {
+      headers: { 'User-Agent': 'KomikStream/1.0' },
+      redirect: 'manual', // don't follow redirects — prevents SSRF via upstream redirect
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch {
+    return new NextResponse('Upstream unreachable', { status: 502 })
+  }
+  if (resp.status >= 300 && resp.status < 400)
+    return new NextResponse('Upstream redirect forbidden', { status: 502 })
   if (!resp.ok)
     return new NextResponse('Upstream error', { status: resp.status })
 

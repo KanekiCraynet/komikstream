@@ -16,7 +16,7 @@ Tidak tambah scope baru sebelum Sprint 0 gate selesai.
 
 Hard rules:
 - Manga-only.
-- Stack existing tetap: Next.js 15, TypeScript strict, Prisma 7, Supabase PostgreSQL, Clerk, Cloudflare Workers, Azure Container Apps.
+- Stack existing tetap: Next.js 15, TypeScript strict, Prisma 7, Supabase PostgreSQL, Clerk, Cloudflare Workers.
 - No new infra service.
 - New deps hanya jika dipakai langsung: web-push only; no payment SDK deps.
 - Auth/payment/admin/security wajib server-side.
@@ -275,7 +275,7 @@ Tasks:
 
 Exit gate:
 - launch checklist in BRD §7 all checked
-- Azure + CF deploy verified
+- Cloudflare deploy verified
 - production cache warm works
 
 ---

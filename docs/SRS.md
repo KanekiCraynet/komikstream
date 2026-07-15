@@ -19,7 +19,7 @@ mencakup functional, non-functional, external interface, dan system requirements
 Sistem: web application + edge proxy + scheduled jobs.
 Domain: kuromanga.me
 Pengguna: end consumer Asia (primarily Indonesia)
-Deployment: Azure Container Apps + Cloudflare Workers
+Deployment: Cloudflare Workers
 
 ### 1.3 Definitions
 
@@ -64,7 +64,7 @@ Deployment: Azure Container Apps + Cloudflare Workers
   - Image proxy routing
       │
       ▼
-[Azure Container Apps — Next.js 15]
+[Cloudflare Workers — Next.js 15]
   - App Router (RSC + API routes)
   - Middleware: Clerk auth only (Edge-safe)
   - Prisma 7 ORM
@@ -83,7 +83,7 @@ Deployment: Azure Container Apps + Cloudflare Workers
 ### 2.2 Assumptions
 
 1. Konten manga di-source dari Sansekai API — system tidak menyimpan file media sendiri.
-2. User base awal 200–500 concurrent — scale up via Azure Container Apps scaling rules.
+2. User base awal 200–500 concurrent — scale mengikuti konfigurasi Cloudflare Workers.
 3. Solo developer — tidak ada review/approval gate antar task.
 4. Bahasa UI: Bahasa Indonesia (v2 launch).
 5. Browser support: Chrome 90+, Safari 14+, Firefox 88+.
@@ -139,7 +139,7 @@ Semua FR terdokumentasi di docs/FRS.md. Summary per domain:
 
 | Metric | Requirement |
 |--------|-------------|
-| Uptime | 99.5% monthly (Azure SLA basis) |
+| Uptime | 99.5% monthly |
 | DB failover | < 30s via Supabase connection pooler |
 | Content fallback | DB cache served if Sansekai API down |
 | Graceful 500 | All unhandled errors return JSON error + 500, never crash server |
@@ -148,7 +148,7 @@ Semua FR terdokumentasi di docs/FRS.md. Summary per domain:
 
 | Metric | Requirement |
 |--------|-------------|
-| Concurrent users | 200–500 v2 launch, horizontal scale via Azure |
+| Concurrent users | 200–500 v2 launch, scale via Cloudflare Workers |
 | DB connections | Max 20 via Supabase pooler (pgbouncer) |
 | CF KV reads | < 1,000 req/min per worker (CF limit) |
 | Image proxy | Stateless — unlimited scale via CF edge |
@@ -273,7 +273,7 @@ Full Prisma schema di prisma/schema.prisma. Key models:
 | Payment records | 7 years (pajak) |
 | Push subscriptions | Until unsubscribe |
 | Cache (DB) | Per TTL in TECH_SPEC §10 |
-| Logs | 90 days (Azure) |
+| Logs | 90 days |
 
 ### 5.3 Data Validation Rules
 
@@ -294,16 +294,15 @@ Full Prisma schema di prisma/schema.prisma. Key models:
 - Framework: Next.js 15 App Router (tidak boleh downgrade ke Pages Router)
 - ORM: Prisma 7 (WASM edge + native binary dual-target)
 - Package manager: pnpm
-- Runtime: Node.js 22.x (Azure) + CF Workers runtime (edge)
+- Runtime: Node.js 22.x + Cloudflare Workers runtime (edge)
 - Language: TypeScript strict
 
 ### 6.2 Deployment Constraints
 
-- Azure region: Southeast Asia (Singapore) — untuk latency Asia
 - CF datacenter: auto-routed dari Asia edge
 - Container: standalone Next.js output, Docker multi-stage build
 - DB: Supabase PostgreSQL, max 20 connections (pooler)
-- Secrets: Azure Key Vault atau env vars via Azure Container Apps
+- Secrets: environment variables via Cloudflare Workers
 
 ### 6.3 Legal Constraints
 

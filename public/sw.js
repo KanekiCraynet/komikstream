@@ -1,5 +1,5 @@
 self.addEventListener('push', (event) => {
-  let data = { title: 'KomikStream', body: '', icon: '/icon-192x192.png', url: '/' }
+  let data = { title: 'KomikStream', body: '', icon: '/favicon.ico', url: '/' }
   try { data = { ...data, ...event.data?.json() } } catch {}
   event.waitUntil(self.registration.showNotification(data.title, {
     body: data.body, icon: data.icon, data: { url: data.url },

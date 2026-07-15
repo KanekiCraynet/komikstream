@@ -23,8 +23,8 @@ Cloudflare Workers (edge)
   └── Route: /api/img?url= (image proxy)
    │
    ▼
-Azure Container Apps (origin)
-  Next.js 15 App Router (standalone output)
+Cloudflare Workers (runtime)
+  Next.js 15 App Router
   ├── src/middleware.ts (Edge Runtime)
   │     Clerk auth only — no tier inject, no img redirect
   ├── src/app/ (pages + API routes)
@@ -38,11 +38,6 @@ External Sources
   └── AdSense / Ezoic (ads JS)
 ```
 
-Two build targets share one codebase:
-- Azure: output=standalone, webpack, prisma native binary engine
-- CF Workers: Turbopack, prisma WASM edge client, pg-cloudflare adapter
-
-isAzureBuild flag (next.config.ts) controls conditional config per target.
 
 ---
 
@@ -56,15 +51,15 @@ isAzureBuild flag (next.config.ts) controls conditional config per target.
 | DB | PostgreSQL (Supabase) | Already in place, connection pooler via pg |
 | Auth | Clerk | Already in place, graceful degrade pattern |
 | Edge Proxy | CF Workers + OpenNext | Already in place |
-| Origin Host | Azure Container Apps | Already in place |
+
 | Payment | iPaymu (env-gated) | New — VA-based, no SDK, gated by env presence |
 | Push Notif | Web Push API (vapid) | New — PWA native, no third-party |
 | Ads | Google AdSense | New — standard script, no SDK |
 | Rate Limit | CF KV fixed-window | Already in place (kv-rate-limit.ts) |
 | Validation | Zod | Extend existing pattern in src/lib/validations/ |
-| Monitoring | Azure App Insights + CF Analytics | Already in place |
+| Monitoring | CF Analytics | Already in place |
 
-No new infra services added. All new features run on existing CF + Azure.
+No new infra services added. All new features run on existing Cloudflare runtime.
 
 ---
 
@@ -128,7 +123,7 @@ model PushSubscription {
 2. Backfill User.tier = "free" for all existing rows (migration SQL):
    UPDATE "User" SET tier = 'free' WHERE tier IS NULL;
 3. Run in CI: prisma migrate diff --exit-code (detect uncommitted schema drift)
-4. Deploy migration before app deploy (Azure startup task or migration route)
+4. Deploy migration before app deploy.
 
 ---
 
@@ -522,8 +517,7 @@ RQ-1: iPaymu VA chosen. One-time charge per period, no recurring token.
        iPaymu URL = `https://sandbox.ipaymu.com/api/v2` (env-configurable).
        Payment gate decided.
 
-RQ-2: No CF Workers Cron Trigger. Push notif uses Node cron (`node-cron` or
-       Vercel/Azure CRON jobs). Simpler than edge cron for DB access.
+RQ-2: No CF Workers Cron Trigger. Push notif requires an external scheduler.
 
 RQ-3: AdSense confirmed. Ezoic not needed. Ads.txt deferred (YAGNI).
 

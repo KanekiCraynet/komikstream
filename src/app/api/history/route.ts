@@ -4,13 +4,21 @@ import { clearHistory, deleteHistory, listHistory, upsertHistory } from '@/lib/a
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  const page = Number(request.nextUrl.searchParams.get('page') ?? '1')
-  return NextResponse.json(await listHistory(Number.isFinite(page) ? page : 1))
+  const rawPage = Number(request.nextUrl.searchParams.get('page') ?? '1')
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+  return NextResponse.json(await listHistory(page))
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as { contentId?: unknown; lastPage?: unknown } | null
-  if (typeof body?.contentId !== 'string' || typeof body.lastPage !== 'number') {
+  if (
+    typeof body?.contentId !== 'string' ||
+    !body.contentId.trim() ||
+    body.contentId.length > 200 ||
+    typeof body.lastPage !== 'number' ||
+    !Number.isInteger(body.lastPage) ||
+    body.lastPage < 0
+  ) {
     return NextResponse.json({ error: 'INVALID_HISTORY' }, { status: 400 })
   }
   await upsertHistory(body.contentId, body.lastPage)

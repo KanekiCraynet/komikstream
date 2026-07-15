@@ -315,13 +315,13 @@ Detail lengkap di docs/TECH_SPEC.md. Summary:
 
 | Requirement | Target |
 |-------------|--------|
-| Availability | 99.5% uptime (Azure SLA) |
+| Availability | 99.5% uptime |
 | Scale | 200–500+ concurrent users awal |
 | Auth provider | Clerk (graceful degrade) |
-| Hosting | Azure Container Apps + Cloudflare Workers |
+| Hosting | Cloudflare Workers |
 | DB | PostgreSQL via Prisma (Supabase) |
 | Rate limit | Per endpoint, CF KV fixed-window |
-| Security | WORKER_TOKEN + CRON_SECRET + Azure IP allowlist |
+| Security | WORKER_TOKEN + CRON_SECRET |
 
 ---
 

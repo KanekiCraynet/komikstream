@@ -42,7 +42,7 @@ Semua keputusan business requirement harus realistis untuk solo operator.
 | Google AdSense / Ezoic | Ad Network | Traffic real, konten tidak melanggar ToS |
 | Clerk | Auth Provider | MAU dalam free tier atau berbayar sesuai |
 | Cloudflare | Infra | Bandwidth usage dalam batas plan |
-| Azure | Infra | Container runtime cost terkontrol |
+
 
 ---
 
@@ -132,8 +132,7 @@ BR-P5: Cookie consent banner wajib untuk user dari EU/UK (GDPR).
         Untuk user Asia Tenggara: informational banner cukup (belum ada
         regulasi setara GDPR di ID/MY/PH/TH yang berlaku untuk bisnis kecil).
 
-BR-P6: Logging: access logs CF Workers disimpan max 7 hari.
-        Application error logs Azure App Insights: 30 hari retention.
+BR-P6: Logging: access logs Cloudflare disimpan max 7 hari.
 
 ### 4.5 Auth & Access Control
 
@@ -164,7 +163,6 @@ BR-SLA3: Source API down: platform tetap serve konten dari DB cache.
           di-cache sebelumnya.
 
 BR-SLA4: Health check endpoint (/api/health) wajib return 200 dalam 3s.
-          Azure container restart trigger jika health check gagal 3x.
 
 ---
 
@@ -186,8 +184,7 @@ BR-SLA4: Health check endpoint (/api/health) wajib return 200 dalam 3s.
 
 ### 5.3 Hosting Compliance
 
-- Azure Terms: konten dewasa eksplisit tidak diizinkan di Azure tanpa enterprise agreement
-  → enforce BR-C2 (no explicit content tanpa gate)
+
 - Cloudflare ToS: konten yang di-scrape dari source publik masih dalam gray area
   yang diterima
 
@@ -205,7 +202,7 @@ BC-3: Tidak ada entitas hukum formal di awal (personal/freelance).
        Jika MRR > IDR 5.000.000/bulan, pertimbangkan buat CV/PT.
 
 BC-4: Tidak menambah managed service baru jika fungsi bisa dicover oleh
-       CF Workers + Supabase + Azure yang sudah ada.
+       CF Workers + Supabase yang sudah ada.
 
 BC-5: Semua third-party SDK harus audit dependency sebelum pasang.
        Tidak ada SDK yang inject arbitrary script ke halaman reader.

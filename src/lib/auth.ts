@@ -32,6 +32,18 @@ export async function getUserTier() {
   if (!clerkEnabled) return 'free' as const
   const id = await getCurrentUserId()
   if (!id) return 'free' as const
-  const user = await prisma.user.findUnique({ where: { id }, select: { tier: true } })
-  return (user?.tier ?? 'free') as 'free' | 'premium'
+  // Derive entitlement from live subscription state, not stale User.tier —
+  // premium expires automatically when endsAt/graceUntil passes.
+  const now = new Date()
+  const active = await prisma.subscription.findFirst({
+    where: {
+      userId: id,
+      OR: [
+        { status: 'active', endsAt: { gt: now } },
+        { status: 'grace', graceUntil: { gt: now } },
+      ],
+    },
+    select: { id: true },
+  })
+  return active ? ('premium' as const) : ('free' as const)
 }

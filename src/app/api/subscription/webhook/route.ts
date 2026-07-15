@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifySignature, paymentEnabled } from '@/lib/ipaymu'
 import { PaymentProvider } from '@/generated/prisma/enums'
-import { activateSubscription, expireSubscription } from '@/lib/actions/subscription'
+import { activateSubscription, expireSubscription } from '@/lib/internal/subscription'
 
 export const runtime = 'nodejs'
 

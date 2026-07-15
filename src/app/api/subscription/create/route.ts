@@ -19,7 +19,7 @@ export async function POST() {
     return NextResponse.json({ url: payment.Url, sessionId: payment.SessionID })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'SUBSCRIPTION_CREATE_FAILED'
-    const status = message === 'UNAUTHORIZED' || message === 'AUTH_DISABLED' ? 401 : 500
-    return NextResponse.json({ error: message }, { status })
+    const status = message === 'UNAUTHORIZED' || message === 'AUTH_DISABLED' ? 401 : 502
+    return NextResponse.json({ error: status === 401 ? message : 'SUBSCRIPTION_CREATE_FAILED' }, { status })
   }
 }
