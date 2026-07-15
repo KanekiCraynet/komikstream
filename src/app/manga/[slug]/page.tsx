@@ -11,20 +11,23 @@ export default async function MangaDetailPage({ params }: Props) {
   const manga = await prisma.komik.findUnique({ where: { slug } })
   if (!manga) notFound()
 
-  const chapters = manga.chapters as { id: string; title: string }[] | null
+  const chapters = await prisma.komikChapter.findMany({
+    where: { komikId: manga.id },
+    orderBy: { createdAt: 'desc' },
+  })
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="mb-4 text-2xl font-bold">{manga.title}</h1>
-      {chapters && chapters.length > 0 ? (
+      {chapters.length > 0 ? (
         <ul className="divide-y">
           {chapters.map((ch) => (
             <li key={ch.id}>
               <Link
-                href={`/chapter/${ch.id}`}
+                href={`/chapter/${ch.chapterId}`}
                 className="block px-4 py-3 transition hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                {ch.title}
+                {ch.chapterId.replace(/-/g, ' ')}
               </Link>
             </li>
           ))}

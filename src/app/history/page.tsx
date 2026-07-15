@@ -9,19 +9,27 @@ export default function HistoryPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const limit = 20
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await listHistory(page, limit)
-    setItems(res.items)
-    setTotal(res.total)
-    setLoading(false)
+    setError(false)
+    try {
+      const res = await listHistory(page, limit)
+      setItems(res.items)
+      setTotal(res.total)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [page, limit])
 
   useEffect(() => { load() }, [load])
 
   if (loading) return <div className="p-4 text-center text-gray-400">Loading...</div>
+  if (error) return <div className="p-4 text-center text-red-400">Failed to load history. <button onClick={load} className="underline">Retry</button></div>
 
   if (items.length === 0) {
     return (
@@ -46,7 +54,7 @@ export default function HistoryPage() {
             <Link href={`/komik/${h.contentId}`} className="hover:text-blue-400 truncate">
               {h.contentId} — page {h.lastPage}
             </Link>
-            <button onClick={() => deleteHistory(h.contentId).then(load)} className="text-sm text-red-400 hover:text-red-300 shrink-0 ml-2">
+            <button aria-label={`Delete history ${h.contentId}`} onClick={() => deleteHistory(h.contentId).then(load)} className="text-sm text-red-400 hover:text-red-300 shrink-0 ml-2">
               Delete
             </button>
           </div>

@@ -40,11 +40,12 @@ export default function PushNotificationToggle() {
       const existing = await reg.pushManager.getSubscription()
 
       if (existing) {
-        await existing.unsubscribe()
-        await fetch('/api/push/unsubscribe', {
+        const response = await fetch('/api/push/unsubscribe', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint: existing.endpoint }),
         })
+        if (!response.ok) throw new Error('PUSH_UNSUBSCRIBE_FAILED')
+        await existing.unsubscribe()
         setSubscribed(false)
       } else {
         const sub = await reg.pushManager.subscribe({
@@ -52,10 +53,14 @@ export default function PushNotificationToggle() {
           applicationServerKey: urlBase64ToUint8Array(vapidKey),
         })
         const json = sub.toJSON()
-        await fetch('/api/push/subscribe', {
+        const response = await fetch('/api/push/subscribe', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
         })
+        if (!response.ok) {
+          await sub.unsubscribe()
+          throw new Error('PUSH_SUBSCRIBE_FAILED')
+        }
         setSubscribed(true)
       }
     } catch (e) {

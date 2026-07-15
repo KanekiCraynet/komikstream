@@ -9,14 +9,21 @@ export default function BookmarkPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const limit = 20
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await listBookmarks(page, limit)
-    setItems(res.items)
-    setTotal(res.total)
-    setLoading(false)
+    setError(false)
+    try {
+      const res = await listBookmarks(page, limit)
+      setItems(res.items)
+      setTotal(res.total)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [page, limit])
 
   useEffect(() => { load() }, [load])
@@ -27,6 +34,7 @@ export default function BookmarkPage() {
   }
 
   if (loading) return <div className="p-4 text-center text-gray-400">Loading...</div>
+  if (error) return <div className="p-4 text-center text-red-400">Failed to load bookmarks. <button onClick={load} className="underline">Retry</button></div>
 
   if (items.length === 0) {
     return (
@@ -46,7 +54,7 @@ export default function BookmarkPage() {
             <Link href={`/komik/${b.contentId}`} className="hover:text-blue-400 truncate">
               {b.contentId}
             </Link>
-            <button onClick={() => remove(b.contentId)} className="text-sm text-red-400 hover:text-red-300 shrink-0 ml-2">
+            <button aria-label={`Remove bookmark ${b.contentId}`} onClick={() => remove(b.contentId)} className="text-sm text-red-400 hover:text-red-300 shrink-0 ml-2">
               Remove
             </button>
           </div>

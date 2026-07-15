@@ -16,7 +16,10 @@ interface Props {
 }
 
 function useStoredPage(chapterId: string) {
-  const [page, setPage] = useState(() => getChapterPage(chapterId))
+  const [page, setPage] = useState(0)
+  useEffect(() => {
+    setPage(getChapterPage(chapterId))
+  }, [chapterId])
   const goTo = useCallback(
     (p: number) => {
       setChapterPage(chapterId, p)
@@ -60,10 +63,9 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
   useEffect(() => {
     if (page > 0 && scrollRef.current) {
       const el = scrollRef.current.querySelector<HTMLElement>(`[data-idx="${page}"]`)
-      if (el) el.scrollIntoView({ block: 'start' })
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [page])
 
   useEffect(() => {
     if (!isPremium && page === images.length - 1) setInterstitial(true)
@@ -93,10 +95,10 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
   }, [mode])
 
   const items = useMemo(() => {
-    if (isPremium) return images.map((url) => ({ kind: 'image' as const, url }))
-    const result: ({ kind: 'image'; url: string } | { kind: 'ad'; key: string })[] = []
+    if (isPremium) return images.map((url, index) => ({ kind: 'image' as const, url, index }))
+    const result: ({ kind: 'image'; url: string; index: number } | { kind: 'ad'; key: string })[] = []
     images.forEach((url, idx) => {
-      result.push({ kind: 'image', url })
+      result.push({ kind: 'image', url, index: idx })
       if ((idx + 1) % 5 === 0 && idx < images.length - 1) {
         result.push({ kind: 'ad', key: `ad-${idx}` })
       }
@@ -114,6 +116,7 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
         {(['vertical', 'horizontal', 'ltr', 'rtl'] satisfies Mode[]).map((m) => (
           <button
             key={m}
+            aria-label={`Reading mode ${m}`}
             onClick={() => setMode(m)}
             className={`rounded px-2 py-0.5 ${
               mode === m
@@ -128,6 +131,7 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
         <div className="ml-auto flex gap-1">
           <button
             onClick={() => advance(-1)}
+            aria-label="Previous page"
             disabled={page === 0}
             className="rounded bg-gray-200 px-3 py-0.5 disabled:opacity-30 dark:bg-gray-700"
           >
@@ -135,6 +139,7 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
           </button>
           <button
             onClick={() => advance(1)}
+            aria-label="Next page"
             disabled={page === images.length - 1}
             className="rounded bg-gray-200 px-3 py-0.5 disabled:opacity-30 dark:bg-gray-700"
           >
@@ -144,21 +149,21 @@ export default function MangaReader({ chapterId, images, tier }: Props) {
       </div>
 
       <div ref={scrollRef} className={wrapper}>
-        {items.map((item, idx) => {
+        {items.map((item) => {
           if (item.kind === 'ad') return <BannerAd key={item.key} className="my-4" />
           return (
             <img
-              key={idx}
+              key={item.index}
               src={item.url}
-              alt={`Hlm ${idx + 1}`}
+              alt={`Hlm ${item.index + 1}`}
               className={imgStyle}
-              data-idx={idx}
-              loading={idx < 3 ? 'eager' : 'lazy'}
+              data-idx={item.index}
+              loading={item.index < 3 ? 'eager' : 'lazy'}
               onError={(e) => {
                 const t = e.currentTarget
                 t.style.background = '#eee'
                 t.style.minHeight = '200px'
-                t.alt = `Gagal muat hlm ${idx + 1}`
+                t.alt = `Gagal muat hlm ${item.index + 1}`
               }}
             />
           )
