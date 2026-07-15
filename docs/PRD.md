@@ -243,7 +243,7 @@ POST /api/cache/purge             — manual cache purge, x-cron-secret gated
 ## 10. Timeline (estimasi solo dev)
 
 Sprint 0 — Foundation (1 minggu)
-- Fix P0 audit items (cache-warm, .gitignore, lint warnings)
+- Fix P0 audit items (CI, .gitignore, lint warnings)
 - Setup docs/ structure (PRD, BRD, Tech Spec)
 - DB schema migration: Subscription, PushSubscription, User update
 - Zod schemas untuk semua JSON columns

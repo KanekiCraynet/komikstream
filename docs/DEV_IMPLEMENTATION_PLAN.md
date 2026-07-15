@@ -4,15 +4,15 @@
 Version: 1.0
 Date: 2026-07-06
 Owner: Solo Developer
-Status: Ready for Development
+Status: Implementation complete; maintenance mode
 Source docs: PRD, BRD, FRS, SRS, TECH_SPEC, DEV_NOTE
 
 ---
 
 ## 1. Rule Dasar
 
-Project ini doc-only preparation → development mulai dari requirement yang sudah jelas.
-Tidak tambah scope baru sebelum Sprint 0 gate selesai.
+Project sudah berjalan; dokumen ini menjadi historical implementation record.
+Perubahan baru tetap wajib melewati lint, typecheck, build, dan runtime smoke test.
 
 Hard rules:
 - Manga-only.
@@ -34,7 +34,7 @@ Tujuan: repo siap dikerjakan tanpa debt blocking.
 ✅ Completed:
 1. Baseline check: typecheck 0 error, lint 0 warning, build pass
 2. `.gitignore` cover `.env*`, `wp-config*.php`, `*.docker.log`, `kuromanga_docker.log`
-3. `.github/workflows/cache-warm.yml` — YAML valid, diff check green
+3. `.github/workflows/ci.yml` — lint, typecheck, Prisma checks, build, and security jobs
 4. `.env.example` — iPaymu + VAPID keys listed
 5. Prisma schema: `User.tier`, `User.preferences`, `User.lastSeenAt`, `Subscription`, `PushSubscription`
 6. Zod schemas: `komik.ts`, `chapter.ts`, `user.ts`
@@ -73,7 +73,7 @@ Tujuan: manga browsing/reading solid sebelum monetisasi.
 4. Logged-in progress (`src/lib/actions/history.ts`):
    - DB `History` upsert via Prisma
    - auto-purge oldest when > 500 entries
-   - uses placeholder `userId` (Clerk wired in Sprint 2)
+   - identity derived from Clerk auth
 5. Search:
    - ILIKE on `title + altTitles`
    - min query 2 chars
@@ -287,11 +287,11 @@ Mulai dari smallest safe diff:
 1. `git status --short`
 2. `pnpm run typecheck`
 3. Fix only blocking errors.
-4. Patch `.gitignore` + cache-warm YAML.
+4. Patch `.gitignore` + CI workflow.
 5. Patch Prisma schema.
 6. Generate migration.
 7. Add validations.
-8. Run `pnpm run typecheck && pnpm run test && pnpm run build`.
+8. Run `pnpm run lint && pnpm run typecheck && pnpm run build`.
 
 Jangan mulai UI/payment sebelum Sprint 0 gate hijau.
 

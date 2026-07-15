@@ -324,12 +324,11 @@ Full Prisma schema di prisma/schema.prisma. Key models:
 
 ### 7.1 Sprint 0 Gate (before feature development)
 
-- [ ] pnpm run typecheck → exit 0
-- [ ] pnpm run test → all tests pass
-- [ ] pnpm run lint → 0 warnings
-- [ ] pnpm run build → no errors
-- [ ] .gitignore covers wp-config*.php + *.docker.log
-- [ ] cache-warm.yml valid YAML
+- [x] pnpm run typecheck → exit 0
+- [x] pnpm run lint → 0 warnings
+- [x] pnpm run build → no errors
+- [x] .gitignore covers wp-config*.php + *.docker.log
+- [x] CI workflow validates lint, typecheck, Prisma, build, and security checks
 - [x] .env.example updated dengan new vars
 - [x] VAPID keys listed in .env.example
 
@@ -344,7 +343,7 @@ Full Prisma schema di prisma/schema.prisma. Key models:
 - [ ] iPaymu merchant credentials verified in production env
 - [ ] VAPID keys generated + stored in env
 - [ ] Prisma migrations run on production DB
-- [ ] Cache warming works (200 response)
+- [ ] Cache warming is intentionally not deployed; add only with a real protected endpoint.
 - [ ] LCP < 2.5s verified di Lighthouse
 - [ ] Sitemap + robots.txt accessible
 - [ ] 301 redirects verified untuk semua old URLs

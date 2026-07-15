@@ -66,8 +66,8 @@ jobs:
         with:
           urls: |
             http://localhost:3000
-            http://localhost:3000/komik
-            http://localhost:3000/anime
+            http://localhost:3000/manga
+            http://localhost:3000/search
           uploadArtifacts: true
           temporaryPublicStorage: true
           configPath: ./lighthouserc.json

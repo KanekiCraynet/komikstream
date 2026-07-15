@@ -4,7 +4,7 @@
 Version: 1.0
 Date: 2026-07-07
 Owner: Solo Developer
-Status: Sprint 6 complete (2026-07-07) — build verified, 24 static pages, 29 routes
+Status: Hardening complete (2026-07-15) — build verified, 24 static pages, 30 routes
 
 ---
 
@@ -33,7 +33,7 @@ Gunakan stack existing dari dokumen project. Jangan tambah infra baru.
 | ORM | Prisma 7 |
 | DB | Supabase PostgreSQL |
 | Auth | Clerk |
-| Edge | Cloudflare Workers + KV + Cache API |
+| Edge | Cloudflare Workers |
 
 | Payment | iPaymu (ID, env-gated). No fallback gateway at launch |
 | Push | Web Push API + VAPID |

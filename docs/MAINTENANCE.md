@@ -110,7 +110,7 @@ Features:
   `src/lib/progress.ts` — get/set/delete, no side effects on server.
 - **Logged-in**: `src/lib/actions/history.ts` — upsert via Prisma,
   auto-purge oldest when entries > 500 per user.
-  Uses placeholder `userId` until Clerk wired in Sprint 2.
+  Identity is derived from Clerk auth; callers cannot supply `userId`.
 
 Both store `{ mangaId, mangaTitle, chapterId, chapterTitle, progress, updatedAt }`.
 
@@ -148,19 +148,16 @@ Note: image CDN allowlist moved to `src/app/api/img/route.ts` (Sprint 6).
 
 ## CI
 
-Workflow: `.github/workflows/cache-warm.yml`
+Workflows: `.github/workflows/ci.yml`, `lighthouse.yml`, `codeql.yml`, `release.yml`
 
 Current duty:
 - checkout
-- setup Node 20
+- setup Node 22 via `.node-version`
 - install pnpm deps
-- Prisma schema diff smoke check
-- cache warm placeholder
+- CI runs lint, typecheck, Prisma checks, build, secret scan, and dependency review.
+- Lighthouse and CodeQL run from dedicated workflows.
 
-Before production launch, replace placeholder with real cache-warm endpoint
-call protected by `x-cron-secret`.
-
-## Launch patch notes (2026-07-07)
+## Launch patch notes (2026-07-15)
 
 Applied fixes:
 - `package.json`: `build` is normal `next build` (no Turbopack production build)
@@ -169,13 +166,20 @@ Applied fixes:
 - `src/middleware.ts`: Clerk handler + global CSP
 - `src/app/api/cache/purge/route.ts`: `timingSafeEqual` length guard
 - `.env.example`: `CLERK_WEBHOOK_SIGNING_SECRET`, `CRON_SECRET`, `VAPID_SUBJECT`
+- Reader progress uses source page index even when ads are interleaved.
+- Manga detail reads canonical `komikChapter` relation.
+- Consent copy matches localStorage-only behavior; Accept + Reject available.
+- Push subscription toggles validate API responses and rollback browser state.
+- Clerk 7.5.18, React 19.1.4, Hono 4.12.30, `@hono/node-server` 1.19.13.
+- Azure and stale deployment workflows removed.
 
 Verified:
 - `pnpm run lint && pnpm run typecheck && pnpm run build` → exit 0
-- `pnpm run build` → exit 0, 32s compile, 24 static pages, 29 routes, middleware 89.7 kB
+- `pnpm run build` → exit 0, 24 static pages, 30 routes
 - Dev smoke: `/` 200, `/search` 200, `/bookmark` 200
 - `/api/health` → 503 when local PostgreSQL is down (expected env issue)
 - `/api/cache/purge`: missing/wrong secret 403; valid secret + `{"type":"komik"}` 200; missing type 400
+- Dependabot open alerts: 0. `pnpm audit` currently returns HTTP 410 and is not authoritative.
 
 Known limitations:
 - Local DB must be running for `/api/health` and DB-backed routes.

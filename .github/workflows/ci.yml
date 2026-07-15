@@ -110,9 +110,6 @@ jobs:
       - name: Setup project
         uses: ./.github/actions/setup
 
-      - name: Run pnpm audit (critical)
-        run: pnpm audit --audit-level=critical || echo "audit endpoint deprecated, skipping"
-
       - name: Gitleaks - Check for secrets
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:

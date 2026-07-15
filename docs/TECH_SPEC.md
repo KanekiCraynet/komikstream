@@ -374,8 +374,8 @@ Payload: { title, body, icon, url } — max 4KB.
 | Subscription status | no-cache | none | realtime |
 
 Source API down → DB cache serves stale content.
-Cache-Control: stale-while-revalidate used on edge for ISR pages.
-cache-warm.yml (after fix): warms homepage + top 50 manga on deploy.
+Cache behavior is controlled by route response headers and deployment platform configuration.
+No cache-warm workflow is deployed; add one only with a real protected endpoint.
 
 ---
 
@@ -392,17 +392,13 @@ Not middleware — moved from middleware plan to route handler in Sprint 6.
 CF Worker: image proxy not deployed at edge. All proxy runs in origin route handler.
 Allowlist: known CDN domains (yuucdn.net, uqni.net, imgsc, img.komiku.org handled).
 
-next.config.ts remotePatterns: specific CDN domains (no wildcard).
+`next.config.ts` has no `images.remotePatterns`; reader uses native `<img>` for dynamic CDN images.
 
 ---
 
 ## 12. CI/CD Changes
 
-### 12.1 Fix cache-warm.yml line 26
-
-Read file, repair YAML syntax before any other CI work.
-
-### 12.2 Add to ci.yml
+### 12.1 CI workflow
 
 ```yaml
 - name: Prisma migrate diff
@@ -411,7 +407,7 @@ Read file, repair YAML syntax before any other CI work.
     DATABASE_URL: ${{ secrets.DATABASE_URL }}
 ```
 
-Fails CI if schema has uncommitted migrations.
+Use only when CI has a real disposable database or production-compatible migration policy.
 
 ### 12.3 Lint script scope
 
