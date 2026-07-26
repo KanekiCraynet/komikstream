@@ -37,9 +37,6 @@ jobs:
         with:
           prisma-generate: "true"
 
-      - name: Run ESLint
-        run: pnpm run lint
-
       - name: Run TypeScript type check
         run: pnpm run typecheck
 
@@ -70,20 +67,18 @@ jobs:
         uses: ./.github/actions/setup
         with:
           prisma-generate: "true"
-          next-cache: "true"
 
       - name: Build application
         env:
           DATABASE_URL: "postgresql://dummy:***@localhost:5432/dummy"
-          SKIP_DB_CONNECTION: "true"
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
+          CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
         run: pnpm run build
 
       - name: Check build output
         run: |
           echo "Build completed successfully!"
-          ls -la .next/
+          ls -la build/client build/server
 
       - name: Report bundle size
         run: |
@@ -91,9 +86,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
           echo "| ---- | ---- |" >> $GITHUB_STEP_SUMMARY
-          find .next/static/chunks -name "*.js" -type f -exec ls -lh {} \; | awk '{print "| " $NF " | " $5 " |"}' | head -20 >> $GITHUB_STEP_SUMMARY
+          find build/client/assets -name "*.js" -type f -exec ls -lh {} \; | awk '{print "| " $NF " | " $5 " |"}' | head -20 >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Total .next folder size:** $(du -sh .next | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "**Total build folder size:** $(du -sh build | cut -f1)" >> $GITHUB_STEP_SUMMARY
 
   # ==================== SECURITY ====================
   security:

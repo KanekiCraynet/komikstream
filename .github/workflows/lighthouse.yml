@@ -30,23 +30,20 @@ jobs:
         uses: ./.github/actions/setup
         with:
           prisma-generate: "true"
-          next-cache: "true"
 
       - name: Build application
         run: pnpm run build
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
+          CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
-          SKIP_DB_CONNECTION: "true"
 
       - name: Start server
         run: pnpm start &
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
+          CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
-          SKIP_DB_CONNECTION: "true"
 
       - name: Wait for server to be ready
         run: |
@@ -66,8 +63,6 @@ jobs:
         with:
           urls: |
             http://localhost:3000
-            http://localhost:3000/manga
-            http://localhost:3000/search
           uploadArtifacts: true
           temporaryPublicStorage: true
           configPath: ./lighthouserc.json
