@@ -1,6 +1,11 @@
 # Migrasi Next.js 15 → React Router 7
 
-Branch: `migration/react-router-v7` · Strategi: **incremental vertical slice** — `src/` (Next) tetap tracked sebagai referensi, `app/` (RR7) jadi target. Route diport satu per satu; `src/` dihapus setelah paritas penuh.
+Branch: `migration/react-router-v7` · Strategi: **incremental vertical slice** — `app/` (RR7) jadi target, route diport satu per satu.
+
+**Status: SELESAI.** Semua route sudah diport dan `src/` (Next.js legacy) sudah
+dihapus dari git (`git ls-files src/` = 0). Yang tersisa di disk hanyalah
+`src/generated/prisma` (artefak generate, gitignored) — aman dihapus. Sumber Next
+lama bisa dilihat lewat history: `git show 7801f84^:src/app/...`.
 
 ## Keputusan teknis
 
