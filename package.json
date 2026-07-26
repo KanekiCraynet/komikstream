@@ -1,47 +1,49 @@
 {
-  "name": "komikstream",
+  "name": "komikstream-rr7",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.26.1",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "dev": "react-router dev",
+    "build": "prisma generate && react-router build",
+    "start": "react-router-serve ./build/server/index.js",
+    "test": "vitest run",
+    "typecheck": "react-router typegen && tsc",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:generate": "prisma generate"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.5.18",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
-    "next": "15.5.20",
+    "@clerk/react-router": "3.5.12",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
+    "@react-router/node": "7.18.1",
+    "@react-router/serve": "7.18.1",
+    "isbot": "^5.1.36",
     "pg": "^8.22.0",
-    "prisma": "^7.8.0",
+    "prisma": "7.8.0",
     "react": "19.1.4",
     "react-dom": "19.1.4",
+    "react-router": "7.18.1",
     "svix": "^1.96.1",
     "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
-  "pnpm": {
-    "overrides": {
-      "@hono/node-server": "1.19.13"
-    }
-  },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@netlify/vite-plugin-react-router": "4.0.0",
+    "@react-router/dev": "7.18.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/web-push": "^3.6.4",
     "dotenv": "^17.4.2",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.20",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.10"
   }
 }
