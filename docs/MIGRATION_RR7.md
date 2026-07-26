@@ -22,36 +22,47 @@ Catatan runtime:
 
 ## Status port route
 
-Ported (12):
+Ported (semua route utama — paritas fungsional dengan Next app):
 
-| RR7 route | Sumber Next | Status |
-|-----------|------------|--------|
-| `routes/home.tsx` | `src/app/page.tsx` | ✅ ported, hero asli |
-| `routes/manga._index.tsx` | `src/app/manga/page.tsx` | ✅ grid + cover, E2E 200 |
-| `routes/manga.$slug.tsx` | `src/app/manga/[slug]/page.tsx` | ✅ SSR verified (200) |
-| `routes/chapter.$chapterId.tsx` | `src/app/chapter/[id]/page.tsx` | ✅ reader verified (200) |
-| `routes/search.tsx` | `src/app/search/page.tsx` | ✅ loader + query, E2E 200 |
-| `routes/bookmark.tsx` | `src/app/bookmark/page.tsx` | ✅ client-state → loader/action+Form |
-| `routes/history.tsx` | `src/app/history/page.tsx` | ✅ client-state → loader/action+Form |
-| `routes/contact.tsx` | `src/app/contact/page.tsx` | ✅ static |
-| `routes/dmca.tsx` | `src/app/dmca/page.tsx` | ✅ static |
-| `routes/privacy.tsx` | `src/app/privacy/page.tsx` | ✅ static |
-| `routes/terms.tsx` | `src/app/terms/page.tsx` | ✅ static |
-| `routes/api.history.tsx` | `src/app/api/history/route.ts` | ✅ 401 unauthenticated verified |
-| `routes/api.subscription.webhook.ts` | `src/app/api/subscription/webhook/route.ts` | ✅ disabled-mode 200 verified |
+Pages: home, manga index, manga/:slug, chapter/:chapterId, search, bookmark,
+history, account, sign-in, sign-up, contact, dmca, privacy, terms.
+API: history, bookmarks, health, push/subscribe, push/unsubscribe,
+subscription/create, subscription/status, subscription/webhook, webhooks/clerk.
 
-Belum diport (sumber di git history, `git show 7801f84^:src/app/...`):
+Catatan arsitektur:
+- Clerk: `clerkMiddleware` + `rootAuthLoader` di `root.tsx`, `ClerkProvider`
+  hanya aktif bila `CLERK_PUBLISHABLE_KEY`+`CLERK_SECRET_KEY` di-set
+  (fail-open ke guest mode, paritas `clerkEnabled` lama). Sign-in/up render
+  placeholder saat disabled (Clerk components crash tanpa provider).
+- `auth.server.ts`: `getCurrentUserId()` upsert user DB dari Clerk (paritas
+  `src/lib/auth.ts`), email via Clerk Backend API.
+- `subscription.server.ts`: status/cancel/activate/expire — idempotent
+  webhook replay guard dibawa utuh.
+- `ipaymu.server.ts`: + `createRedirectPayment` (APP_URL env, bukan
+  NEXT_PUBLIC_APP_URL).
+- `push.server.ts`: VAPID env tanpa prefix NEXT_PUBLIC.
+- Middleware type cast di root.tsx (`ponytail:` comment) — Clerk bundle
+  react-router type copy sendiri; buang saat Clerk update peer range.
 
-- Pages: `account`, `komik/[mangaId]`, `komik/[mangaId]/[chapterId]`, `(auth)/sign-in`, `(auth)/sign-up`
-- API: `bookmarks`, `cache/purge`, `health`, `img`, `push/subscribe`, `push/unsubscribe`, `subscription/create`, `subscription/status`, `webhooks/clerk`
+Belum diport (nonesensial):
 
-## Verifikasi E2E terakhir (2026-07-26)
+- `api/img` (image proxy) — perlu keputusan caching/CDN dulu
+- `api/cache/purge` (CRON_SECRET) — infra Next-specific, mungkin drop
+- Legacy `komik/[mangaId]` pages — redirect atau drop (URL scheme baru)
+- `GdprBanner`, `PushNotificationToggle`, ads components — UI opsional
+
+## Verifikasi E2E terakhir (2026-07-26, batch 2)
 
 ```
-/  /manga  /search  /search?q=one  /manga/one-piece  /chapter/op-1   200
-/bookmark  /history  /contact  /dmca  /privacy  /terms              200
-/manga/nonexistent                                                  404
-POST /api/history unauth                                            401
+14 pages (incl. /account /sign-in /sign-up)                        200
+/manga/nope                                                        404
+GET /api/health -> {"status":"healthy","checks":{"database":"connected"}}
+GET/POST /api/bookmarks guest    200 (empty/{bookmarked:false} — parity lama)
+POST /api/push/subscribe bad     400
+POST /api/subscription/create    503 PAYMENT_DISABLED
+GET  /api/subscription/status    401 AUTH_DISABLED
+POST /api/webhooks/clerk         200 (clerk disabled passthrough)
+POST /api/history unauth         401
 ```
 
 Server: `react-router-serve` port 43700, DB postgres:16-alpine port 55432,
@@ -60,8 +71,8 @@ Typecheck clean, vitest 4/4, build OK.
 
 ## Sisa pekerjaan
 
-1. Port `account` page + auth pages (sign-in/sign-up, perlu Clerk components RR7)
-2. Port API routes sisanya (prioritas: webhooks/clerk, push/*, subscription/*)
-3. Redirect legacy `komik/[mangaId]` → `manga/:slug` atau port
-4. Middleware paritas: CSP headers (dulu di Next middleware) → RR7 `entry.server` / Netlify headers
-5. Netlify preview deploy verification
+1. CSP headers (dulu di Next middleware) → RR7 `entry.server` / Netlify headers
+2. Redirect legacy `komik/[mangaId]` → `manga/:slug` (atau drop)
+3. `api/img` proxy + `PushNotificationToggle`/`GdprBanner` UI bila dibutuhkan
+4. Netlify preview deploy verification + set env production (Clerk, iPaymu, VAPID, APP_URL)
+5. Verifikasi flow auth nyata dengan Clerk keys (E2E sekarang guest-mode saja)

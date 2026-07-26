@@ -6,9 +6,27 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { ClerkProvider } from "@clerk/react-router";
 
 import type { Route } from "./+types/root";
+import {
+  clerkEnabled,
+  clerkMiddleware,
+  rootAuthLoader,
+} from "~/lib/auth.server";
 import "./app.css";
+
+// ponytail: cast — @clerk/react-router bundles its own react-router type copy,
+// structurally identical to 7.18.1 but nominally different. Remove when Clerk
+// peer-deps on react-router >= 7.18.
+export const middleware: Route.MiddlewareFunction[] = clerkEnabled
+  ? [clerkMiddleware() as unknown as Route.MiddlewareFunction]
+  : [];
+
+export async function loader(args: Route.LoaderArgs) {
+  if (!clerkEnabled) return null;
+  return rootAuthLoader(args);
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -41,8 +59,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
-  return <Outlet />;
+export default function App({ loaderData }: Route.ComponentProps) {
+  // loaderData null ⇒ Clerk disabled (see loader) — decided server-side so the
+  // client bundle never imports auth.server.
+  if (!loaderData) return <Outlet />;
+  return (
+    <ClerkProvider loaderData={loaderData}>
+      <Outlet />
+    </ClerkProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
