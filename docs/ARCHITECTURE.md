@@ -263,12 +263,13 @@ Netlify via `@netlify/vite-plugin-react-router`. `netlify.toml`: build
 
 Terverifikasi pada branch ini:
 
-1. **Link mati `/komik/:id`** — `history.tsx` & `bookmark.tsx` menaut ke
-   `/komik/${contentId}`, route yang tidak ada di `routes.ts` (adanya
-   `/manga/:slug`). Perlu redirect legacy atau perbaiki target link.
-2. **`chapter.$chapterId.tsx` hardcode** `tier="free"`, `authenticated={false}`,
-   `initialPage={null}` — sync history & bebas-iklan premium tidak pernah aktif
-   walau user login. Perlu ambil auth + tier + progres di loader.
+1. ~~Link mati `/komik/:id`~~ **FIXED** — route `komik.$id.tsx` me-resolve id
+   sebagai chapterId → `/chapter/:id`, lalu komik id/slug → `/manga/:slug`,
+   fallback `/manga`. E2E: 302 semua varian.
+2. ~~`chapter.$chapterId.tsx` hardcode~~ **FIXED** — loader ambil
+   `getCurrentUserId` + `getSubscriptionStatus` + `History.lastPage`;
+   `tier`/`authenticated`/`initialPage` kini nyata. Guest path tetap default.
+   Catatan: jalur login belum di-E2E (butuh Clerk keys nyata — lihat Sisa #5).
 3. **`MangaReader.tsx`** masih ada `'use client'` (no-op di RR7, sisa Next) dan
    gaya berbeda (single-quote/no-semicolon) dari sisa app (double-quote/semicolon).
 4. **Branding ganda** — UI "KomikStream", docs lama "KuroManga", paket
