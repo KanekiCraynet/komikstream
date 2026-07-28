@@ -2,7 +2,7 @@ import type { Route } from "./+types/chapter.$chapterId";
 import MangaReader from "~/components/MangaReader";
 import { prisma } from "~/lib/db.server";
 import { getCurrentUserId } from "~/lib/auth.server";
-import { parseImages } from "~/lib/manga.server";
+import { fetchSankaChapter, parseImages } from "~/lib/manga.server";
 import { getSubscriptionStatus } from "~/lib/subscription.server";
 
 export async function loader(args: Route.LoaderArgs) {
@@ -35,9 +35,11 @@ export async function loader(args: Route.LoaderArgs) {
     initialPage = history?.lastPage ?? null;
   }
 
+  let images = parseImages(chapter.images);
+  if (!images.length) images = (await fetchSankaChapter(chapter.chapterId))?.images ?? [];
   return {
     chapterId: chapter.chapterId,
-    images: parseImages(chapter.images),
+    images,
     tier,
     initialPage,
     authenticated,

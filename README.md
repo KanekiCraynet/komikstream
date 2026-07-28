@@ -38,7 +38,7 @@ DATABASE_URL='postgresql://postgres:***@127.0.0.1:55432/komikstream' pnpm run st
 | `pnpm run dev` | Vite dev server (RR7 framework mode) |
 | `pnpm run build` | `prisma generate` + `react-router build` |
 | `pnpm run start` | `react-router-serve ./build/server/index.js` |
-| `pnpm run test` | Vitest (unit: `parseImages`, `verifyIpaymuSignature`) |
+| `pnpm run test` | Vitest (CSRF, Sanka image parsing, iPaymu signature) |
 | `pnpm run typecheck` | `react-router typegen && tsc` |
 | `pnpm run db:generate` | Prisma client generate → `app/generated/prisma` (gitignored) |
 | `pnpm run db:migrate` | Prisma migrate dev |
@@ -64,7 +64,7 @@ app/                  # React Router 7 app (satu-satunya app aktif)
   routes.ts           # route manifest (config-based)
   routes/             # modul route (loader/action/UI per file)
   lib/                # *.server.ts = server-only (db, auth, ipaymu, push, subscription)
-  components/         # MangaReader dll
+  components/         # MangaCard, MangaReader, UI components
 prisma/               # schema + seed + migrations
 public/               # sw.js (push), ads.txt
 docs/                 # dokumentasi

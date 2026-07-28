@@ -1,5 +1,5 @@
-import { Link } from "react-router";
 import type { Route } from "./+types/manga._index";
+import MangaCard, { getCover, getLatestChapter } from "~/components/MangaCard";
 import { prisma } from "~/lib/db.server";
 
 export function meta() {
@@ -10,6 +10,13 @@ export async function loader(_args: Route.LoaderArgs) {
   const manga = await prisma.komik.findMany({
     orderBy: { updatedAt: "desc" },
     take: 50,
+    include: {
+      komikChapters: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { chapterId: true },
+      },
+    },
   });
   return { manga };
 }
@@ -17,36 +24,29 @@ export async function loader(_args: Route.LoaderArgs) {
 export default function MangaIndex({ loaderData }: Route.ComponentProps) {
   const { manga } = loaderData;
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">Manga</h1>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {manga.map((m) => {
-          const cover = (m.chapters as { cover?: string }[] | null)?.[0]
-            ?.cover;
-          return (
-            <Link
-              key={m.id}
-              to={`/manga/${m.slug}`}
-              className="group rounded-lg border p-3 transition hover:shadow-lg"
-            >
-              {cover && (
-                <div className="mb-2 aspect-[3/4] overflow-hidden rounded">
-                  <img
-                    src={cover}
-                    alt={m.title}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </div>
-              )}
-              <h2 className="line-clamp-2 text-sm font-medium">{m.title}</h2>
-            </Link>
-          );
-        })}
+    <div className="ks-container py-10">
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-purple-soft">Katalog</p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">Jelajahi manga</h1>
+        </div>
+        <span className="text-sm text-white/40">{manga.length} judul</span>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {manga.map((item) => (
+          <MangaCard
+            key={item.id}
+            slug={item.slug}
+            title={item.title}
+            cover={getCover(item.chapters)}
+            latestChapter={getLatestChapter(item.chapters) ?? item.komikChapters[0]?.chapterId}
+          />
+        ))}
       </div>
       {manga.length === 0 && (
-        <p className="py-12 text-center text-gray-500">Belum ada manga.</p>
+        <p className="ks-surface rounded-2xl py-16 text-center text-white/50">Belum ada manga.</p>
       )}
     </div>
   );
 }
+/* ponytail: pagination waits until catalog volume requires server pagination. */

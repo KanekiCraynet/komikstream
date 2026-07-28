@@ -1,6 +1,7 @@
 import type { Route } from "./+types/api.bookmarks";
 import { prisma } from "~/lib/db.server";
 import { getCurrentUserId } from "~/lib/auth.server";
+import { requireSameOrigin } from "~/lib/csrf.server";
 
 export async function loader(args: Route.LoaderArgs) {
   const userId = await getCurrentUserId(args);
@@ -25,6 +26,8 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
+  const originError = requireSameOrigin(args.request);
+  if (originError) return originError;
   const userId = await getCurrentUserId(args);
   if (!userId) return { bookmarked: false };
 

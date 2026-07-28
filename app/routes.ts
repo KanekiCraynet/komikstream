@@ -10,6 +10,7 @@ export default [
   route("manga", "routes/manga._index.tsx"),
   route("manga/:slug", "routes/manga.$slug.tsx"),
   route("chapter/:chapterId", "routes/chapter.$chapterId.tsx"),
+  route(":chapterId", "routes/chapter.$chapterId.tsx", { id: "chapter-short" }),
   route("komik/:id", "routes/komik.$id.tsx"),
   route("search", "routes/search.tsx"),
   route("bookmark", "routes/bookmark.tsx"),

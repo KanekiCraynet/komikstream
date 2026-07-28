@@ -1,11 +1,14 @@
 import type { Route } from "./+types/api.subscription.create";
 import { requireCurrentUserId } from "~/lib/auth.server";
 import { createRedirectPayment, paymentEnabled } from "~/lib/ipaymu.server";
+import { requireSameOrigin } from "~/lib/csrf.server";
 
 export async function action(args: Route.ActionArgs) {
   if (args.request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
+  const originError = requireSameOrigin(args.request);
+  if (originError) return originError;
   if (!paymentEnabled) {
     return Response.json({ error: "PAYMENT_DISABLED" }, { status: 503 });
   }

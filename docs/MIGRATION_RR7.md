@@ -29,7 +29,8 @@ Catatan runtime:
 
 Ported (semua route utama — paritas fungsional dengan Next app):
 
-Pages: home, manga index, manga/:slug, chapter/:chapterId, search, bookmark,
+Pages: home, manga index, manga/:slug, short chapter `/:chapterId`, compatibility
+chapter/:chapterId, search, bookmark,
 history, account, sign-in, sign-up, contact, dmca, privacy, terms.
 API: history, bookmarks, health, push/subscribe, push/unsubscribe,
 subscription/create, subscription/status, subscription/webhook, webhooks/clerk.
@@ -72,12 +73,12 @@ POST /api/history unauth         401
 
 Server: `react-router-serve` port 43700, DB postgres:16-alpine port 55432,
 seed via `node --experimental-strip-types prisma/seed.ts` (butuh `DATABASE_URL` di env).
-Typecheck clean, vitest 4/4, build OK.
+Typecheck clean, vitest 6/6, build OK.
 
 ## Sisa pekerjaan
 
-1. CSP headers (dulu di Next middleware) → RR7 `entry.server` / Netlify headers
-2. Redirect legacy `komik/[mangaId]` → `manga/:slug` (atau drop)
-3. `api/img` proxy + `PushNotificationToggle`/`GdprBanner` UI bila dibutuhkan
-4. Netlify preview deploy verification + set env production (Clerk, iPaymu, VAPID, APP_URL)
-5. Verifikasi flow auth nyata dengan Clerk keys (E2E sekarang guest-mode saja)
+1. Dev E2E dengan Clerk keys nyata (flow login + local User mapping).
+2. Dev sandbox E2E iPaymu (payment create + signed callback + replay).
+3. `api/img` proxy + `PushNotificationToggle`/`GdprBanner` UI bila dibutuhkan.
+4. CSP/security headers sebelum deployment publik.
+5. Netlify preview verification dan konfigurasi env deployment.

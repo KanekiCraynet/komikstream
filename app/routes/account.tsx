@@ -7,6 +7,7 @@ import {
   cancelSubscription,
   getSubscriptionStatus,
 } from "~/lib/subscription.server";
+import { requireSameOrigin } from "~/lib/csrf.server";
 
 export function meta() {
   return [{ title: "Account — KomikStream" }];
@@ -29,6 +30,8 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
+  const originError = requireSameOrigin(args.request);
+  if (originError) return originError;
   const userId = await getCurrentUserId(args);
   if (!userId) return { ok: false };
 

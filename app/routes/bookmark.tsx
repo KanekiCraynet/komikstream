@@ -1,7 +1,8 @@
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/bookmark";
 import { prisma } from "~/lib/db.server";
-import { getAuth } from "~/lib/auth.server";
+import { getCurrentUserId } from "~/lib/auth.server";
+import { requireSameOrigin } from "~/lib/csrf.server";
 
 const LIMIT = 20;
 
@@ -10,13 +11,13 @@ export function meta() {
 }
 
 export async function loader(args: Route.LoaderArgs) {
-  const auth = await getAuth(args).catch(() => null);
-  if (!auth?.userId) return { items: [], total: 0, page: 1 };
+  const userId = await getCurrentUserId(args);
+  if (!userId) return { items: [], total: 0, page: 1 };
   const page = Math.max(
     1,
     Number(new URL(args.request.url).searchParams.get("page") ?? "1") || 1,
   );
-  const where = { userId: auth.userId, contentType: "komik" };
+  const where = { userId, contentType: "komik" };
   const [items, total] = await Promise.all([
     prisma.bookmark.findMany({
       where,
@@ -30,13 +31,15 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
-  const auth = await getAuth(args).catch(() => null);
-  if (!auth?.userId) return { ok: false };
+  const originError = requireSameOrigin(args.request);
+  if (originError) return originError;
+  const userId = await getCurrentUserId(args);
+  if (!userId) return { ok: false };
   const form = await args.request.formData();
   const contentId = String(form.get("contentId") ?? "");
   if (!contentId) return { ok: false };
   await prisma.bookmark.deleteMany({
-    where: { userId: auth.userId, contentId, contentType: "komik" },
+    where: { userId, contentId, contentType: "komik" },
   });
   return { ok: true };
 }

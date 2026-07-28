@@ -14,6 +14,13 @@ export async function subscribeUser(
   p256dh: string,
   auth: string,
 ) {
+  const existing = await prisma.pushSubscription.findUnique({
+    where: { endpoint },
+    select: { userId: true },
+  });
+  if (existing && existing.userId !== userId) {
+    throw new Error("PUSH_ENDPOINT_OWNERSHIP_CONFLICT");
+  }
   await prisma.pushSubscription.upsert({
     where: { endpoint },
     update: { p256dh, auth },

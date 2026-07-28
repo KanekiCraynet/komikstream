@@ -14,7 +14,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     where: { chapterId: id },
     select: { chapterId: true },
   });
-  if (chapter) throw redirect(`/chapter/${chapter.chapterId}`);
+  if (chapter) throw redirect(`/${chapter.chapterId}`);
 
   const manga = await prisma.komik.findFirst({
     where: { OR: [{ id }, { slug: id }] },

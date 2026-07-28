@@ -1,15 +1,47 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --color-ink: #13111a;
+  --color-surface: #1a1721;
+  --color-elevated: #211c2b;
+  --color-border: #312f40;
+  --color-purple: #913fe2;
+  --color-purple-hover: #7c35c2;
+  --color-purple-soft: #a78bfa;
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-ink text-white antialiased;
+  min-height: 100%;
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+  color-scheme: dark;
+}
+
+body {
+  background-image: radial-gradient(
+    circle at 50% -20%,
+    rgb(145 63 226 / 0.13),
+    transparent 42rem
+  );
+}
+
+::selection {
+  background: rgb(145 63 226 / 0.45);
+}
+
+@layer components {
+  .ks-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .ks-surface {
+    @apply border border-white/10 bg-surface;
+  }
+
+  .ks-focus {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-purple-soft focus-visible:ring-offset-2 focus-visible:ring-offset-ink;
   }
 }

@@ -26,13 +26,27 @@ export async function getSubscriptionStatus(userId: string) {
 }
 
 export async function cancelSubscription(userId: string) {
-  await prisma.$transaction([
-    prisma.subscription.updateMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.subscription.updateMany({
       where: { userId, status: "active" },
       data: { status: "cancelled", endsAt: new Date() },
-    }),
-    prisma.user.update({ where: { id: userId }, data: { tier: "free" } }),
-  ]);
+    });
+    const now = new Date();
+    const remaining = await tx.subscription.findFirst({
+      where: {
+        userId,
+        OR: [
+          { status: "active", endsAt: { gt: now } },
+          { status: "grace", graceUntil: { gt: now } },
+        ],
+      },
+      select: { id: true },
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: { tier: remaining ? "premium" : "free" },
+    });
+  });
   return { ok: true };
 }
 
@@ -47,8 +61,11 @@ export async function activateSubscription(userId: string, externalId: string) {
     // Idempotency: replayed webhook must not extend an active subscription.
     const existing = await tx.subscription.findUnique({
       where: { externalId },
-      select: { status: true },
+      select: { status: true, userId: true },
     });
+    if (existing && existing.userId !== userId) {
+      throw new Error("SUBSCRIPTION_OWNER_MISMATCH");
+    }
     if (existing && existing.status === "active") return;
 
     await tx.subscription.upsert({
@@ -70,13 +87,12 @@ export async function activateSubscription(userId: string, externalId: string) {
 }
 
 export async function expireSubscription(externalId: string) {
-  const sub = await prisma.subscription.findUnique({
-    where: { externalId },
-    select: { userId: true },
-  });
-  if (!sub) return;
-
   await prisma.$transaction(async (tx) => {
+    const sub = await tx.subscription.findUnique({
+      where: { externalId },
+      select: { userId: true },
+    });
+    if (!sub) return;
     await tx.subscription.update({
       where: { externalId },
       data: { status: "expired", endsAt: new Date() },

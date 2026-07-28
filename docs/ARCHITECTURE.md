@@ -14,7 +14,7 @@ sebagai referensi *intent*, bukan sebagai deskripsi kode aktual.
 
 ## 1. Ringkasan
 
-Platform baca manga: katalog, reader multi-mode, bookmark, riwayat baca,
+Platform baca manga: katalog Sanka, reader multi-mode, bookmark, riwayat baca,
 langganan premium (bebas iklan) via iPaymu, dan web push notification.
 Autentikasi via Clerk. Semua fitur berbayar/auth **fail-safe**: kalau env
 credential tidak diset, fitur mati dengan sopan (bukan crash).
@@ -48,9 +48,11 @@ komikstream-rr7/
 │   ├── app.css               # Entry Tailwind
 │   ├── routes/               # Modul route — 1 file = 1 URL (loader/action/UI)
 │   ├── components/           # Komponen React reusable
-│   │   └── MangaReader.tsx   # Reader interaktif (client component)
+│   │   ├── MangaCard.tsx      # Card cover reusable homepage/katalog
+│   │   └── MangaReader.tsx    # Reader interaktif (client component)
 │   ├── lib/                  # Logika non-UI
-│   │   ├── *.server.ts       # SERVER-ONLY (DB, auth, iPaymu, push, subscription)
+│   │   ├── *.server.ts       # SERVER-ONLY (DB, auth, Sanka, iPaymu, push, subscription)
+│   │   ├── manga-types.ts     # Type/parser metadata murni; aman di client route
 │   │   ├── progress.ts       # Progres baca guest (localStorage) — client
 │   │   ├── progress-utils.ts # Helper murni (clampPage) — dites unit
 │   │   └── actions/          # Wrapper fetch sisi-client
@@ -132,7 +134,7 @@ tidak pernah keluar rentang gambar chapter.
 | File | Peran |
 |------|-------|
 | `app/root.tsx` | Document shell (`<html>`), font preconnect, `ClerkProvider` kondisional, `ErrorBoundary` global (404 + error dev). Middleware Clerk hanya dipasang bila `clerkEnabled`. |
-| `app/routes.ts` | Manifest 21 route: 12 halaman + 9 endpoint API di bawah prefix `/api`. |
+| `app/routes.ts` | Manifest 25 entries: 16 halaman termasuk root, short/compatibility chapter route + 9 endpoint API di bawah prefix `/api`. |
 | `app/app.css` | Entry Tailwind 4. |
 | `react-router.config.ts` | `ssr: true` — semua route dirender server-side. |
 | `vite.config.ts` | Plugin: Tailwind, RR7, tsconfig-paths, Netlify. |
@@ -145,8 +147,8 @@ tidak pernah keluar rentang gambar chapter.
 | `db.server.ts` | `prisma` | Singleton PrismaClient dengan `PrismaPg` adapter (`DATABASE_URL`). Di-cache di `globalThis` saat non-produksi agar hot-reload tidak membuka koneksi baru terus. |
 | `auth.server.ts` | `clerkEnabled`, `getCurrentUserId`, `requireCurrentUserId`, `requireAuth`, re-export Clerk | `clerkEnabled` = ada `CLERK_PUBLISHABLE_KEY` & `CLERK_SECRET_KEY`. `getCurrentUserId` memetakan Clerk userId → user DB lokal (upsert + refresh `lastSeenAt`); mengembalikan `null` untuk guest/disabled. `requireCurrentUserId` melempar `UNAUTHORIZED`/`AUTH_DISABLED`. |
 | `ipaymu.server.ts` | `paymentEnabled`, `createRedirectPayment`, `verifyIpaymuSignature` | Integrasi iPaymu. `sign()` membuat HMAC-SHA256 sesuai skema iPaymu (`method:va:sha256(body):apiKey`). `verifyIpaymuSignature` memakai `timingSafeEqual` (anti timing attack). Base URL sandbox/produksi via `IPAYMU_SANDBOX`. |
-| `subscription.server.ts` | `getSubscriptionStatus`, `cancelSubscription`, `activateSubscription`, `expireSubscription` | State langganan. `activateSubscription` **idempoten** (webhook replay tidak memperpanjang langganan aktif) dan transaksional (subscription + `user.tier` diubah atomik). `getSubscriptionStatus` menghormati periode `grace`. |
-| `push.server.ts` | `pushEnabled`, `subscribeUser`, `unsubscribeUser`, `sendNotification` | Web Push VAPID. Aktif hanya bila `VAPID_PUBLIC_KEY` & `VAPID_PRIVATE_KEY` diset. Subscribe = upsert by `endpoint`. |
+| `subscription.server.ts` | `getSubscriptionStatus`, `cancelSubscription`, `activateSubscription`, `expireSubscription` | State langganan. `activateSubscription` **idempoten** (webhook replay tidak memperpanjang langganan aktif), memvalidasi owner, dan transaksional. `getSubscriptionStatus` menghormati periode `grace`. |
+| `push.server.ts` | `pushEnabled`, `subscribeUser`, `unsubscribeUser`, `sendNotification` | Web Push VAPID. Aktif hanya bila `VAPID_PUBLIC_KEY` & `VAPID_PRIVATE_KEY` diset. Subscribe = upsert by `endpoint` setelah ownership check. |
 
 ### 4.3 Library client / murni
 
@@ -155,7 +157,8 @@ tidak pernah keluar rentang gambar chapter.
 | `progress-utils.ts` | `clampPage(stored, total)` — fungsi murni, membatasi halaman ke `[0, total-1]`. Ada unit test. |
 | `progress.ts` | Progres baca guest di `localStorage` (`getChapterPage`/`setChapterPage`), cap 100 entri. Client-only. |
 | `actions/history.ts` | `upsertHistory(contentId, lastPage)` — `POST /api/history` dari browser. |
-| `manga.server.ts` | `parseImages(raw)` — validasi array URL gambar dari kolom JSON Prisma (menyaring non-string/kosong). Ada unit test. Namanya `.server` tapi isinya murni; dipakai loader chapter. |
+| `manga-types.ts` | Type dan parser metadata Sanka murni; tidak menarik dependency server ke client bundle. |
+| `manga.server.ts` | `parseImages(raw)`, `fetchSankaChapter(chapterId)` — validasi image JSON dan fallback fetch chapter Sanka server-side. |
 
 ### 4.4 Komponen
 
@@ -167,10 +170,11 @@ tidak pernah keluar rentang gambar chapter.
 
 | URL | File | Loader/Action |
 |-----|------|---------------|
-| `/` | `home.tsx` | — (statis, hero + CTA) |
-| `/manga` | `manga._index.tsx` | loader: 50 komik terbaru + cover |
-| `/manga/:slug` | `manga.$slug.tsx` | loader: detail + daftar chapter (404 bila tidak ada) |
-| `/chapter/:chapterId` | `chapter.$chapterId.tsx` | loader: gambar chapter → `MangaReader` |
+| `/` | `home.tsx` | loader: featured + 6 update manga dari DB |
+| `/manga` | `manga._index.tsx` | loader: katalog manga + cover/chapter badge |
+| `/manga/:slug` | `manga.$slug.tsx` | loader: metadata Sanka + daftar chapter/date |
+| `/:chapterId` | `chapter.$chapterId.tsx` | canonical short URL; gambar chapter → `MangaReader` |
+| `/chapter/:chapterId` | `chapter.$chapterId.tsx` | compatibility URL reader |
 | `/search` | `search.tsx` | loader: cari `?q=` (contains, case-insensitive) |
 | `/bookmark` | `bookmark.tsx` | loader+action: list berpaginasi + hapus bookmark |
 | `/history` | `history.tsx` | loader+action: list berpaginasi + hapus/clear |
@@ -185,12 +189,12 @@ tidak pernah keluar rentang gambar chapter.
 |-----|------|--------|--------|
 | `/api/history` | `api.history.tsx` | POST | Upsert progres baca (401 bila tidak login) |
 | `/api/bookmarks` | `api.bookmarks.ts` | GET/POST | List berpaginasi / toggle bookmark |
-| `/api/health` | `api.health.ts` | GET | Health check: uptime, versi, cek DB (`SELECT 1`), 200/503 |
+| `/api/health` | `api.health.ts` | GET | Development health check: uptime, versi, cek DB (`SELECT 1`), 200/503; detail perlu dikurangi sebelum production |
 | `/api/push/subscribe` | `api.push.subscribe.ts` | POST | Simpan subscription push (validasi endpoint+keys) |
 | `/api/push/unsubscribe` | `api.push.unsubscribe.ts` | POST | Hapus subscription push |
 | `/api/subscription/create` | `api.subscription.create.ts` | POST | Buat pembayaran iPaymu (503 bila payment disabled) |
 | `/api/subscription/status` | `api.subscription.status.ts` | GET | Status langganan user |
-| `/api/subscription/webhook` | `api.subscription.webhook.ts` | POST | Callback iPaymu (verifikasi tanda tangan) |
+| `/api/subscription/webhook` | `api.subscription.webhook.ts` | POST | Callback iPaymu; verifikasi signature, resolve user, lalu transition paid/pending/failed |
 | `/api/webhooks/clerk` | `api.webhooks.clerk.ts` | POST | Webhook Clerk (svix-verified); hapus user DB saat `user.deleted` |
 
 ---
@@ -264,17 +268,18 @@ Netlify via `@netlify/vite-plugin-react-router`. `netlify.toml`: build
 Terverifikasi pada branch ini:
 
 1. ~~Link mati `/komik/:id`~~ **FIXED** — route `komik.$id.tsx` me-resolve id
-   sebagai chapterId → `/chapter/:id`, lalu komik id/slug → `/manga/:slug`,
-   fallback `/manga`. E2E: 302 semua varian.
+   sebagai chapterId → short URL `/:id`, lalu komik id/slug → `/manga/:slug`,
+   fallback `/manga`.
 2. ~~`chapter.$chapterId.tsx` hardcode~~ **FIXED** — loader ambil
    `getCurrentUserId` + `getSubscriptionStatus` + `History.lastPage`;
    `tier`/`authenticated`/`initialPage` kini nyata. Guest path tetap default.
    Catatan: jalur login belum di-E2E (butuh Clerk keys nyata — lihat Sisa #5).
-3. **`MangaReader.tsx`** masih ada `'use client'` (no-op di RR7, sisa Next) dan
-   gaya berbeda (single-quote/no-semicolon) dari sisa app (double-quote/semicolon).
+3. **Sanka upstream** — seed/fallback reader bergantung pada remote API; timeout,
+   cache, dan sync terjadwal belum ada.
 4. **Branding ganda** — UI "KomikStream", docs lama "KuroManga", paket
-   `komikstream-rr7`. Perlu diseragamkan.
+   `komikstream-rr7`. Ini dokumentasi historis, bukan blocker runtime.
 5. **`src/` di disk** hanya artefak generate lama; aman dihapus.
+6. **Security/dependency** — audit detail dan severity ada di `AUDIT_2026-07-27.md`.
 
-Status positif: `pnpm run typecheck` bersih, `pnpm run test` 4/4 hijau, migrasi
-Next→RR7 fungsional selesai (21 route keport).
+Status positif terakhir: `pnpm run typecheck` bersih, `pnpm run test` 6/6 hijau,
+build bersih. Route manifest berisi 25 entries (16 halaman + 9 API; root memakai `index()`).
