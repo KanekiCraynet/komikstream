@@ -48,7 +48,7 @@ jobs:
       - name: Create database schema
         env:
           DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
-        run: pnpm exec prisma db push --skip-generate
+        run: pnpm exec prisma db push
 
       - name: Build application
         run: pnpm run build
