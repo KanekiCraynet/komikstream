@@ -31,16 +31,6 @@ export async function loader(args: Route.LoaderArgs) {
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -75,25 +65,33 @@ export default function App({ loaderData }: Route.ComponentProps) {
 function SiteFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-ink">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-black/30 bg-gradient-to-b from-[#7c3aed] via-[#6d28d9] to-[#4c1d95] shadow-[0_14px_40px_-6px_rgb(76_29_149_/_0.60),0_0_0_1px_rgb(255_255_255_/_0.04)_inset]">
         <div className="ks-container flex h-16 items-center gap-5">
           <Link to="/" className="ks-focus flex shrink-0 items-center gap-2 rounded-md" aria-label="KomikStream home">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple text-sm font-black text-white shadow-[0_0_22px_rgb(145_63_226_/_0.35)]">K</span>
             <span className="hidden text-lg font-extrabold tracking-tight sm:inline">Komik<span className="text-purple-soft">Stream</span></span>
           </Link>
 
-          <nav className="hidden items-center gap-1 text-sm font-medium md:flex" aria-label="Primary navigation">
+          <nav className="hidden h-full items-center gap-1 text-sm md:flex" aria-label="Primary navigation">
             <NavLink to="/manga">Jelajahi</NavLink>
-            <NavLink to="/search">Pencarian</NavLink>
             <NavLink to="/bookmark">Bookmark</NavLink>
             <NavLink to="/history">Riwayat</NavLink>
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <Link to="/search" aria-label="Search manga" className="ks-focus rounded-lg p-2 text-white/60 transition hover:bg-white/10 hover:text-white md:hidden">
-              <span aria-hidden="true" className="text-lg">⌕</span>
+            <form action="/search" className="hidden md:block">
+              <label className="sr-only" htmlFor="nav-search">Cari manga</label>
+              <input
+                id="nav-search"
+                name="q"
+                placeholder="Cari manga..."
+                className="ks-focus h-9 w-44 rounded-lg border border-border bg-elevated px-3 text-xs text-white placeholder:text-white/40 transition-[width] focus:w-56 lg:w-52 lg:focus:w-64"
+              />
+            </form>
+            <Link to="/search" aria-label="Cari manga" className="ks-focus flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-elevated text-white/70 transition hover:border-purple/50 hover:bg-purple/10 hover:text-white md:hidden">
+              <span aria-hidden="true" className="text-xl leading-none">⌕</span>
             </Link>
-            <Link to="/account" className="ks-focus rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-purple/60 hover:bg-purple/15 hover:text-white">
+            <Link to="/account" className="ks-focus inline-flex min-h-11 items-center rounded-lg border border-border bg-elevated px-4 text-xs font-semibold text-white/80 transition hover:border-purple/60 hover:bg-purple/15 hover:text-white">
               Akun
             </Link>
           </div>
@@ -111,7 +109,7 @@ function SiteFrame({ children }: { children: React.ReactNode }) {
 }
 
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return <Link to={to} className="ks-focus rounded-lg px-3 py-2 text-white/60 transition hover:bg-white/10 hover:text-white">{children}</Link>;
+  return <Link to={to} className="ks-focus relative flex h-full items-center px-4 text-sm text-white/70 transition hover:bg-white/15 hover:text-white after:absolute after:inset-x-3 after:bottom-1 after:h-[3px] after:origin-left after:scale-x-0 after:rounded-full after:bg-white after:transition-transform hover:after:scale-x-100">{children}</Link>;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

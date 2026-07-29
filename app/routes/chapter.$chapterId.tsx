@@ -36,7 +36,12 @@ export async function loader(args: Route.LoaderArgs) {
   }
 
   let images = parseImages(chapter.images);
-  if (!images.length) images = (await fetchSankaChapter(chapter.chapterId))?.images ?? [];
+  if (!images.length) {
+    images =
+      (await fetchSankaChapter(chapter.chapterId, "komikindo"))?.images ??
+      (await fetchSankaChapter(chapter.chapterId, "bacakomik"))?.images ??
+      [];
+  }
   return {
     chapterId: chapter.chapterId,
     images,
