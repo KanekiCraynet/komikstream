@@ -23,9 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ==================== CHECKS (Lint, TypeCheck, Prisma) ====================
+  # ==================== CHECKS (Tests, TypeCheck, Prisma) ====================
   checks:
-    name: Lint, TypeCheck & Prisma
+    name: Tests, TypeCheck & Prisma
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -39,6 +39,9 @@ jobs:
 
       - name: Run TypeScript type check
         run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm run test
 
       - name: Validate Prisma schema
         run: pnpm exec prisma validate

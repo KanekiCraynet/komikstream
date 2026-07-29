@@ -45,5 +45,13 @@
     "vite": "^8.1.5",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-uri": "3.1.4",
+      "postcss": "8.5.24",
+      "valibot": "1.4.2",
+      "@hono/node-server": "2.0.5"
+    }
   }
 }

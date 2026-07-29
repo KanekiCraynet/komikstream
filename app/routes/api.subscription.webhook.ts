@@ -1,5 +1,10 @@
 import type { Route } from "./+types/api.subscription.webhook";
 import { verifyIpaymuSignature } from "~/lib/ipaymu.server";
+import { prisma } from "~/lib/db.server";
+import {
+  activateSubscription,
+  expireSubscription,
+} from "~/lib/subscription.server";
 
 export async function action({ request }: Route.ActionArgs) {
   if (request.method !== "POST") {
@@ -23,8 +28,46 @@ export async function action({ request }: Route.ActionArgs) {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  if (!body.trx_id || !body.reference_id) {
+  const trxId = String(body.trx_id ?? "");
+  const referenceId = String(body.reference_id ?? "");
+  const statusCode = String(body.status_code ?? body.status ?? "");
+  if (!trxId || !referenceId) {
     return new Response("Missing fields", { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: referenceId },
+    select: { id: true },
+  });
+  if (!user) return new Response("User not found", { status: 404 });
+
+  if (statusCode === "1") {
+    await activateSubscription(user.id, trxId);
+  } else if (statusCode === "6") {
+    const graceUntil = new Date();
+    graceUntil.setDate(graceUntil.getDate() + 3);
+    const existing = await prisma.subscription.findUnique({
+      where: { externalId: trxId },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== user.id) {
+      return new Response("Subscription owner mismatch", { status: 409 });
+    }
+    await prisma.subscription.upsert({
+      where: { externalId: trxId },
+      update: { status: "grace", graceUntil },
+      create: {
+        userId: user.id,
+        provider: "ipaymu",
+        externalId: trxId,
+        status: "grace",
+        graceUntil,
+      },
+    });
+  } else if (["2", "3", "4", "5", "7", "8", "9"].includes(statusCode)) {
+    await expireSubscription(trxId);
+  } else {
+    return new Response("Unknown payment status", { status: 400 });
   }
 
   return Response.json({ ok: true });

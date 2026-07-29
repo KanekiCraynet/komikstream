@@ -21,6 +21,20 @@ jobs:
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: komikstream
+          POSTGRES_PASSWORD: komikstream
+          POSTGRES_DB: komikstream
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -31,17 +45,22 @@ jobs:
         with:
           prisma-generate: "true"
 
+      - name: Create database schema
+        env:
+          DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
+        run: pnpm exec prisma db push
+
       - name: Build application
         run: pnpm run build
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
           CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
 
       - name: Start server
         run: pnpm start &
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
           CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
 
@@ -49,7 +68,7 @@ jobs:
         run: |
           echo "Waiting for server..."
           for i in $(seq 1 30); do
-            if curl -s -o /dev/null http://localhost:3000; then
+            if curl --fail -s -o /dev/null http://localhost:3000; then
               echo "Server is ready!"
               exit 0
             fi
@@ -65,7 +84,6 @@ jobs:
             http://localhost:3000
           uploadArtifacts: true
           temporaryPublicStorage: true
-          configPath: ./lighthouserc.json
 
       - name: Format Lighthouse Score
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
