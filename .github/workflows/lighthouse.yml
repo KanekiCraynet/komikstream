@@ -53,14 +53,14 @@ jobs:
       - name: Build application
         run: pnpm run build
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
           CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
 
       - name: Start server
         run: pnpm start &
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://komikstream:komikstream@localhost:5432/komikstream"
           CLERK_PUBLISHABLE_KEY: "pk_test_dummy"
           CLERK_SECRET_KEY: "sk_test_dummy"
 
