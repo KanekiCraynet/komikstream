@@ -133,9 +133,9 @@ tidak pernah keluar rentang gambar chapter.
 
 | File | Peran |
 |------|-------|
-| `app/root.tsx` | Document shell (`<html>`), font preconnect, `ClerkProvider` kondisional, `ErrorBoundary` global (404 + error dev). Middleware Clerk hanya dipasang bila `clerkEnabled`. |
-| `app/routes.ts` | Manifest 25 entries: 16 halaman termasuk root, short/compatibility chapter route + 9 endpoint API di bawah prefix `/api`. |
-| `app/app.css` | Entry Tailwind 4. |
+| `app/root.tsx` | Document shell, conditional `ClerkProvider`, global error boundary, root genre loader, navbar desktop/mobile, SearchOverlay, bookmark icon, dan account avatar. Navbar aktif: Home (`/`), Browse (`/manga`), Genre dropdown dinamis. |
+| `app/routes.ts` | Manifest config-based route. URL ditentukan manifest, bukan nama file. |
+| `app/app.css` | Tailwind 4 entry dan token dark-purple KomikStream. |
 | `react-router.config.ts` | `ssr: true` — semua route dirender server-side. |
 | `vite.config.ts` | Plugin: Tailwind, RR7, tsconfig-paths, Netlify. |
 | `tsconfig.json` | Alias `~/*` → `app/*`. Exclude `src/`, `build/`. Strict. |
@@ -157,7 +157,8 @@ tidak pernah keluar rentang gambar chapter.
 | `progress-utils.ts` | `clampPage(stored, total)` — fungsi murni, membatasi halaman ke `[0, total-1]`. Ada unit test. |
 | `progress.ts` | Progres baca guest di `localStorage` (`getChapterPage`/`setChapterPage`), cap 100 entri. Client-only. |
 | `actions/history.ts` | `upsertHistory(contentId, lastPage)` — `POST /api/history` dari browser. |
-| `manga-types.ts` | Type dan parser metadata Sanka murni; tidak menarik dependency server ke client bundle. |
+| `manga-types.ts` | Type dan parser metadata Sanka murni. Menyediakan `extractGenres()` (dedupe + sort + drop comic types), `hasGenre()`, `getLatestChapterSlug()`. Tidak menarik dependency server ke client bundle. |
+| `genres.server.ts` | `listGenres()` — query unik genre di seluruh katalog, cached 5 menit (in-process). Hanya dipakai server/loader. |
 | `manga.server.ts` | `parseImages(raw)`, `fetchSankaChapter(chapterId)` — validasi image JSON dan fallback fetch chapter Sanka server-side. |
 
 ### 4.4 Komponen
@@ -170,8 +171,8 @@ tidak pernah keluar rentang gambar chapter.
 
 | URL | File | Loader/Action |
 |-----|------|---------------|
-| `/` | `home.tsx` | loader: featured + 6 update manga dari DB |
-| `/manga` | `manga._index.tsx` | loader: katalog manga + cover/chapter badge |
+| `/` | `home.tsx` | loader: 60 manga terbaru + total + genre global. UI: HeroCarousel, TrendingRail, Latest Updates 20/halaman (maks. 5 tombol pagination), Popular 10 item, dan genre list di bawah sidebar. |
+| `/manga` | `manga._index.tsx` | loader: seluruh katalog + genre global; `?genre=slug` memfilter katalog memakai metadata DB. Label genre memakai nama manusiawi. |
 | `/manga/:slug` | `manga.$slug.tsx` | loader: metadata Sanka + daftar chapter/date |
 | `/:chapterId` | `chapter.$chapterId.tsx` | canonical short URL; gambar chapter → `MangaReader` |
 | `/chapter/:chapterId` | `chapter.$chapterId.tsx` | compatibility URL reader |
@@ -263,9 +264,17 @@ Netlify via `@netlify/vite-plugin-react-router`. `netlify.toml`: build
 
 ---
 
-## 9. Utang teknis & catatan (per audit terakhir)
+## 9. Status terbaru dan utang teknis
 
-Terverifikasi pada branch ini:
+Terverifikasi 2026-07-31 pada branch ini:
+
+- Type generation: PASS.
+- TypeScript: PASS (`TSC_EXIT=0`).
+- Vitest: PASS — 4 file, 13 tests. Lima regression test mengunci parser genre, termasuk bahwa `Manhwa`, `Manga`, dan `Manhua` adalah type komik dan tidak boleh masuk genre.
+- Production build: PASS — 51 module, server bundle 168.38 kB, `BUILD_EXIT=0`.
+- Runtime homepage: HTTP 200. Visual/pixel parity tidak diklaim tanpa screenshot inspeksi.
+
+Terverifikasi pada source:
 
 1. ~~Link mati `/komik/:id`~~ **FIXED** — route `komik.$id.tsx` me-resolve id
    sebagai chapterId → short URL `/:id`, lalu komik id/slug → `/manga/:slug`,
@@ -279,7 +288,10 @@ Terverifikasi pada branch ini:
 4. **Branding ganda** — UI "KomikStream", docs lama "KuroManga", paket
    `komikstream-rr7`. Ini dokumentasi historis, bukan blocker runtime.
 5. **`src/` di disk** hanya artefak generate lama; aman dihapus.
-6. **Security/dependency** — audit detail dan severity ada di `AUDIT_2026-07-27.md`.
+6. **Security/dependency** — sebelum production, rerun `pnpm audit --prod`; audit 2026-07-27 pernah menemukan advisory di React Router dan transitive Prisma dependencies. Jangan mengandalkan angka lama setelah lockfile berubah.
+7. **Migrasi historis destruktif** — `prisma/migrations/2_sprint_4_add_ipaymu_subscription/migration.sql` menghapus tabel/kolom lama. Jangan rewrite migration yang pernah applied; deployment DB membutuhkan forward-only migration dan backup.
+8. **Health diagnostics** — `/api/health` mengekspos uptime/version/DB latency. Kurangi atau lindungi detail sebelum public production.
+9. **Sanka upstream** — loader fallback masih bergantung pada remote API; timeout, cache, telemetry, dan failure policy harus dibuktikan sebelum production.
+10. **Payment E2E** — signed webhook, replay, out-of-order callback, concurrency, dan owner mismatch belum dibuktikan terhadap database disposable.
 
-Status positif terakhir: `pnpm run typecheck` bersih, `pnpm run test` 6/6 hijau,
-build bersih. Route manifest berisi 25 entries (16 halaman + 9 API; root memakai `index()`).
+Status gate terbaru tercatat di awal bagian ini; jangan copy hasil audit lama.

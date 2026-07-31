@@ -48,4 +48,58 @@ body {
   .ks-focus {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-purple-soft focus-visible:ring-offset-2 focus-visible:ring-offset-ink;
   }
+
+  .ks-hero { cursor: grab; }
+  .ks-hero:active { cursor: grabbing; }
+  .ks-hero__container {
+    align-items: center;
+    height: 315px;
+    user-select: none;
+  }
+  .ks-hero__slide {
+    margin-right: 12px;
+    cursor: pointer;
+  }
+  .ks-hero__link {
+    width: 160px;
+    height: 229px;
+    opacity: 0.7;
+    transition: opacity 100ms ease-out;
+  }
+  .ks-hero__slide.is-active .ks-hero__link {
+    width: 220px;
+    height: 315px;
+    opacity: 1;
+    animation: ks-zoom-in 150ms ease-out;
+    z-index: 2;
+  }
+  .ks-hero__slide:not(.is-active):hover .ks-hero__link { opacity: 0.9; }
+
+  @media (min-width: 768px) {
+    .ks-hero__container { height: 279px; }
+    .ks-hero__link { width: 155px; height: 222px; }
+    .ks-hero__slide.is-active .ks-hero__link { width: 195px; height: 279px; }
+  }
+  @media (min-width: 1024px) {
+    .ks-hero__container { height: 308px; }
+    .ks-hero__link { width: 170px; height: 243px; }
+    .ks-hero__slide.is-active .ks-hero__link { width: 215px; height: 308px; }
+  }
 }
+
+@keyframes ks-zoom-in {
+  from { transform: scale(0.85); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ks-hero__slide.is-active .ks-hero__link { animation: none; }
+}
+
+/* ── TRENDING RAIL (Embla, compact cards) ── */
+.ks-rail {
+  cursor: grab;
+  user-select: none;
+}
+.ks-rail:active { cursor: grabbing; }
+.ks-rail > * { min-width: 0; }

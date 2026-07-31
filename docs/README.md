@@ -1,83 +1,49 @@
 # Dokumentasi KomikStream
 
-Dokumentasi dipisah antara **kode aktual**, **audit evidence**, dan **requirement historis**. Jangan memakai dokumen historis sebagai deskripsi runtime tanpa membandingkan source aktif.
+---
 
-## 1. Source of truth
+## Source of Truth
 
-| Dokumen | Fungsi |
-|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Struktur repo, runtime React Router 7, server/client boundary, route, module responsibility, DB, env, build, dan deployment. |
-| [`AUDIT_2026-07-27.md`](AUDIT_2026-07-27.md) | Audit keseluruhan terbaru: findings severity, evidence `path:line`, quality gates, dependency/migration risks, dan prioritas kerja. |
-| [`MIGRATION_RR7.md`](MIGRATION_RR7.md) | Riwayat migrasi Next.js 15 → React Router 7 dan compatibility notes. |
+- **ARCHITECTURE.md** — Struktur repo, arsitektur RR7, SSR, DB, env, workflow, build, dan deployment. Semua perubahan view/data source/filter/genre/navigation diwajibkan match code di file ini.
+- **UI_UX_ASURASCANS.md** — Standar visual, layout, anatomi, dan token AsuraScans. Bukan referensi legal/brand, hanya spek CSS yang diekstrak.
+- Semua audit evidence harus ditulis langsung ke ARCHITECTURE.md dan UI_UX jika visual/density berubah; *JANGAN* maintain audit harian terpisah kecuali butuh legal/severity evidence eksternal.
+- **README.md** — Navigasi dokumen, linkage status, prosedur canonical verification.
 
-## 2. Current product behavior
+## Product/Feature Aktual (2026-07-31)
 
-- Product name: **KomikStream**.
-- Source manga development: **Sanka Vollerei API**.
-- Public catalog: `/`, `/manga`, `/manga/:slug`.
-- Canonical chapter URL: `/:chapterId`, contoh `/nano-machine-chapter-310`.
-- Compatibility chapter URL: `/chapter/:chapterId`.
-- Auth provider: Clerk, disabled gracefully bila env kosong.
-- Payment provider: iPaymu, disabled gracefully bila env kosong.
-- Push provider: Web Push/VAPID, disabled gracefully bila env kosong.
+- Product: **KomikStream** (UI/branding), repo/paket: **komikstream-rr7**. Codebase Next.js telah dimigrasikan ke React Router 7; dokumen Next.js hanya untuk intent historis.
+- Sumber manga: **Sanka Vollerei** (API pull ke seed DB Prisma), endpoint: `prisma/seed.ts`.
+- Public: `/`, `/manga`, `/manga/:slug?`, short/compatibility chapter URL.
+- Auth: Clerk. Fail-soft, non-blocking mode (env kosong = feature mati, app jalan).
+- Payment: iPaymu via webhook; fail-soft.
+- Push: Web Push (VAPID). Disabled bila env kosong.
 
-## 3. Requirement historis
+## Standar Filtering/Genre Terbaru
 
-Dokumen berikut berasal dari era produk awal `KuroManga`/Next.js. Isinya menjelaskan intent dan requirement, bukan jaminan implementasi aktif:
+- Genre diambil dari **data manga DB**, didedup, urut alphabet, hasil fungsi pure extractGenres() (lihat `app/lib/manga-types.ts`).
+- Khusus **type komik**: "manhwa", "manhua", "manga" TIDAK tampil di dropdown genre, sidebar genre, maupun filter katalog (lihat test regression).
+- Semua menu genre, filter katalog, sidebar, mobile navigation sekarang update dinamis on reload karena loader DB/SSR, kecuali cache backend 5 menit untuk E2E dataset besar.
 
-| Dokumen | Isi |
-|---|---|
-| [`BRD.md`](BRD.md) | Business Requirements |
-| [`PRD.md`](PRD.md) | Product Requirements |
-| [`SRS.md`](SRS.md) | Software Requirements Specification |
-| [`FRS.md`](FRS.md) | Functional Requirements Specification |
-| [`TECH_SPEC.md`](TECH_SPEC.md) | Technical spec lama; delta RR7 ada di `ARCHITECTURE.md` |
+## Verification dan Visual Policy
 
-## 4. UI/UX dan operasi
+- **JANGAN** klaim pixel parity dari SSR/curl/build doang; hanya valid jika screenshot live dan DOM diverifikasi.
+- Perintah canonical:
+  - `pnpm run typecheck`
+  - `pnpm run test`
+  - `pnpm run build`
+  - `pnpm exec react-router dev` → screenshot + DOM visual
+  - (Untuk test DB) lihat section di ARCHITECTURE.md + seed Sanka
 
-| Dokumen | Isi/status |
-|---|---|
-| [`UI_UX_ASURASCANS.md`](UI_UX_ASURASCANS.md) | Prinsip referensi visual; bukan clone brand/layout. |
-| [`MAINTENANCE.md`](MAINTENANCE.md) | Catatan maintenance/operasi. Verifikasi command terhadap `package.json`. |
-| [`DEV_NOTE.md`](DEV_NOTE.md) | Catatan development historis. |
-| [`DEV_IMPLEMENTATION_PLAN.md`](DEV_IMPLEMENTATION_PLAN.md) | Rencana implementasi historis; status aktual lihat audit terbaru. |
-| [`UI_UX_TORAKA.md`](UI_UX_TORAKA.md) | Referensi desain historis. |
+## Maintenance dan Legacy
 
-## 5. Verification policy
+- Audit harian yang stale tidak dipertahankan. Temuan yang masih relevan diserap ke `ARCHITECTURE.md`; bukti visual masuk `UI_UX_ASURASCANS.md`.
+- Untuk requirement lama, cek **BRD**, **PRD**, **SRS**, **FRS**, **TECH_SPEC** — semua dianggap niat historis, bukan kode live.
 
-Perintah canonical:
+## Document Conventions (2026-07-31)
 
-```bash
-pnpm run typecheck
-pnpm run test
-pnpm run build
-pnpm exec prisma validate
-pnpm audit --prod
-```
+- Main repo: `/home/zee/komikstream-rr7`
+- Semua change gate: lint, typecheck, test, build, HMR/dev, screenshot jika pixel/UX.
 
-Untuk local development dengan PostgreSQL:
+---
 
-```bash
-pnpm run db:push
-DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:55432/komikstream' \
-  node --experimental-strip-types prisma/seed.ts
-pnpm run dev
-```
-
-Visual screenshot fallback bila Hermes browser capture timeout:
-
-```bash
-./scripts/capture-home.sh http://127.0.0.1:5173/ /tmp/komikstream-home.png
-```
-
-Jangan menyebut visual verification berhasil dari `curl`, SSR status, atau build saja. Screenshot harus benar-benar di-capture dan diinspeksi.
-
-## 6. Naming
-
-- **KomikStream** — product/UI name.
-- **komikstream-rr7** — package/repository name.
-- **KuroManga** — historical requirement name only.
-
-## 7. Document maintenance
-
-Setiap perubahan route, env, data source, schema, feature, atau command harus memperbarui `ARCHITECTURE.md` dan bila relevan audit/status document. Test result wajib berasal dari command terbaru, bukan copy dari dokumen lama.
+Terakhir update: 2026-07-31 (genre/type split, audit inline, navbar/genre/UX parity).

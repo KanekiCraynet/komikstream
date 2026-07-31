@@ -1,6 +1,6 @@
 # UI/UX Spec — AsuraScans Reference
-Version: 1.0 | Date: 2026-07-05
-Source: https://asurascans.com/ (CSS scraped live)
+Version: 1.1 | Date: 2026-07-31
+Source: https://asurascans.com/ (HTML + CSS bundle live, 2026-07-30)
 
 ---
 
@@ -115,16 +115,17 @@ Sidebar         : hidden mobile → right column desktop
 
 ### 5.1 Navbar
 ```
-height         : 64px
-position       : sticky top-0 z-50
-bg             : #13111A / 90% + backdrop blur
-border         : bottom 1px solid #312F40
-logo           : white + brand-purple mark
-nav active     : text #A78BFA + bg #913fe21a
-nav hover      : bg #1F1A2E text-white
-cta button     : bg #913FE2 text-white rounded-lg
-mobile         : hamburger → drawer, same bg-elevated
+height         : 56px local / sticky top-0 z-50
+bg             : brand purple local; Asura source uses dark elevated surface
+logo           : icon + KomikStream wordmark
+primary nav    : Home, Browse, Genre dropdown
+search         : overlay trigger; input + search icon; Ctrl/Cmd+K; click trigger tidak langsung redirect
+bookmark       : icon kanan dekat search
+account        : avatar/user icon kanan
+mobile         : hamburger → Home, Browse, daftar genre dinamis
 ```
+
+Genre berasal dari DB dan diurutkan alfabetis. `Manhwa`, `Manga`, dan `Manhua` adalah **type komik**, bukan genre, sehingga wajib dikeluarkan dari dropdown, menu mobile, sidebar, dan filter katalog.
 
 ### 5.2 Hero / Featured Series
 ```
@@ -163,7 +164,12 @@ chapter links  : stacked pills, bg #ffffff0d hover bg #913fe21a
 release time   : muted text right / below mobile
 layout mobile  : full-width stacked
 layout desktop : 2-column dense grid
+page size      : 20
+pagination     : ‹ + maksimal 5 nomor + ›
+active page    : bg #913FE2 text-white
 ```
+
+Tidak ada tombol `All Comics` di Latest Updates. Tombol itu hanya milik Trending pada referensi live.
 
 ### 5.5 Ranking / Popular Sidebar
 ```
@@ -174,7 +180,10 @@ rank number    : #913FE2, 20px bold
 rank top-3     : #FBBF24 for #1, purple glow for active
 thumb          : 48x64px rounded
 text           : title clamp-1, chapter/rating small muted
+item count     : 10
 ```
+
+Di bawah list ranking tampil section **Genres**: grid dua kolom dari genre DB, hover `bg-[#913FE2]`, tautan ke `/manga?genre=slug`.
 
 ### 5.6 Search / Filter
 ```

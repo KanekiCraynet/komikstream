@@ -1,15 +1,17 @@
 import type { Route } from "./+types/manga._index";
 import MangaCard, { getCover, getLatestChapter } from "~/components/MangaCard";
 import { prisma } from "~/lib/db.server";
+import { listGenres } from "~/lib/genres.server";
+import { hasGenre } from "~/lib/manga-types";
 
 export function meta() {
   return [{ title: "Manga — KomikStream" }];
 }
 
-export async function loader(_args: Route.LoaderArgs) {
+export async function loader(args: Route.LoaderArgs) {
+  const genreSlug = args.request.url ? new URL(args.request.url).searchParams.get("genre") : null;
   const manga = await prisma.komik.findMany({
     orderBy: { updatedAt: "desc" },
-    take: 50,
     include: {
       komikChapters: {
         orderBy: { createdAt: "desc" },
@@ -18,22 +20,27 @@ export async function loader(_args: Route.LoaderArgs) {
       },
     },
   });
-  return { manga };
+  const genres = await listGenres();
+  return { manga, genreSlug, genres };
 }
 
 export default function MangaIndex({ loaderData }: Route.ComponentProps) {
-  const { manga } = loaderData;
+  const { manga, genreSlug, genres } = loaderData;
+  const genreLabel = genreSlug ? genres.find((g) => g.slug === genreSlug)?.name ?? genreSlug : null;
+  const filtered = genreSlug ? manga.filter((item) => hasGenre(item, genreSlug)) : manga;
   return (
     <div className="ks-container py-10">
       <div className="mb-8 flex items-end justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-purple-soft">Katalog</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight">Jelajahi manga</h1>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">
+            {genreLabel ? `Genre: ${genreLabel}` : "Jelajahi manga"}
+          </h1>
         </div>
-        <span className="text-sm text-white/40">{manga.length} judul</span>
+        <span className="text-sm text-white/40">{filtered.length} judul</span>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {manga.map((item) => (
+        {filtered.map((item) => (
           <MangaCard
             key={item.id}
             slug={item.slug}
@@ -43,8 +50,10 @@ export default function MangaIndex({ loaderData }: Route.ComponentProps) {
           />
         ))}
       </div>
-      {manga.length === 0 && (
-        <p className="ks-surface rounded-2xl py-16 text-center text-white/50">Belum ada manga.</p>
+      {filtered.length === 0 && (
+        <p className="ks-surface rounded-2xl py-16 text-center text-white/50">
+          {genreLabel ? `Tidak ada manga dengan genre "${genreLabel}".` : "Belum ada manga."}
+        </p>
       )}
     </div>
   );
